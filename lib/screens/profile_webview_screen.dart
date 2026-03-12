@@ -7,24 +7,33 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
+import '../config.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import 'login_screen.dart';
 
-// Item #3: SECURITY TODO — raw password is passed here and injected into WebView JS.
-// Replace with a one-time session token or server-side cookie auth flow.
+// ─────────────────────────────────────────────────────────────────────────────
+//  ProfileWebViewScreen
+//
+//  Opens after OTP verification to let the user fill in their profile on the
+//  web dashboard. Now uses a one-time login token instead of injecting the
+//  raw password via JavaScript (Item #3 security fix).
+//
+//  Flow:
+//    1. Flutter calls ApiService.createWebviewToken() → gets a token
+//    2. WebView loads /auto-login/<token>/ directly
+//    3. Django validates the token, creates a session, redirects to profile
+//    4. No password in memory, no JS injection, no race conditions
+// ─────────────────────────────────────────────────────────────────────────────
+
 class ProfileWebViewScreen extends StatefulWidget {
-  final String email;
-  final String password;
+  final String token;
   final String name;
-  final String baseUrl;
 
   const ProfileWebViewScreen({
     super.key,
-    required this.email,
-    required this.password,
+    required this.token,
     required this.name,
-    required this.baseUrl,
   });
 
   @override
@@ -35,7 +44,7 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
   late final WebViewController _controller;
 
   bool _isLoading = true;
-  bool _loggedIn = false;
+  bool _profileReady = false;
   bool _timedOut = false;
   String _statusText = 'Signing you in…';
 
@@ -62,11 +71,13 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
     setState(() {
       _isLoading = true;
       _timedOut = false;
-      _loggedIn = false;
+      _profileReady = false;
       _statusText = 'Signing you in…';
     });
     _startLoadTimer();
-    _controller.loadRequest(Uri.parse('${widget.baseUrl}/signin/'));
+    _controller.loadRequest(
+      Uri.parse('${AppConfig.baseUrl}/auto-login/${widget.token}/'),
+    );
   }
 
   @override
@@ -90,7 +101,6 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
         onPageStarted: (url) {
           setState(() => _isLoading = true);
           _startLoadTimer();
-          _handlePageStarted(url);
         },
         onPageFinished: (url) {
           _cancelLoadTimer();
@@ -106,7 +116,10 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
           });
         },
       ))
-      ..loadRequest(Uri.parse('${widget.baseUrl}/signin/'));
+    // Load auto-login URL directly — no JS injection needed
+      ..loadRequest(
+        Uri.parse('${AppConfig.baseUrl}/auto-login/${widget.token}/'),
+      );
 
     _startLoadTimer();
 
@@ -134,7 +147,10 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
         final source = await _showImageSourceSheet();
         if (source == null) return [];
         final file = await picker.pickImage(
-            source: source, imageQuality: 85, maxWidth: 1920, maxHeight: 1920);
+            source: source,
+            imageQuality: 85,
+            maxWidth: 1920,
+            maxHeight: 1920);
         if (file == null) return [];
         return ['file://${file.path}'];
       } else {
@@ -155,7 +171,8 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
       builder: (_) => Container(
         decoration: BoxDecoration(
           color: AppColors.navyCard(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius:
+          const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         child: Column(
@@ -207,8 +224,8 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: Text('Cancel',
-                    style:
-                    TextStyle(color: AppColors.textSecondary(context))),
+                    style: TextStyle(
+                        color: AppColors.textSecondary(context))),
               ),
             ),
           ],
@@ -219,65 +236,39 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
 
   // ── Page lifecycle ────────────────────────────────────────────────────────
 
-  void _handlePageStarted(String url) {
-    if (!_loggedIn) setState(() => _statusText = 'Signing you in…');
-  }
-
   Future<void> _handlePageFinished(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
 
-    if (!_loggedIn && uri.path.contains('signin')) {
-      setState(() => _statusText = 'Logging in…');
-      await _injectAndSubmitLogin();
-      return;
-    }
-
-    if (!_loggedIn && uri.path.contains('dashboard')) {
-      _loggedIn = true;
+    // Auto-login redirects to /dashboard/ → navigate to profile section
+    if (!_profileReady && uri.path.contains('dashboard')) {
+      _profileReady = true;
       setState(() => _statusText = 'Opening your profile…');
       await _controller.loadRequest(
-        Uri.parse('${widget.baseUrl}/dashboard/?section=profile'),
+        Uri.parse('${AppConfig.baseUrl}/dashboard/?section=profile'),
       );
       return;
     }
 
-    if (_loggedIn) setState(() => _statusText = '');
-  }
+    // Once profile is loaded, clear status
+    if (_profileReady) {
+      setState(() => _statusText = '');
+    }
 
-  Future<void> _injectAndSubmitLogin() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-    final email = widget.email.replaceAll("'", "\\'");
-    final password = widget.password.replaceAll("'", "\\'");
-
-    await _controller.runJavaScript('''
-      (function() {
-        var emailField = document.querySelector(
-          'input[name="email"], input[type="email"], #id_email'
-        );
-        var passwordField = document.querySelector(
-          'input[name="password"], input[type="password"], #id_password'
-        );
-        var form = document.querySelector('form');
-
-        if (emailField)    emailField.value    = '$email';
-        if (passwordField) passwordField.value = '$password';
-
-        if (form) {
-          form.submit();
-        } else {
-          var btn = document.querySelector(
-            'button[type="submit"], input[type="submit"]'
-          );
-          if (btn) btn.click();
-        }
-      })();
-    ''');
+    // If we ended up on signin, the token was invalid/expired
+    if (uri.path.contains('signin')) {
+      setState(() {
+        _timedOut = true;
+        _statusText = 'Session expired. Please go back and try again.';
+      });
+    }
   }
 
   void _onDone() {
     Navigator.of(context).pushAndRemoveUntil(
-        SmoothPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+      SmoothPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -307,11 +298,12 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
             if (_statusText.isNotEmpty)
               Text(_statusText,
                   style: TextStyle(
-                      color: AppColors.textSecondary(context), fontSize: 11)),
+                      color: AppColors.textSecondary(context),
+                      fontSize: 11)),
           ],
         ),
         actions: [
-          if (_loggedIn)
+          if (_profileReady)
             TextButton(
               onPressed: _onDone,
               child: Text('Done',
@@ -333,7 +325,8 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                 padding: const EdgeInsets.symmetric(
                     horizontal: UI.md, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.primary(context).withValues(alpha: 0.08),
+                  color:
+                  AppColors.primary(context).withValues(alpha: 0.08),
                   border: Border(
                     bottom: BorderSide(
                         color: AppColors.primary(context)
@@ -363,13 +356,15 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
           if (_isLoading && !_timedOut)
             Positioned.fill(
               child: Container(
-                color: AppColors.scaffold(context).withValues(alpha: 0.85),
+                color:
+                AppColors.scaffold(context).withValues(alpha: 0.85),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CircularProgressIndicator(
-                          color: AppColors.primary(context), strokeWidth: 2.5),
+                          color: AppColors.primary(context),
+                          strokeWidth: 2.5),
                       const SizedBox(height: UI.md),
                       Text(_statusText,
                           style: TextStyle(
@@ -397,14 +392,11 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                           height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            // Fixed: was AppColors.rose (static), now AppColors.rose(context)
                             color: AppColors.rose(context)
                                 .withValues(alpha: 0.1),
                           ),
                           child: Icon(Icons.wifi_off_rounded,
-                              // Fixed: was const Icon with AppColors.rose (static)
-                              color: AppColors.rose(context),
-                              size: 34),
+                              color: AppColors.rose(context), size: 34),
                         ),
                         const SizedBox(height: 20),
                         Text('Connection timed out',
@@ -414,7 +406,7 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                                 fontWeight: FontWeight.w700)),
                         const SizedBox(height: UI.sm),
                         Text(
-                          'The server took too long to respond. Check your connection and try again.',
+                          'The server took too long to respond.\nCheck your connection and try again.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               color: AppColors.textSecondary(context),
@@ -427,16 +419,19 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                           height: 50,
                           child: ElevatedButton.icon(
                             onPressed: _retry,
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            icon: const Icon(Icons.refresh_rounded,
+                                size: 18),
                             label: const Text('Try Again',
                                 style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600)),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary(context),
+                              backgroundColor:
+                              AppColors.primary(context),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                  borderRadius:
+                                  BorderRadius.circular(12)),
                             ),
                           ),
                         ),
@@ -445,7 +440,8 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
                           onPressed: _onDone,
                           child: Text('Go back',
                               style: TextStyle(
-                                  color: AppColors.textSecondary(context),
+                                  color:
+                                  AppColors.textSecondary(context),
                                   fontSize: 13)),
                         ),
                       ],
@@ -478,7 +474,8 @@ class _SourceTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: UI.md, vertical: 14),
+        padding:
+        const EdgeInsets.symmetric(horizontal: UI.md, vertical: 14),
         decoration: BoxDecoration(
           color: AppColors.navyLight(context),
           borderRadius: BorderRadius.circular(12),
@@ -489,10 +486,12 @@ class _SourceTile extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: AppColors.primary(context).withValues(alpha: 0.1),
+              color:
+              AppColors.primary(context).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: AppColors.primary(context), size: 20),
+            child:
+            Icon(icon, color: AppColors.primary(context), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(

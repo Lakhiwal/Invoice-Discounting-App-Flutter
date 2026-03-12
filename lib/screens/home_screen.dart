@@ -13,6 +13,9 @@ import '../widgets/stagger_list.dart';
 import '../widgets/skeleton.dart';
 import 'transaction_history_screen.dart';
 import 'marketplace_screen.dart';
+import '../services/notification_provider.dart';
+import 'notification_center_screen.dart';
+import 'package:provider/provider.dart';
 
 // ── Animated number counter ───────────────────────────────────────────────────
 
@@ -127,6 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _wallet;
   Map<String, dynamic>? _user;
   bool _isLoading = true;
+  bool _hasError = false; // C.3: connection-aware error state
   double _cachedCurrentlyInvested = 0;
 
   double _computeCurrentlyInvested() {
@@ -157,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    setState(() { _isLoading = true; _hasError = false; });
     try {
       final results = await Future.wait([
         PortfolioCache.getPortfolio(),
@@ -175,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
         AppHaptics.numberReveal();
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() { _isLoading = false; _hasError = true; });
     }
   }
 
@@ -274,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 24),
                 DropdownButtonFormField<String>(
-                  value: selectedMethod, // Item #25: was initialValue (not a valid param)
+                  initialValue: selectedMethod,
                   decoration:
                   const InputDecoration(labelText: 'Payment Method'),
                   items: const [
@@ -482,6 +486,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final initials =
     nameParts.map((e) => e.isNotEmpty ? e[0] : '').take(2).join('');
     final transactions = _wallet?['transactions'] as List? ?? [];
+    final unreadNotifications =
+        context.watch<NotificationProvider>().unreadCount;
 
     return Container(
       decoration: BoxDecoration(
@@ -498,13 +504,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: RefreshIndicator(
-          onRefresh: () async {
-            await AppHaptics.refresh();
-            await _loadData();
-          },
+          onRefresh: _loadData, // haptic fires via numberReveal() when data arrives
           child: CustomScrollView(
-            // Item #13: platform-adaptive scroll physics
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics()),
             slivers: [
               // ── App bar ───────────────────────────────────────────────────
               SliverAppBar(
@@ -536,6 +539,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 actions: [
+                  IconButton(
+                    onPressed: () {
+                      AppHaptics.selection();
+                      Navigator.push(
+                        context,
+                        SmoothPageRoute(
+                          builder: (_) => const NotificationCenterScreen(),
+                        ),
+                      );
+                    },
+                    icon: Badge(
+                      label: Text('$unreadNotifications'),
+                      isLabelVisible: unreadNotifications > 0,
+                      child: Icon(
+                        Icons.notifications_outlined,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(width: 8),
+
                   Padding(
                     padding: const EdgeInsets.only(right: 16),
                     child: Center(
@@ -549,11 +574,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: colorScheme.primary, width: 1.5),
                         ),
                         child: Center(
-                          child: Text(initials,
-                              style: TextStyle(
-                                  color: colorScheme.onPrimaryContainer,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800)),
+                          child: Text(
+                            initials,
+                            style: TextStyle(
+                              color: colorScheme.onPrimaryContainer,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -561,20 +589,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
 
+              // ── Error state ─────────────────────────────────────────────
+              if (_hasError && !_isLoading)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 48),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.wifi_off_rounded,
+                              size: 48,
+                              color: colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.4)),
+                          const SizedBox(height: 16),
+                          Text('Couldn\'t load your data',
+                              style: TextStyle(
+                                  color: colorScheme.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          Text('Check your connection and try again.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontSize: 13)),
+                          const SizedBox(height: 20),
+                          TextButton.icon(
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh_rounded, size: 16),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
               // ── Portfolio hero card ───────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                   child: _isLoading
                       ? SkeletonTheme(child: SkeletonCard(height: 260))
-                      : _PortfolioHero(
-                    totalInvested: _totalInvested,
-                    wallet: _walletBalance,
-                    returns: _totalReturns,
-                    activeCount: summary?['active_count'] ?? 0,
-                    repaidCount: summary?['repaid_count'] ?? 0,
-                    onAdd: _showAddFundsSheet,
-                    onWithdraw: _showWithdrawSheet,
+                      : Semantics( // F.1: accessibility
+                    label: 'Portfolio value: ${fmtAmount(_totalInvested)} rupees. '
+                        '${fmtAmount(_totalReturns)} in returns. '
+                        '${summary?['active_count'] ?? 0} active investments.',
+                    child: _PortfolioHero(
+                      totalInvested: _totalInvested,
+                      wallet: _walletBalance,
+                      returns: _totalReturns,
+                      activeCount: summary?['active_count'] ?? 0,
+                      repaidCount: summary?['repaid_count'] ?? 0,
+                      onAdd: _showAddFundsSheet,
+                      onWithdraw: _showWithdrawSheet,
+                    ),
                   ),
                 ),
               ),
@@ -715,9 +785,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     delegate: SliverChildBuilderDelegate(
                           (context, i) {
                         if (i >= transactions.length) return null;
-                        return StaggerItem(
-                          index: i,
-                          child: _TransactionTile(tx: transactions[i]),
+                        return RepaintBoundary( // E.1: isolate repaints
+                          child: StaggerItem(
+                            index: i,
+                            child: _TransactionTile(tx: transactions[i]),
+                          ),
                         );
                       },
                       childCount: transactions.length,
@@ -774,8 +846,8 @@ class _PortfolioHero extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            colorScheme.primary,
-            Color.lerp(colorScheme.primary, colorScheme.tertiary, 0.55)!,
+            colorScheme.primaryFixedDim, // B: tone-locked, always vibrant
+            colorScheme.primaryFixed,
           ],
         ),
         borderRadius: BorderRadius.circular(28),
@@ -875,7 +947,7 @@ class _PortfolioHero extends StatelessWidget {
                       child: GlassStatCard(
                         label: 'Returns',
                         value: '₹${fmtAmount(returns)}',
-                        valueColor: const Color(0xFF86EFAC),
+                        valueColor: const Color(0xFF22C55E), // F.3: higher contrast green
                         icon: Icons.trending_up_rounded,
                       ),
                     ),

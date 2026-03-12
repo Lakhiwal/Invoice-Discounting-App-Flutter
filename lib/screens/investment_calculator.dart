@@ -6,7 +6,6 @@ import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
-import '../widgets/pressable.dart';
 
 class InvestmentCalculator extends StatefulWidget {
   final double? maxAmount;

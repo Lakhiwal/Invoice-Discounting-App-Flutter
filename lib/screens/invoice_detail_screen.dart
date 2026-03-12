@@ -29,9 +29,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
   bool _isSuccess = false;
   String? _message;
   double? _walletBalance;
-  // Item #20: changed from static to instance to prevent stale cache across screens
-  // TODO: migrate to a shared WalletService/provider for app-wide caching
-  double? _cachedWalletBalance;
+  static double? _cachedWalletBalance;
 
   // FIX (UX): success state uses a dedicated animation so the CTA
   // morphs into a checkmark rather than just disabling with grey text.
@@ -98,6 +96,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
   }
 
   Future<void> _investWithBiometric(double amount) async {
+    if (_isInvesting) return;
     if (amount <= 0) return;
 
     // Close the calculator sheet first so the biometric prompt appears
@@ -105,15 +104,20 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     if (mounted) Navigator.of(context).pop();
 
     final localAuth = LocalAuthentication();
-    bool authenticated = true;
+    bool authenticated = false;
+
     try {
-      if (await localAuth.canCheckBiometrics ||
-          await localAuth.isDeviceSupported()) {
+      final canAuth =
+          await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+
+      if (canAuth) {
         authenticated = await localAuth.authenticate(
-            localizedReason:
-            'Confirm investment of ₹${amount.toStringAsFixed(0)}');
+          localizedReason: 'Confirm investment of ₹${fmtAmount(amount)}',
+        );
       }
-    } catch (_) {}
+    } catch (_) {
+      authenticated = false;
+    }
 
     if (!authenticated && mounted) {
       await AppHaptics.error();
@@ -145,14 +149,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
         });
         if (success) {
           await AppHaptics.success();
-          // Item #18: tie pop to animation completion instead of magic 1600ms
           _successCtrl.forward();
-          _successCtrl.addStatusListener((status) {
-            if (status == AnimationStatus.completed && mounted) {
-              Future.delayed(const Duration(milliseconds: 400), () {
-                if (mounted) Navigator.pop(context);
-              });
-            }
+          Future.delayed(const Duration(milliseconds: 1600), () {
+            if (mounted) Navigator.pop(context);
           });
         } else {
           await AppHaptics.error();
@@ -531,7 +530,7 @@ class _BottomCTA extends StatelessWidget {
 
           // CTA button
           Pressable(
-            onTap: onTap, // Item #5: pass null to disable Pressable feedback
+            onTap: onTap ?? () {},
             enabled: onTap != null,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),

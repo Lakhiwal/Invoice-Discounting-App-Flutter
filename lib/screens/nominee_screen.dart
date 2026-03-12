@@ -555,7 +555,7 @@ class _NomineeFormState extends State<_NomineeForm> {
     required Function(String?) onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value, // Item #25: was initialValue (not a valid param)
+      initialValue: value, // Item #25: was initialValue (not a valid param)
       onChanged: onChanged,
       items: items
           .map((e) => DropdownMenuItem(value: e, child: Text(e)))

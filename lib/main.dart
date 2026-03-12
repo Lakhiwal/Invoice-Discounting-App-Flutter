@@ -4,7 +4,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:invoice_discounting_app/security/app_lock.dart';
 import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:local_auth/local_auth.dart';
@@ -16,9 +15,8 @@ import 'screens/unlock_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/api_service.dart';
 import 'services/notification_service.dart';
+import 'services/notification_provider.dart';
 import 'theme/theme_provider.dart';
-import 'dart:developer';
-import 'package:screen_protector/screen_protector.dart';
 import 'utils/refresh_rate_controller.dart';
 
 // ── Globals ───────────────────────────────────────────────────────────────────
@@ -32,10 +30,7 @@ RouteObserver<ModalRoute<void>>();
 
 const String _prefKeyRefreshRate = 'preferred_refresh_rate';
 
-
-
 Future<void> applyRefreshRate(int hz) async {
-
   if (hz == 60) {
     await RefreshRateController.set60Hz();
   } else {
@@ -61,24 +56,10 @@ void main() async {
   PaintingBinding.instance.imageCache.maximumSizeBytes = 220 << 20;
   PaintingBinding.instance.imageCache.maximumSize = 300;
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: Colors.transparent,
-
-  ));
-
-  // Remove comment for screenshot and screen recording protection
-  // await ScreenProtector.preventScreenshotOn();
-  // await ScreenProtector.protectDataLeakageOn();
   await Firebase.initializeApp();
   await NotificationService.initialize();
   final savedHz = await getSavedRefreshRate();
   await applyRefreshRate(savedHz);
-
-  if (Service.getInfo() != null) {
-    debugPrint("Debugger detected");
-  }
 
   bool rooted = await JailbreakRootDetection.instance.isJailBroken;
 
@@ -86,9 +67,13 @@ void main() async {
     SystemNavigator.pop();
     return;
   }
+  
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+      ],
       child: const InvoFinApp(),
     ),
   );
@@ -106,6 +91,9 @@ class InvoFinApp extends StatelessWidget {
         return Consumer<ThemeProvider>(
           builder: (context, themeProvider, _) {
             final textTheme = GoogleFonts.interTextTheme();
+            final isDark = themeProvider.flutterThemeMode == ThemeMode.dark || 
+                (themeProvider.flutterThemeMode == ThemeMode.system && 
+                 MediaQuery.platformBrightnessOf(context) == Brightness.dark);
 
             return MaterialApp(
               navigatorKey: navigatorKey,
@@ -115,11 +103,14 @@ class InvoFinApp extends StatelessWidget {
               themeAnimationDuration: const Duration(milliseconds: 200),
               scrollBehavior: const NoGlowScrollBehavior(),
               builder: (context, child) {
-                // FIX: clamp text scale instead of disabling it entirely.
-                // Disabling it with TextScaler.noScaling breaks accessibility
-                // for users who rely on larger system font sizes.
-                // Clamp to [0.85, 1.3] — tight enough to avoid layout breaks,
-                // wide enough to respect accessibility needs.
+                // FIX: Apply system overlay style here so it updates with theme
+                SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+                  statusBarColor: Colors.transparent,
+                  statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                  systemNavigationBarColor: Colors.transparent,
+                  systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                ));
+
                 final mediaData = MediaQuery.of(context);
                 final clampedScale = mediaData.textScaler.scale(1.0).clamp(0.85, 1.3);
                 return MediaQuery(
@@ -210,9 +201,6 @@ class _SplashScreenState extends State<SplashScreen>
     _authInProgress = true;
     try {
       final auth = LocalAuthentication();
-      // FIX: use biometricOnly: false to match cold-launch auth behaviour.
-      // biometricOnly: true silently fails on devices without biometrics,
-      // locking users out with no feedback or fallback.
       final success = await auth
           .authenticate(
         localizedReason: 'Authenticate to open Finworks360',
@@ -220,7 +208,6 @@ class _SplashScreenState extends State<SplashScreen>
       ).timeout(const Duration(seconds: 10), onTimeout: () => false);
       if (!mounted) return;
       if (!success) {
-        // Item #1/#29: send to UnlockScreen (retry biometrics), not LoginScreen
         Navigator.of(context).pushReplacement(
           SmoothPageRoute(builder: (_) => const UnlockScreen()),
         );
@@ -236,7 +223,6 @@ class _SplashScreenState extends State<SplashScreen>
     _authInProgress = true;
 
     try {
-
       if (!mounted) return;
 
       await precacheImage(
@@ -304,9 +290,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    // FIX: logo container background now adapts to theme.
-    // Previously it was always Colors.white — in dark mode this rendered
-    // a jarring white rectangle in the center of a dark splash screen.
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -319,8 +302,6 @@ class _SplashScreenState extends State<SplashScreen>
               padding:
               const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: BoxDecoration(
-                // FIX: use a neutral surface color that works in both themes.
-                // In dark mode this is the card surface; in light mode it's white.
                 color: isDark ? AppColors.navyCard(context) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
@@ -354,7 +335,6 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 // ── Refresh Rate Picker (used in ProfileScreen) ───────────────────────────────
-// Item #24: TODO — move this widget to widgets/refresh_rate_picker.dart
 
 class RefreshRatePicker extends StatefulWidget {
   const RefreshRatePicker({super.key});

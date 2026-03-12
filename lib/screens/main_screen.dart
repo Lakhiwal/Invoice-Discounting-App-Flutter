@@ -3,13 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:invoice_discounting_app/screens/unlock_screen.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 
-import '../main.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import 'home_screen.dart';
 import 'marketplace_screen.dart';
 import 'portfolio_screen.dart';
-import 'analytics_screen.dart'; // FIX: un-commented — Analytics is now reachable
+import 'analytics_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -23,8 +22,7 @@ class _MainScreenState extends State<MainScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const platform = MethodChannel('widget_navigation');
 
-  // Item #23: single source of truth for tab count
-  static const int _tabCount = 5; // Home | Market | Portfolio | Analytics | Profile
+  static const int _tabCount = 5;
   int _currentIndex = 0;
   DateTime? _lastBackPress;
   late final List<Widget> _tabs;
@@ -33,7 +31,7 @@ class _MainScreenState extends State<MainScreen>
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
     _tabCount,
-        (_) => GlobalKey<NavigatorState>(),
+    (_) => GlobalKey<NavigatorState>(),
   );
 
   // ── Exit banner ─────────────────────────────────────────────────────────
@@ -55,22 +53,20 @@ class _MainScreenState extends State<MainScreen>
     WidgetsBinding.instance.addObserver(this);
     _tabs = List.generate(_tabCount, _buildTabNavigator);
 
-    // Banner
     _bannerController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _bannerOpacityCurve = CurvedAnimation(
-        parent: _bannerController, curve: Curves.easeOutCubic);
+    _bannerOpacityCurve =
+        CurvedAnimation(parent: _bannerController, curve: Curves.easeOutCubic);
     _bannerOpacity = _bannerOpacityCurve;
-    _bannerSlideCurve = CurvedAnimation(
-        parent: _bannerController, curve: Curves.easeOutCubic);
+    _bannerSlideCurve =
+        CurvedAnimation(parent: _bannerController, curve: Curves.easeOutCubic);
     _bannerSlide = Tween<Offset>(
       begin: const Offset(0, 0.9),
       end: Offset.zero,
     ).animate(_bannerSlideCurve);
 
-    // Tab fade-up — one controller per tab
     for (int i = 0; i < _tabCount; i++) {
       final ctrl = AnimationController(
         vsync: this,
@@ -126,7 +122,7 @@ class _MainScreenState extends State<MainScreen>
         Navigator.pushAndRemoveUntil(
           context,
           SmoothPageRoute(builder: (_) => const UnlockScreen()),
-              (route) => false,
+          (route) => false,
         );
       }
     }
@@ -143,7 +139,7 @@ class _MainScreenState extends State<MainScreen>
     _removeBanner();
     final previousIndex = _currentIndex;
     setState(() => _currentIndex = index);
-    _tabControllers[previousIndex].reverse(); // Item #17: graceful fade-out instead of snap
+    _tabControllers[previousIndex].reverse();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _tabControllers[index].forward(from: 0);
     });
@@ -162,8 +158,8 @@ class _MainScreenState extends State<MainScreen>
             kBottomNavigationBarHeight +
             22;
         return Positioned(
-          left: 8,
-          right: 8,
+          left: 4,
+          right: 4,
           bottom: bottomInset,
           child: SlideTransition(
             position: _bannerSlide,
@@ -172,10 +168,9 @@ class _MainScreenState extends State<MainScreen>
               child: Material(
                 color: Colors.transparent,
                 child: Container(
-                  height: 48,
+                  height: 56,
                   alignment: Alignment.centerLeft,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   decoration: BoxDecoration(
                     color: const Color(0xFF2C2F33),
                     borderRadius: BorderRadius.circular(4),
@@ -192,7 +187,7 @@ class _MainScreenState extends State<MainScreen>
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 0.2,
                       decoration: TextDecoration.none,
                     ),
@@ -224,7 +219,7 @@ class _MainScreenState extends State<MainScreen>
       HomeScreen(),
       MarketplaceScreen(),
       PortfolioScreen(),
-      AnalyticsScreen(), // FIX: Analytics now in tab 3
+      AnalyticsScreen(),
       ProfileScreen(),
     ];
 
@@ -240,26 +235,36 @@ class _MainScreenState extends State<MainScreen>
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop:
-      _navigatorKeys[_currentIndex].currentState?.canPop() ?? false,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        final currentNav =
-            _navigatorKeys[_currentIndex].currentState;
         if (didPop) return;
+
+        final currentNav = _navigatorKeys[_currentIndex].currentState;
+
+        // 1. If the current tab has inner routes, pop them
         if (currentNav != null && currentNav.canPop()) {
           currentNav.pop();
+          _lastBackPress = null;
+          _removeBanner();
           return;
         }
+
+        // 2. If NOT on Home tab, switch to Home first
+        if (_currentIndex != 0) {
+          _changeTab(0);
+          return;
+        }
+
+        // 3. On Home tab at root → double-tap to exit
         final now = DateTime.now();
         if (_lastBackPress != null &&
-            now.difference(_lastBackPress!) <
-                const Duration(seconds: 2)) {
+            now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
           _removeBanner();
-          await AppHaptics.error(); // Item #8: route through AppHaptics
+          await AppHaptics.error();
           await SystemNavigator.pop();
         } else {
           _lastBackPress = now;
-          await AppHaptics.buttonPress(); // Item #8: route through AppHaptics
+          await AppHaptics.buttonPress();
           _showExitBanner();
         }
       },
@@ -278,70 +283,68 @@ class _MainScreenState extends State<MainScreen>
             );
           }),
         ),
-
-        // ── Bottom nav ─────────────────────────────────────────────────
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: AppColors.navyLight(context),
-            border: Border(
-              top: BorderSide(
-                color: AppColors.divider(context)
-                    .withValues(alpha: 0.4),
+        bottomNavigationBar: Material(
+          color: AppColors.navyLight(context),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: AppColors.divider(context).withValues(alpha: 0.4),
+                ),
               ),
             ),
-          ),
-          child: Padding(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: _NavItem(
-                      icon: Icons.home_outlined,
-                      activeIcon: Icons.home_rounded,
-                      label: 'Home',
-                      index: 0,
-                      current: _currentIndex,
-                      onTap: _changeTab),
-                ),
-                Expanded(
-                  child: _NavItem(
-                      icon: Icons.storefront_outlined,
-                      activeIcon: Icons.storefront_rounded,
-                      label: 'Market',
-                      index: 1,
-                      current: _currentIndex,
-                      onTap: _changeTab),
-                ),
-                Expanded(
-                  child: _NavItem(
-                      icon: Icons.pie_chart_outline_rounded,
-                      activeIcon: Icons.pie_chart_rounded,
-                      label: 'Portfolio',
-                      index: 2,
-                      current: _currentIndex,
-                      onTap: _changeTab),
-                ),
-                Expanded(
-                  child: _NavItem(
-                      icon: Icons.bar_chart_outlined,
-                      activeIcon: Icons.bar_chart_rounded,
-                      label: 'Analytics',
-                      index: 3,
-                      current: _currentIndex,
-                      onTap: _changeTab),
-                ),
-                Expanded(
-                  child: _NavItem(
-                      icon: Icons.person_outline_rounded,
-                      activeIcon: Icons.person_rounded,
-                      label: 'Profile',
-                      index: 4,
-                      current: _currentIndex,
-                      onTap: _changeTab),
-                ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 10, 4, 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: _NavItem(
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_rounded,
+                        label: 'Home',
+                        index: 0,
+                        current: _currentIndex,
+                        onTap: _changeTab),
+                  ),
+                  Expanded(
+                    child: _NavItem(
+                        icon: Icons.storefront_outlined,
+                        activeIcon: Icons.storefront_rounded,
+                        label: 'Market',
+                        index: 1,
+                        current: _currentIndex,
+                        onTap: _changeTab),
+                  ),
+                  Expanded(
+                    child: _NavItem(
+                        icon: Icons.pie_chart_outline_rounded,
+                        activeIcon: Icons.pie_chart_rounded,
+                        label: 'Portfolio',
+                        index: 2,
+                        current: _currentIndex,
+                        onTap: _changeTab),
+                  ),
+                  Expanded(
+                    child: _NavItem(
+                        icon: Icons.bar_chart_outlined,
+                        activeIcon: Icons.bar_chart_rounded,
+                        label: 'Analytics',
+                        index: 3,
+                        current: _currentIndex,
+                        onTap: _changeTab),
+                  ),
+                  Expanded(
+                    child: _NavItem(
+                        icon: Icons.person_outline_rounded,
+                        activeIcon: Icons.person_rounded,
+                        label: 'Profile',
+                        index: 4,
+                        current: _currentIndex,
+                        onTap: _changeTab),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -380,13 +383,62 @@ class _NavItemState extends State<_NavItem>
   late final AnimationController _ctrl;
   late final CurvedAnimation _curve;
 
+  void _showLabel(BuildContext context) {
+    final overlay = Overlay.of(context);
+    final renderBox = context.findRenderObject() as RenderBox;
+    final position = renderBox.localToGlobal(Offset.zero);
+    const double horizontalAdjust = 10;
+
+    final size = renderBox.size;
+
+    final entry = OverlayEntry(
+      builder: (_) {
+        return Positioned(
+          left: position.dx + size.width / 2 - 30 + horizontalAdjust,
+          top: position.dy - 30,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: Text(
+                widget.label,
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    overlay.insert(entry);
+
+    Future.delayed(const Duration(seconds: 1), () {
+      entry.remove();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 200));
-    _curve =
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     if (widget.index == widget.current) _ctrl.value = 1.0;
   }
 
@@ -420,81 +472,78 @@ class _NavItemState extends State<_NavItem>
         animation: _ctrl,
         builder: (context, _) {
           final t = _curve.value;
+
           final color = Color.lerp(
             idleColor.withValues(alpha: 0.7),
             activeColor,
             Curves.easeOut.transform(t),
           )!;
 
-          return Material(
-            type: MaterialType.transparency,
+          return Semantics(
+            label: widget.label,
+            button: true,
+            selected: active,
             child: InkResponse(
               onTap: () async {
                 await AppHaptics.navTap();
                 widget.onTap(widget.index);
               },
+              onLongPress: () {
+                _showLabel(context);
+              },
               containedInkWell: false,
               highlightShape: BoxShape.circle,
-              radius: 50,
-              borderRadius: BorderRadius.circular(16),
+              radius: 56,
               splashFactory: InkRipple.splashFactory,
-              splashColor: activeColor.withValues(alpha: 0.08),
-              highlightColor: Colors.transparent,
-              child: Ink(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 10),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 56,
-                        height: 32,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (t > 0)
-                              Opacity(
-                                opacity: t,
-                                child: Container(
-                                  width: 56,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: activeColor
-                                        .withValues(alpha: 0.08),
-                                    borderRadius:
-                                    BorderRadius.circular(20),
-                                  ),
+              splashColor: activeColor.withValues(alpha: 0.12),
+              highlightColor: activeColor.withValues(alpha: 0.06),
+              child: SizedBox(
+                width: 64,
+                height: 72,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      height: 32,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (t > 0)
+                            Opacity(
+                              opacity: t,
+                              child: Container(
+                                width: 60,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: activeColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(18),
                                 ),
                               ),
-                            Transform.translate(
-                              offset: Offset(0, -1.5 * t),
-                              child: Icon(
-                                active
-                                    ? widget.activeIcon
-                                    : widget.icon,
-                                color: color,
-                                size: 24,
-                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      AnimatedOpacity(
-                        opacity: active ? 1 : 0.7,
-                        duration: const Duration(milliseconds: 200),
-                        child: Text(
-                          widget.label,
-                          style: TextStyle(
+                          Icon(
+                            active ? widget.activeIcon : widget.icon,
                             color: color,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w400,
+                            size: 28,
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    AnimatedOpacity(
+                      opacity: active ? 1 : 0.7,
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        widget.label,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),

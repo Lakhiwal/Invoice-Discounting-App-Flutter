@@ -968,8 +968,9 @@ class _FastScrollbarState extends State<_FastScrollbar>
 
     double acceleration = 1.0;
 
-    if (velocity > 1.2) acceleration = 3.0;
-    else if (velocity > 0.6) acceleration = 2.0;
+    if (velocity > 1.2) {
+      acceleration = 3.0;
+    } else if (velocity > 0.6) acceleration = 2.0;
     else if (velocity > 0.3) acceleration = 1.4;
 
     final frac =

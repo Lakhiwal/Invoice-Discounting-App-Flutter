@@ -6,6 +6,7 @@ import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../main.dart';
 import '../services/api_service.dart';
 import '../services/secure_storage_service.dart';
 import '../theme/theme_provider.dart';
@@ -76,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    _localAuth.stopAuthentication();
     _fadeCurve.dispose();
     _slideCurve.dispose();
     _animController.dispose();
@@ -83,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen>
     _passwordController.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
-    _signUpRecognizer.dispose(); // FIX #11
+    _signUpRecognizer.dispose();
     super.dispose();
   }
 
@@ -159,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (email == null || refreshToken == null) {
         if (mounted) {
           setState(() => _errorMessage =
-          'No saved credentials. Please login with your password first.');
+              'No saved credentials. Please login with your password first.');
         }
         return;
       }
@@ -176,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen>
         await AppHaptics.success();
         if (!mounted) return;
         // Item #2: pushAndRemoveUntil to clear login from stack
-        Navigator.of(context).pushAndRemoveUntil(
+        navigatorKey.currentState!.pushAndRemoveUntil(
           SmoothPageRoute(builder: (_) => const MainScreen()),
           (route) => false,
         );
@@ -184,13 +186,13 @@ class _LoginScreenState extends State<LoginScreen>
       } else {
         await AppHaptics.error();
         setState(() => _errorMessage =
-        'Session expired. Please login with your password.');
+            'Session expired. Please login with your password.');
       }
     } on Exception catch (e) {
       debugPrint('Post-biometric login error: $e');
       if (mounted) {
         setState(() => _errorMessage =
-        'Cannot connect to server. Please check your network.');
+            'Cannot connect to server. Please check your network.');
       }
     } finally {
       if (mounted) setState(() => _isBiometricLoading = false);
@@ -224,10 +226,11 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
 
       if (result['success'] == true) {
+        _passwordController.clear();
         await AppHaptics.success();
         if (!mounted) return;
         // Item #2: pushAndRemoveUntil to clear login from stack
-        Navigator.of(context).pushAndRemoveUntil(
+        navigatorKey.currentState!.pushAndRemoveUntil(
           SmoothPageRoute(builder: (_) => const MainScreen()),
           (route) => false,
         );
@@ -243,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen>
       await AppHaptics.error();
       if (mounted) {
         setState(() => _errorMessage =
-        'Cannot connect to server. Please check your network.');
+            'Cannot connect to server. Please check your network.');
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -265,10 +268,20 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _registerFcmInBackground() async {
     try {
-      final fcmToken = await FirebaseMessaging.instance.getToken();
-      if (fcmToken != null) await ApiService.registerFcmToken(fcmToken);
-    } on Exception catch (e) {
-      debugPrint('FCM registration error: $e');
+      final token = await FirebaseMessaging.instance.getToken();
+
+      if (token != null) {
+        await ApiService.registerFcmToken(token);
+      }
+
+      FirebaseMessaging.instance.onTokenRefresh.listen(
+        ApiService.registerFcmToken,
+      );
+    } catch (e) {
+      assert(() {
+        debugPrint('FCM registration error: $e');
+        return true;
+      }());
     }
   }
 
@@ -277,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -287,10 +301,12 @@ class _LoginScreenState extends State<LoginScreen>
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: UI.authGradient(isDark), // Item #35: shared gradient
-                ),
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scheme.surface,
+                      scheme.surfaceContainerLowest,
+                    ]),
               ),
             ),
           ),
@@ -333,397 +349,404 @@ class _LoginScreenState extends State<LoginScreen>
                         minHeight: constraints.maxHeight,
                       ),
                       child: IntrinsicHeight(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 56),
+                        child: AutofillGroup(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 56),
 
-                            // Logo
-                            Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 16),
-                                decoration: BoxDecoration(
-                                  // Item #10: adapt to dark mode like SplashScreen
-                                  color: Theme.of(context).brightness == Brightness.dark
-                                      ? AppColors.navyCard(context)
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.blue(context)
-                                          .withValues(alpha: 0.12),
-                                      blurRadius: 24,
-                                      spreadRadius: 2,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
+                              // Logo
+                              Center(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 16),
+                                  decoration: BoxDecoration(
+                                    // Item #10: adapt to dark mode like SplashScreen
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? AppColors.navyCard(context)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.blue(context)
+                                            .withValues(alpha: 0.12),
+                                        blurRadius: 24,
+                                        spreadRadius: 2,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/logo-colored.png',
+                                    height: 48,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
-                                child: Image.asset(
-                                  'assets/images/logo-colored.png',
-                                  height: 48,
-                                  fit: BoxFit.contain,
+                              ),
+
+                              const SizedBox(height: 44),
+
+                              // Heading
+                              Text(
+                                'Welcome back.',
+                                style: TextStyle(
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary(context),
+                                  height: 1.15,
                                 ),
                               ),
-                            ),
-
-                            const SizedBox(height: 44),
-
-                            // Heading
-                            Text(
-                              'Welcome back.',
-                              style: TextStyle(
-                                fontSize: 36,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary(context),
-                                height: 1.15,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Sign in to your Finworks360 investor account',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary(context),
-                              ),
-                            ),
-                            const SizedBox(height: 36),
-
-                            // ── Email field ──────────────────────────────
-                            TextField(
-                              controller: _emailController,
-                              focusNode: _emailFocusNode,
-                              keyboardType: TextInputType.emailAddress,
-                              textInputAction: TextInputAction.next,
-                              autofillHints: const [AutofillHints.email],
-                              style: TextStyle(
-                                  color: AppColors.textPrimary(context)),
-                              onChanged: (_) {
-                                if (_errorMessage != null) _dismissError();
-                              },
-                              onSubmitted: (_) {
-                                FocusScope.of(context)
-                                    .requestFocus(_passwordFocusNode);
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Email address',
-                                labelStyle: TextStyle(
-                                    color: AppColors.textSecondary(context)),
-                                prefixIcon: Icon(
-                                  Icons.mail_outline_rounded,
+                              const SizedBox(height: 8),
+                              Text(
+                                'Sign in to your Finworks360 investor account',
+                                style: TextStyle(
+                                  fontSize: 14,
                                   color: AppColors.textSecondary(context),
-                                  size: 20,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 14),
+                              const SizedBox(height: 36),
 
-                            // ── Password field ───────────────────────────
-                            TextField(
-                              controller: _passwordController,
-                              focusNode: _passwordFocusNode,
-                              obscureText: _obscurePassword,
-                              textInputAction: TextInputAction.done,
-                              autofillHints: const [AutofillHints.password],
-                              style: TextStyle(
-                                  color: AppColors.textPrimary(context)),
-                              onChanged: (_) {
-                                if (_errorMessage != null) _dismissError();
-                              },
-                              onSubmitted: (_) => _handleLogin(),
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                labelStyle: TextStyle(
-                                    color: AppColors.textSecondary(context)),
-                                prefixIcon: Icon(
-                                  Icons.lock_outline_rounded,
-                                  color: AppColors.textSecondary(context),
-                                  size: 20,
-                                ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
+                              // ── Email field ──────────────────────────────
+                              TextField(
+                                controller: _emailController,
+                                focusNode: _emailFocusNode,
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                autofillHints: const [AutofillHints.email],
+                                style: TextStyle(
+                                    color: AppColors.textPrimary(context)),
+                                onChanged: (_) {
+                                  if (_errorMessage != null) _dismissError();
+                                },
+                                onSubmitted: (_) {
+                                  FocusScope.of(context)
+                                      .requestFocus(_passwordFocusNode);
+                                },
+                                decoration: InputDecoration(
+                                  labelText: 'Email address',
+                                  labelStyle: TextStyle(
+                                      color: AppColors.textSecondary(context)),
+                                  prefixIcon: Icon(
+                                    Icons.mail_outline_rounded,
                                     color: AppColors.textSecondary(context),
                                     size: 20,
                                   ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+
+                              // ── Password field ───────────────────────────
+                              TextField(
+                                controller: _passwordController,
+                                focusNode: _passwordFocusNode,
+                                keyboardType: TextInputType.visiblePassword,
+                                obscureText: _obscurePassword,
+                                enableSuggestions: false,
+                                autocorrect: false,
+                                textInputAction: TextInputAction.done,
+                                autofillHints: const [AutofillHints.password],
+                                style: TextStyle(
+                                    color: AppColors.textPrimary(context)),
+                                onChanged: (_) {
+                                  if (_errorMessage != null) _dismissError();
+                                },
+                                onSubmitted: (_) => _handleLogin(),
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  labelStyle: TextStyle(
+                                      color: AppColors.textSecondary(context)),
+                                  prefixIcon: Icon(
+                                    Icons.lock_outline_rounded,
+                                    color: AppColors.textSecondary(context),
+                                    size: 20,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: AppColors.textSecondary(context),
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      await AppHaptics.selection();
+                                      setState(() =>
+                                          _obscurePassword = !_obscurePassword);
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              // ── Forgot password ──────────────────────────
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
                                   onPressed: () async {
                                     await AppHaptics.selection();
-                                    setState(() =>
-                                    _obscurePassword = !_obscurePassword);
+                                    // FIX #27: was a dead TODO. Now navigates to
+                                    // the forgot-password flow. Replace the
+                                    // showDialog below with your ForgotPasswordScreen
+                                    // route when that screen is built.
+                                    if (!context.mounted) return;
+                                    // Item #4: user-friendly message instead of dev instructions
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text('Reset Password'),
+                                        content: const Text(
+                                            'Password reset is coming soon.\n\n'
+                                            'For now, please contact support at\n'
+                                            'support@finworks360.com to reset your password.'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text('OK'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
                                   },
-                                ),
-                              ),
-                            ),
-
-                            // ── Forgot password ──────────────────────────
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () async {
-                                  await AppHaptics.selection();
-                                  // FIX #27: was a dead TODO. Now navigates to
-                                  // the forgot-password flow. Replace the
-                                  // showDialog below with your ForgotPasswordScreen
-                                  // route when that screen is built.
-                                  if (!context.mounted) return;
-                                  // Item #4: user-friendly message instead of dev instructions
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => AlertDialog(
-                                      title: const Text('Reset Password'),
-                                      content: const Text(
-                                          'Password reset is coming soon.\n\n'
-                                              'For now, please contact support at\n'
-                                              'support@finworks360.com to reset your password.'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                          child: const Text('OK'),
-                                        ),
-                                      ],
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 4, vertical: 8),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: Text(
+                                    'Forgot password?',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.primary(context),
+                                      fontWeight: FontWeight.w600,
                                     ),
-                                  );
-                                },
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 4, vertical: 8),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  'Forgot password?',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.primary(context),
-                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                            ),
 
-                            // ── Error banner ─────────────────────────────
-                            AnimatedSize(
-                              duration: const Duration(milliseconds: 250),
-                              curve: Curves.easeInOut,
-                              child: _errorMessage != null
-                                  ? Padding(
-                                padding:
-                                const EdgeInsets.only(bottom: 12),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.rose(context)
-                                        .withValues(alpha: 0.1),
-                                    borderRadius:
-                                    BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: AppColors.rose(context)
-                                            .withValues(alpha: 0.3)),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
+                              // ── Error banner ─────────────────────────────
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                child: _errorMessage != null
+                                    ? Padding(
                                         padding:
-                                        const EdgeInsets.only(top: 1),
-                                        child: Icon(
-                                          Icons.error_outline_rounded,
-                                          color: AppColors.rose(context),
-                                          size: 16,
+                                            const EdgeInsets.only(bottom: 12),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 10),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.rose(context)
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            border: Border.all(
+                                                color: AppColors.rose(context)
+                                                    .withValues(alpha: 0.3)),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 1),
+                                                child: Icon(
+                                                  Icons.error_outline_rounded,
+                                                  color:
+                                                      AppColors.rose(context),
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  _errorMessage!,
+                                                  style: TextStyle(
+                                                      color: AppColors.rose(
+                                                          context),
+                                                      fontSize: 13),
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () async {
+                                                  await AppHaptics.selection();
+                                                  _dismissError();
+                                                },
+                                                child: Icon(
+                                                  Icons.close_rounded,
+                                                  color:
+                                                      AppColors.rose(context),
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _errorMessage!,
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // ── Sign In button ───────────────────────────
+                              // FIX #18: removed Pressable wrapper. Pressable.onTap
+                              // and ElevatedButton.onPressed both called _handleLogin,
+                              // firing it twice on every tap (safe due to _isLoading
+                              // guard but unnecessary). ElevatedButton handles its
+                              // own ink/press visuals.
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _handleLogin,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary(context),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor:
+                                        AppColors.primary(context)
+                                            .withValues(alpha: 0.6),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14)),
+                                    elevation: 0,
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Sign In',
                                           style: TextStyle(
-                                              color:
-                                              AppColors.rose(context),
-                                              fontSize: 13),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                ),
+                              ),
+
+                              // ── Biometric section ────────────────────────
+                              if (_biometricAvailable) ...[
+                                const SizedBox(height: 28),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                        child: Divider(
+                                            color: AppColors.divider(context))),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12),
+                                      child: Text(
+                                        'or continue with',
+                                        style: TextStyle(
+                                          color:
+                                              AppColors.textSecondary(context),
+                                          fontSize: 12,
                                         ),
                                       ),
+                                    ),
+                                    Expanded(
+                                        child: Divider(
+                                            color: AppColors.divider(context))),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Center(
+                                  child: Column(
+                                    children: [
                                       GestureDetector(
-                                        onTap: () async {
-                                          await AppHaptics.selection();
-                                          _dismissError();
-                                        },
-                                        child: Icon(
-                                          Icons.close_rounded,
-                                          color: AppColors.rose(context),
-                                          size: 16,
+                                        onTap: _isBiometricLoading
+                                            ? null
+                                            : () async {
+                                                await AppHaptics.buttonPress();
+                                                _handleBiometricLogin();
+                                              },
+                                        child: AnimatedContainer(
+                                          duration:
+                                              const Duration(milliseconds: 150),
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: AppColors.primary(context)
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            color: AppColors.primary(context)
+                                                .withValues(alpha: 0.05),
+                                          ),
+                                          child: _isBiometricLoading
+                                              ? SizedBox(
+                                                  width: 28,
+                                                  height: 28,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: AppColors.primary(
+                                                        context),
+                                                  ),
+                                                )
+                                              : Icon(
+                                                  Icons.fingerprint_rounded,
+                                                  color: AppColors.primary(
+                                                      context),
+                                                  size: 36,
+                                                ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Fingerprint / Face ID',
+                                        style: TextStyle(
+                                          color:
+                                              AppColors.textSecondary(context),
+                                          fontSize: 11,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              )
-                                  : const SizedBox.shrink(),
-                            ),
+                              ],
 
-                            const SizedBox(height: 16),
+                              const Spacer(),
 
-                            // ── Sign In button ───────────────────────────
-                            // FIX #18: removed Pressable wrapper. Pressable.onTap
-                            // and ElevatedButton.onPressed both called _handleLogin,
-                            // firing it twice on every tap (safe due to _isLoading
-                            // guard but unnecessary). ElevatedButton handles its
-                            // own ink/press visuals.
-                            SizedBox(
-                              width: double.infinity,
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _handleLogin,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor:
-                                  AppColors.primary(context),
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor:
-                                  AppColors.primary(context)
-                                      .withValues(alpha: 0.6),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(14)),
-                                  elevation: 0,
-                                ),
-                                child: _isLoading
-                                    ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                                    : const Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            // ── Biometric section ────────────────────────
-                            if (_biometricAvailable) ...[
                               const SizedBox(height: 28),
-                              Row(
-                                children: [
-                                  Expanded(
-                                      child: Divider(
-                                          color: AppColors.divider(context))),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                    child: Text(
-                                      'or continue with',
-                                      style: TextStyle(
-                                        color:
-                                        AppColors.textSecondary(context),
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                      child: Divider(
-                                          color: AppColors.divider(context))),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
+
+                              // ── Sign up link ─────────────────────────────
                               Center(
-                                child: Column(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: _isBiometricLoading
-                                          ? null
-                                          : () async {
-                                        await AppHaptics.buttonPress();
-                                        _handleBiometricLogin();
-                                      },
-                                      child: AnimatedContainer(
-                                        duration:
-                                        const Duration(milliseconds: 150),
-                                        padding: const EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
-                                          border: Border.all(
-                                            color: AppColors.primary(context)
-                                                .withValues(alpha: 0.4),
-                                          ),
-                                          borderRadius:
-                                          BorderRadius.circular(14),
-                                          color: AppColors.primary(context)
-                                              .withValues(alpha: 0.05),
-                                        ),
-                                        child: _isBiometricLoading
-                                            ? SizedBox(
-                                          width: 28,
-                                          height: 28,
-                                          child:
-                                          CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.primary(
-                                                context),
-                                          ),
-                                        )
-                                            : Icon(
-                                          Icons.fingerprint_rounded,
-                                          color: AppColors.primary(
-                                              context),
-                                          size: 36,
-                                        ),
-                                      ),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary(context),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Fingerprint / Face ID',
-                                      style: TextStyle(
-                                        color:
-                                        AppColors.textSecondary(context),
-                                        fontSize: 11,
+                                    children: [
+                                      const TextSpan(
+                                          text: "Don't have an account? "),
+                                      TextSpan(
+                                        text: 'Create one',
+                                        style: TextStyle(
+                                          color: AppColors.primary(context),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        // FIX #11: use field recognizer, not inline
+                                        recognizer: _signUpRecognizer,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-
-                            const Spacer(),
-
-                            const SizedBox(height: 28),
-
-                            // ── Sign up link ─────────────────────────────
-                            Center(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary(context),
+                                    ],
                                   ),
-                                  children: [
-                                    const TextSpan(
-                                        text: "Don't have an account? "),
-                                    TextSpan(
-                                      text: 'Create one',
-                                      style: TextStyle(
-                                        color: AppColors.primary(context),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      // FIX #11: use field recognizer, not inline
-                                      recognizer: _signUpRecognizer,
-                                    ),
-                                  ],
                                 ),
                               ),
-                            ),
 
-                            const SizedBox(height: 40),
-                          ],
+                              const SizedBox(height: 40),
+                            ],
+                          ),
                         ),
                       ),
                     ),
