@@ -34,14 +34,6 @@ class _MainScreenState extends State<MainScreen>
     (_) => GlobalKey<NavigatorState>(),
   );
 
-  // ── Exit banner ─────────────────────────────────────────────────────────
-  late AnimationController _bannerController;
-  late CurvedAnimation _bannerOpacityCurve;
-  late CurvedAnimation _bannerSlideCurve;
-  late Animation<double> _bannerOpacity;
-  late Animation<Offset> _bannerSlide;
-  OverlayEntry? _bannerEntry;
-
   // ── Per-tab fade-up controllers ─────────────────────────────────────────
   final List<AnimationController> _tabControllers = [];
   final List<Animation<double>> _tabFades = [];
@@ -52,20 +44,6 @@ class _MainScreenState extends State<MainScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _tabs = List.generate(_tabCount, _buildTabNavigator);
-
-    _bannerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
-    );
-    _bannerOpacityCurve =
-        CurvedAnimation(parent: _bannerController, curve: Curves.easeOutCubic);
-    _bannerOpacity = _bannerOpacityCurve;
-    _bannerSlideCurve =
-        CurvedAnimation(parent: _bannerController, curve: Curves.easeOutCubic);
-    _bannerSlide = Tween<Offset>(
-      begin: const Offset(0, 0.9),
-      end: Offset.zero,
-    ).animate(_bannerSlideCurve);
 
     for (int i = 0; i < _tabCount; i++) {
       final ctrl = AnimationController(
@@ -96,11 +74,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
-    _removeBanner();
     WidgetsBinding.instance.removeObserver(this);
-    _bannerOpacityCurve.dispose();
-    _bannerSlideCurve.dispose();
-    _bannerController.dispose();
     for (final ctrl in _tabControllers) {
       ctrl.dispose();
     }
@@ -128,91 +102,26 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
-  void _removeBanner() {
-    _bannerEntry?.remove();
-    _bannerEntry = null;
-  }
 
   void _changeTab(int index) {
     if (_currentIndex == index) return;
+
     _lastBackPress = null;
-    _removeBanner();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
     final previousIndex = _currentIndex;
+
     setState(() => _currentIndex = index);
+
     _tabControllers[previousIndex].reverse();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _tabControllers[index].forward(from: 0);
     });
   }
 
-  Future<void> _showExitBanner() async {
-    if (_bannerEntry != null) {
-      _bannerController.forward(from: 0);
-      _startDismissTimer();
-      return;
-    }
 
-    _bannerEntry = OverlayEntry(
-      builder: (_) {
-        final bottomInset = MediaQuery.viewPaddingOf(context).bottom +
-            kBottomNavigationBarHeight +
-            22;
-        return Positioned(
-          left: 4,
-          right: 4,
-          bottom: bottomInset,
-          child: SlideTransition(
-            position: _bannerSlide,
-            child: FadeTransition(
-              opacity: _bannerOpacity,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  height: 56,
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C2F33),
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Text(
-                    'Tap again to exit',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.2,
-                      decoration: TextDecoration.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
 
-    Overlay.of(context, rootOverlay: true).insert(_bannerEntry!);
-    _bannerController.forward(from: 0);
-    _startDismissTimer();
-  }
-
-  Future<void> _startDismissTimer() async {
-    final pressTime = _lastBackPress;
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted || _lastBackPress != pressTime) return;
-    await _bannerController.reverse();
-    _removeBanner();
-    _lastBackPress = null;
-  }
 
   Widget _buildTabNavigator(int index) {
     const screens = [
@@ -241,32 +150,65 @@ class _MainScreenState extends State<MainScreen>
 
         final currentNav = _navigatorKeys[_currentIndex].currentState;
 
-        // 1. If the current tab has inner routes, pop them
+        // 1️⃣ Pop inner routes if present
         if (currentNav != null && currentNav.canPop()) {
           currentNav.pop();
           _lastBackPress = null;
-          _removeBanner();
           return;
         }
 
-        // 2. If NOT on Home tab, switch to Home first
+        // 2️⃣ If not on Home tab → switch to Home
         if (_currentIndex != 0) {
           _changeTab(0);
           return;
         }
 
-        // 3. On Home tab at root → double-tap to exit
         final now = DateTime.now();
-        if (_lastBackPress != null &&
-            now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
-          _removeBanner();
-          await AppHaptics.error();
-          await SystemNavigator.pop();
-        } else {
+
+        // 3️⃣ First press → show snackbar
+        if (_lastBackPress == null ||
+            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
           _lastBackPress = now;
+
           await AppHaptics.buttonPress();
-          _showExitBanner();
+
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    'Tap again to exit',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: const Color(0xFF26292F),
+                duration: const Duration(seconds: 2),
+                elevation: 0,
+                margin: EdgeInsets.fromLTRB(
+                  12,
+                  0,
+                  12,
+                  MediaQuery.of(context).padding.bottom + 68,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            );
+
+          return;
         }
+
+        // 4️⃣ Second press → exit
+        await AppHaptics.error();
+        SystemNavigator.pop();
       },
       child: Scaffold(
         body: IndexedStack(
@@ -539,7 +481,8 @@ class _NavItemState extends State<_NavItem>
                         style: TextStyle(
                           color: color,
                           fontSize: 12,
-                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight:
+                              active ? FontWeight.w600 : FontWeight.w500,
                         ),
                       ),
                     ),

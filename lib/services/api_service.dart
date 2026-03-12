@@ -663,7 +663,7 @@ class ApiService {
   /// [InvoicePage.hasMore] is false when there are no more pages.
   static Future<InvoicePage> getInvoicesCursor({
     String? afterCursor,
-    int limit = 40,
+    int limit = 50,
   }) async {
     try {
 // Build URL — include cursor only when fetching page 2+
@@ -697,7 +697,7 @@ class ApiService {
   /// Migrate call sites to [getInvoicesCursor] one screen at a time.
   static Future<List<dynamic>> getInvoices({
     int page = 1,
-    int limit = 40,
+    int limit = 50,
   }) async {
     try {
       final response = await _get('$baseUrl/invoices/?page=$page&limit=$limit');
