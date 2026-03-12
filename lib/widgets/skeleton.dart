@@ -87,13 +87,6 @@ class SkeletonBox extends StatelessWidget {
 
     final state = SkeletonTheme._of(context);
 
-    // Item #27: warn in debug mode when SkeletonTheme ancestor is missing
-    assert(() {
-      if (state == null) {
-        debugPrint('⚠ SkeletonBox: no SkeletonTheme ancestor found — shimmer disabled');
-      }
-      return true;
-    }());
 
     if (state == null) {
       return Container(
@@ -150,9 +143,9 @@ class SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      margin: margin,
+    return ConstrainedBox(
+        constraints: BoxConstraints(minHeight: height),
+        child: Container(  margin: margin,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.navyCard(context),
@@ -168,6 +161,7 @@ class SkeletonCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,6 +188,38 @@ class SkeletonCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+        ),
+    );
+  }
+}
+
+// ─── Quick-actions skeleton ──────────────────────────────────────────────────
+
+class SkeletonQuickActions extends StatelessWidget {
+  const SkeletonQuickActions({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(3, (index) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SkeletonBox(width: 36, height: 36, borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 8),
+            SkeletonBox(width: 50, height: 10),
+          ],
+        )),
       ),
     );
   }

@@ -154,9 +154,9 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   }
 
   Future<void> _logout() async {
-    await AppHaptics.error(); // Item #8
-    if (!mounted) return;
-    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+    await AppHaptics.error();
+
+    navigatorKey.currentState!.pushAndRemoveUntil(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (_, animation, __) =>
@@ -164,6 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
       ),
           (route) => false,
     );
+
     ApiService.logout().catchError((e) => debugPrint('Logout cleanup: $e'));
   }
 
@@ -756,28 +757,46 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           subtitle: formatKycStatus(
                               _profile?['profile_status']),
                           onTap: () async {
-                            await AppHaptics.selection(); // Item #8
-                            // Navigate to KYC webview so user can
-                            // complete / check their KYC status
-                            final email = _profile?['email'] ?? '';
-                            final name  = _profile?['name']  ?? '';
-                            final prefs = await SharedPreferences.getInstance();
-                            final password = prefs.getString('saved_password') ?? '';
+                            await AppHaptics.selection();
                             if (!mounted) return;
-                            Navigator.of(context, rootNavigator: false).push(
-                              SmoothPageRoute(
-                                builder: (_) => ProfileWebViewScreen(
-                                  email: email,
-                                  name: name,
-                                  password: password,
-                                  baseUrl: ApiService.baseUrl,
-                                ),
+
+                            // Show a loading indicator while getting the token
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Opening profile…'),
+                                duration: Duration(seconds: 2),
                               ),
                             );
+
+                            try {
+                              final tokenResult = await ApiService.createWebviewToken();
+                              final token = tokenResult['token'] as String?;
+
+                              if (!mounted) return;
+
+                              if (token != null) {
+                                Navigator.of(context, rootNavigator: false).push(
+                                  SmoothPageRoute(
+                                    builder: (_) => ProfileWebViewScreen(
+                                      token: token,
+                                      name: _profile?['name'] ?? '',
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Could not open profile. Try again.')),
+                                );
+                              }
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Connection error. Check your network.')),
+                              );
+                            }
                           },
                           context: context,
-                        ),
-                        _MenuItem(
+                        ),_MenuItem(
                           icon: Icons.account_balance_outlined,
                           label: 'Bank Accounts',
                           subtitle: 'Manage your bank accounts',

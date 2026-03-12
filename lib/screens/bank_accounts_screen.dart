@@ -67,7 +67,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
       if (!mounted) return;
       setState(() {
         _accounts = raw
-            .map((m) => BankAccount.fromMap(m as Map<String, dynamic>))
+            .map((m) => BankAccount.fromMap(m))
             .toList();
         _isLoading = false;
       });

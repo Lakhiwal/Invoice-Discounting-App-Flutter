@@ -20,6 +20,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Map<String, dynamic>? _portfolio;
   bool _isLoading = true;
+
   // FIX #24: track error state for proper empty/error UI
   bool _hasError = false;
 
@@ -34,7 +35,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() { _isLoading = true; _hasError = false; });
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+    });
     // FIX #24: was missing try/catch — any network error crashed the screen
     try {
       final data = await PortfolioCache.getPortfolio();
@@ -49,7 +53,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() { _isLoading = false; _hasError = true; });
+      if (mounted) setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
     }
   }
 
@@ -73,7 +80,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       const Color(0xFF00D4FF), // Cyan
     ];
 
-    return sectorMap.entries.toList().asMap().entries.map((e) {
+    return sectorMap.entries
+        .toList()
+        .asMap()
+        .entries
+        .map((e) {
       return {
         'label': e.value.key,
         'amount': e.value.value,
@@ -100,7 +111,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         theme: pw.ThemeData.withFont(base: ttf, bold: ttf),
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
-        build: (context) => [
+        build: (context) =>
+        [
           pw.Container(
             padding: const pw.EdgeInsets.all(20),
             decoration: pw.BoxDecoration(
@@ -121,7 +133,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             fontWeight: pw.FontWeight.bold)),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                        'Generated: ${DateTime.now().toString().substring(0, 16)}',
+                        'Generated: ${DateTime.now().toString().substring(
+                            0, 16)}',
                         style: const pw.TextStyle(
                             color: PdfColors.grey, fontSize: 11)),
                   ],
@@ -161,11 +174,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               context: context,
               data: [
                 ['Sector', 'Amount', 'Share'],
-                ...sectorData.map((s) => [
+                ...sectorData.map((s) =>
+                [
                   s['label'],
                   // FIX #15: was printing raw double e.g. '₹125000.0'
                   '₹${fmtAmount(s['amount'])}',
-                  '${((s['amount'] as double) / _totalInvested * 100).toStringAsFixed(1)}%'
+                  '${((s['amount'] as double) / _totalInvested * 100)
+                      .toStringAsFixed(1)}%'
                 ])
               ],
             ),
@@ -177,20 +192,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     await Printing.layoutPdf(onLayout: (format) => pdf.save());
   }
 
-  pw.Widget _pdfStat(String label, String value) => pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      pw.Text(value,
-          style:
-          pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-      pw.Text(label,
-          style: const pw.TextStyle(color: PdfColors.grey, fontSize: 10)),
-    ],
-  );
+  pw.Widget _pdfStat(String label, String value) =>
+      pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(value,
+              style:
+              pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+          pw.Text(label,
+              style: const pw.TextStyle(color: PdfColors.grey, fontSize: 10)),
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
     final summary = _portfolio?['summary'];
     final sectorData = _sectorData;
     final totalInvested = _totalInvested;
@@ -376,12 +394,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 class _SummaryTile extends StatelessWidget {
   final String label, value;
   final Color color;
+
   const _SummaryTile(
       {required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -410,15 +431,17 @@ class _StatTile extends StatelessWidget {
   final String label, value;
   final IconData icon;
   final Color color;
-  const _StatTile(
-      {required this.label,
-        required this.value,
-        required this.icon,
-        required this.color});
+
+  const _StatTile({required this.label,
+    required this.value,
+    required this.icon,
+    required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme
+        .of(context)
+        .colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -447,6 +470,7 @@ class _StatTile extends StatelessWidget {
 class _SectorPieChart extends StatefulWidget {
   final List<Map<String, dynamic>> sectorData;
   final double totalInvested;
+
   const _SectorPieChart(
       {required this.sectorData, required this.totalInvested});
 
@@ -476,7 +500,10 @@ class _SectorPieChartState extends State<_SectorPieChart> {
                 });
               },
             ),
-            sections: widget.sectorData.asMap().entries.map((e) {
+            sections: widget.sectorData
+                .asMap()
+                .entries
+                .map((e) {
               final isTouched = e.key == _touchedIndex;
               final pct = widget.totalInvested > 0
                   ? (e.value['amount'] as double) / widget.totalInvested * 100
@@ -513,7 +540,10 @@ class _SectorPieChartState extends State<_SectorPieChart> {
               const SizedBox(width: 8),
               Text(s['label'] as String,
                   style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: Theme
+                          .of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
                       fontSize: 11)),
             ]),
           );
