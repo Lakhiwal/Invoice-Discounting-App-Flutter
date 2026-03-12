@@ -1,0 +1,78 @@
+name: invoice_discounting_app
+description: Invoice Discounting Platform - Investor App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fl_chart: ^1.1.1
+  # Networking
+  http: ^1.2.0
+  # Storage
+  shared_preferences: ^2.2.2
+  # Firebase Push Notifications
+  firebase_core: ^4.4.0
+  firebase_messaging: ^16.1.1
+  flutter_local_notifications: ^17.2.1
+  # Biometric
+  local_auth: ^3.0.0
+  local_auth_android: ^2.0.0
+  # Theme
+  provider: ^6.1.2
+  # PDF
+  pdf: ^3.10.8
+  printing: ^5.13.1
+  url_launcher: ^6.2.5
+  webview_flutter: ^4.10.0
+  flutter_secure_storage: ^10.0.0
+  google_fonts: ^8.0.2
+  webview_flutter_android: ^4.10.13
+  webview_flutter_wkwebview: ^3.13.0
+  image_picker: ^1.1.2
+  dio: ^5.7.0
+  #  vibration: ^3.1.8
+  haptic_feedback: ^0.6.4+3
+  home_widget: ^0.9.0
+  cached_network_image: ^3.3.1
+  flutter_svg: ^2.0.10
+  shimmer: ^3.0.0
+  animations: ^2.0.8
+  dynamic_color: ^1.7.0
+  screen_protector: ^1.5.1
+  jailbreak_root_detection: ^1.2.0+1
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icon/
+    - assets/images/
+    - assets/fonts/
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
