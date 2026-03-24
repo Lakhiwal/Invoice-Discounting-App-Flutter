@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart'; // Item #8: route through AppHaptics
+import '../utils/app_haptics.dart';
+
+// ── Model ────────────────────────────────────────────────────────────────────
 
 class BankAccount {
   final int id;
@@ -35,9 +37,26 @@ class BankAccount {
 
   String get maskedNumber {
     if (accountNumber.length <= 4) return accountNumber;
-    return '•••• •••• ${accountNumber.substring(accountNumber.length - 4)}';
+    return '···· ${accountNumber.substring(accountNumber.length - 4)}';
+  }
+
+  /// Get a color for the bank icon based on bank name hash
+  Color get brandColor {
+    final colors = [
+      const Color(0xFF1A73E8), // Blue (SBI, etc)
+      const Color(0xFF00897B), // Teal
+      const Color(0xFFE53935), // Red (HDFC vibe)
+      const Color(0xFF6D4C41), // Brown (PNB vibe)
+      const Color(0xFF5E35B1), // Purple
+      const Color(0xFFFF6F00), // Orange (ICICI vibe)
+      const Color(0xFF2E7D32), // Green
+      const Color(0xFF0277BD), // Light blue
+    ];
+    return colors[bankName.hashCode.abs() % colors.length];
   }
 }
+
+// ── Screen ───────────────────────────────────────────────────────────────────
 
 class BankAccountsScreen extends StatefulWidget {
   const BankAccountsScreen({super.key});
@@ -66,9 +85,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
       final raw = await ApiService.getBankAccounts();
       if (!mounted) return;
       setState(() {
-        _accounts = raw
-            .map((m) => BankAccount.fromMap(m))
-            .toList();
+        _accounts = raw.map((m) => BankAccount.fromMap(m)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -80,39 +97,44 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
     }
   }
 
-  void _showSnack(String msg, {required bool isError}) {
+  void _snack(String msg, {required bool isError}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: isError
-            ? AppColors.danger(context)
-            : AppColors.success(context)));
+      content: Text(msg),
+      backgroundColor:
+      isError ? AppColors.danger(context) : AppColors.success(context),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ));
   }
 
   Future<void> _setPrimary(BankAccount account) async {
     if (account.isPrimary) return;
-    await AppHaptics.selection(); // Item #8
+    await AppHaptics.selection();
     final result = await ApiService.setPrimaryBankAccount(account.id);
     if (!mounted) return;
     if (result['success'] == true) {
-      _showSnack('${account.bankName} set as primary', isError: false);
+      _snack('${account.bankName} set as primary', isError: false);
       await _load();
     } else {
-      _showSnack(result['error'] ?? 'Failed to update', isError: true);
+      _snack(result['error'] ?? 'Failed to update', isError: true);
     }
   }
 
   Future<void> _delete(BankAccount account) async {
+    final cs = Theme.of(context).colorScheme;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remove Account'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove account?'),
         content: Text(
             'Remove ${account.bankName} ending in ${account.maskedNumber}?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child: Text('Cancel',
+                  style: TextStyle(color: cs.onSurfaceVariant))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
               child: Text('Remove',
@@ -124,92 +146,193 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
     final result = await ApiService.deleteBankAccount(account.id);
     if (!mounted) return;
     if (result['success'] == true) {
-      _showSnack('Account removed', isError: false);
+      _snack('Account removed', isError: false);
       await _load();
     } else {
-      _showSnack(result['error'] ?? 'Failed to remove', isError: true);
+      _snack(result['error'] ?? 'Failed to remove', isError: true);
     }
   }
 
-  void _copyAccountNumber(String number) {
-    Clipboard.setData(ClipboardData(text: number));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Account number copied'),
-        duration: const Duration(seconds: 2),
-        backgroundColor: AppColors.success(context),
+  void _showDetail(BankAccount account) {
+    AppHaptics.selection();
+    final cs = Theme.of(context).colorScheme;
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: cs.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => _AccountDetailSheet(
+        account: account,
+        onSetPrimary: () {
+          Navigator.pop(context);
+          _setPrimary(account);
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          _delete(account);
+        },
+        onCopy: () {
+          Clipboard.setData(ClipboardData(text: account.accountNumber));
+          _snack('Account number copied', isError: false);
+        },
       ),
     );
   }
 
-  // FIX: navigate to the add-account flow instead of re-calling _load().
-  // Previously the "Add Account" empty-state button was wired to _load(),
-  // which just refreshed an already-empty list — a complete dead end for
-  // new users who haven't added any accounts yet.
-  //
-  // Replace the body of this method with your actual add-account navigation:
-  //   Navigator.push(context, SmoothPageRoute(builder: (_) => AddBankAccountScreen()))
-  //     .then((_) => _load());
-  //
-  // The placeholder below pushes nothing but reloads on return, which at
-  // minimum doesn't trap users in a dead end.
-  Future<void> _navigateToAddAccount() async {
-    // TODO: replace with your AddBankAccountScreen route
-    // await Navigator.push(
-    //   context,
-    //   SmoothPageRoute(builder: (_) => const AddBankAccountScreen()),
-    // );
-    // Reload after returning from add-account screen
-    await _load();
+  Future<void> _showAddSheet() async {
+    await AppHaptics.selection();
+    if (!mounted) return;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AddBankAccountSheet(existingCount: _accounts.length),
+    );
+
+    if (result == true && mounted) {
+      _snack('Bank account added', isError: false);
+      await _load();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
+      backgroundColor: cs.surface,
       body: RefreshIndicator(
         onRefresh: _load,
         child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
           slivers: [
-            SliverAppBar.large(title: const Text('Bank Accounts')),
+            // App bar
+            SliverAppBar(
+              pinned: true,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              scrolledUnderElevation: 0,
+              leading: IconButton(
+                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                    color: cs.onSurface, size: 18),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: Text('Bank Accounts',
+                  style: TextStyle(
+                      color: cs.onSurface,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3)),
+            ),
+
             if (_isLoading)
               const SliverFillRemaining(
-                  child: Center(child: CircularProgressIndicator()))
-            else if (_error != null)
+                  child: Center(child: CircularProgressIndicator())),
+
+            if (_error != null && !_isLoading)
               SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_error!),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                            onPressed: _load,
-                            child: const Text('Retry')),
-                      ],
-                    ),
-                  ))
-            else if (_accounts.isEmpty)
-                SliverFillRemaining(
-                  // FIX: pass _navigateToAddAccount so the empty-state
-                  // button actually takes the user somewhere useful.
-                    child: _EmptyState(onAdd: _navigateToAddAccount))
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.all(20),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                          (ctx, i) => _AccountTile(
-                        account: _accounts[i],
-                        onPrimary: () => _setPrimary(_accounts[i]),
-                        onDelete: () => _delete(_accounts[i]),
-                        onCopy: () =>
-                            _copyAccountNumber(_accounts[i].accountNumber),
-                      ),
-                      childCount: _accounts.length,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off_rounded,
+                          size: 48,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                      const SizedBox(height: 16),
+                      Text(_error!,
+                          style: TextStyle(
+                              color: cs.onSurfaceVariant, fontSize: 15)),
+                      const SizedBox(height: 12),
+                      TextButton(
+                          onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                ),
+              ),
+
+            if (!_isLoading && _error == null) ...[
+              // Section: All banks
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+                  child: Text(
+                    'All banks (${_accounts.length})',
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+              ),
+
+              // Bank card grid
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.05,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      // Last card = "Add new bank"
+                      if (index == _accounts.length) {
+                        return _AddBankCard(
+                          enabled: _accounts.length < 5,
+                          onTap: _accounts.length < 5
+                              ? _showAddSheet
+                              : () => _snack(
+                              'Maximum 5 accounts allowed',
+                              isError: true),
+                        );
+                      }
+                      final account = _accounts[index];
+                      return _BankCard(
+                        account: account,
+                        onTap: () => _showDetail(account),
+                      );
+                    },
+                    childCount: _accounts.length + 1,
+                  ),
+                ),
+              ),
+
+              // Empty state hint
+              if (_accounts.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(children: [
+                        Icon(Icons.info_outline_rounded,
+                            color: cs.primary, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Add a bank account to receive withdrawals and investment payouts.',
+                            style: TextStyle(
+                                color: cs.onSurface, fontSize: 12),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
+                ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
+            ],
           ],
         ),
       ),
@@ -217,132 +340,583 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
   }
 }
 
-class _AccountTile extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════════════════════════
+// BANK CARD — Groww-style grid card
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _BankCard extends StatelessWidget {
   final BankAccount account;
-  final VoidCallback onPrimary;
+  final VoidCallback onTap;
+
+  const _BankCard({required this.account, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: account.isPrimary
+                ? cs.primary.withValues(alpha: 0.3)
+                : cs.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Primary badge + icon row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (account.isPrimary)
+                  Container(
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('Primary',
+                        style: TextStyle(
+                            color: cs.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700)),
+                  )
+                else
+                  const SizedBox.shrink(),
+                Icon(Icons.chevron_right_rounded,
+                    size: 16,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+              ],
+            ),
+
+            const Spacer(),
+
+            // Bank icon
+            Center(
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: account.brandColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.account_balance_rounded,
+                    color: account.brandColor, size: 22),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Bank name
+            Center(
+              child: Text(
+                account.bankName.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: cs.onSurface,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            // Masked number
+            Center(
+              child: Text(
+                account.maskedNumber,
+                style: TextStyle(
+                  color: cs.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADD BANK CARD — dashed border + icon
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AddBankCard extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _AddBankCard({required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: cs.outlineVariant.withValues(alpha: 0.3),
+            // Dashed effect via a thin border — Flutter doesn't support
+            // dashed borders natively, so we use a subtle outline
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.add_rounded,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  size: 22),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add new bank',
+              style: TextStyle(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACCOUNT DETAIL SHEET — shows full details on tap
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AccountDetailSheet extends StatelessWidget {
+  final BankAccount account;
+  final VoidCallback onSetPrimary;
   final VoidCallback onDelete;
   final VoidCallback onCopy;
 
-  const _AccountTile({
+  const _AccountDetailSheet({
     required this.account,
-    required this.onPrimary,
+    required this.onSetPrimary,
     required this.onDelete,
     required this.onCopy,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+    final cs = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  backgroundColor: colorScheme.surface,
-                  child: Text(
-                      account.bankName.isNotEmpty ? account.bankName[0] : ''),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(account.bankName,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 16)),
-                      Text(account.maskedNumber,
-                          style: TextStyle(
-                              color: colorScheme.onSurfaceVariant)),
-                      Text('IFSC: ${account.ifscCode}',
-                          style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 12)),
-                      if (account.beneficiaryName.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(account.beneficiaryName,
-                            style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                fontSize: 12)),
-                      ],
-                    ],
-                  ),
-                ),
-                if (account.isPrimary)
-                  Chip(
-                    label: const Text('Primary'),
-                    backgroundColor:
-                    AppColors.success(context).withValues(alpha: 0.1),
-                    labelStyle: TextStyle(
-                        color: AppColors.success(context), fontSize: 12),
-                  ),
-              ],
+          // Bank icon + name
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: account.brandColor.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
             ),
+            child: Icon(Icons.account_balance_rounded,
+                color: account.brandColor, size: 26),
           ),
-          const Divider(height: 1),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              if (!account.isPrimary)
-                TextButton.icon(
-                  icon: Icon(Icons.star_border,
+          const SizedBox(height: 12),
+          Text(account.bankName.toUpperCase(),
+              style: TextStyle(
+                  color: cs.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          if (account.isPrimary)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text('Primary bank',
+                    style: TextStyle(
+                        color: cs.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(width: 4),
+                Icon(Icons.info_outline_rounded,
+                    color: cs.primary, size: 12),
+              ]),
+            ),
+          const SizedBox(height: 20),
+
+          // Details card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: cs.outlineVariant.withValues(alpha: 0.15)),
+            ),
+            child: Column(children: [
+              _DetailRow(
+                  label: 'Account number', value: account.maskedNumber),
+              _dottedDivider(cs),
+              _DetailRow(label: 'IFSC Code', value: account.ifscCode),
+              _dottedDivider(cs),
+              if (account.branchAddress.isNotEmpty) ...[
+                _DetailRow(
+                    label: 'Bank branch', value: account.branchAddress),
+                _dottedDivider(cs),
+              ],
+              if (account.beneficiaryName.isNotEmpty)
+                _DetailRow(
+                    label: 'Beneficiary', value: account.beneficiaryName),
+            ]),
+          ),
+          const SizedBox(height: 20),
+
+          // Actions
+          Row(children: [
+            if (!account.isPrimary)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onSetPrimary,
+                  icon: Icon(Icons.star_rounded,
                       size: 16, color: AppColors.warning(context)),
                   label: Text('Set Primary',
                       style: TextStyle(color: AppColors.warning(context))),
-                  onPressed: onPrimary,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color:
+                        AppColors.warning(context).withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
                 ),
-              TextButton.icon(
-                icon: const Icon(Icons.copy, size: 16),
-                label: const Text('Copy'),
+              ),
+            if (!account.isPrimary) const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
                 onPressed: onCopy,
+                icon: Icon(Icons.copy_rounded, size: 16, color: cs.primary),
+                label: Text('Copy', style: TextStyle(color: cs.primary)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(
+                      color: cs.primary.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
               ),
-              TextButton.icon(
-                icon: Icon(Icons.delete_outline,
-                    size: 16, color: colorScheme.error),
-                label:
-                Text('Remove', style: TextStyle(color: colorScheme.error)),
-                onPressed: onDelete,
-              ),
-            ],
+            ),
+          ]),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              onPressed: onDelete,
+              icon: Icon(Icons.delete_outline_rounded,
+                  size: 16, color: cs.error),
+              label: Text('Remove account',
+                  style: TextStyle(color: cs.error, fontSize: 13)),
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _dottedDivider(ColorScheme cs) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Row(
+      children: List.generate(
+        40,
+            (_) => Expanded(
+          child: Container(
+            height: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.2),
+            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
-class _EmptyState extends StatelessWidget {
-  // FIX: callback is now Future<void> to support async navigation.
-  final Future<void> Function() onAdd;
-  const _EmptyState({required this.onAdd});
+class _DetailRow extends StatelessWidget {
+  final String label, value;
+  const _DetailRow({required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.account_balance_outlined,
-              size: 64,
-              color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 16),
-          const Text('No bank accounts added yet.'),
-          const SizedBox(height: 8),
-          Text(
-            'Add a bank account to start receiving payouts.',
-            style: TextStyle(
-                color: AppColors.textSecondary(context), fontSize: 13),
-            textAlign: TextAlign.center,
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+      const SizedBox(height: 2),
+      Text(value,
+          style: TextStyle(
+              color: cs.onSurface,
+              fontSize: 14,
+              fontWeight: FontWeight.w600)),
+    ]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADD BANK ACCOUNT SHEET
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _AddBankAccountSheet extends StatefulWidget {
+  final int existingCount;
+  const _AddBankAccountSheet({required this.existingCount});
+
+  @override
+  State<_AddBankAccountSheet> createState() => _AddBankAccountSheetState();
+}
+
+class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _bankNameCtrl = TextEditingController();
+  final _accountNumberCtrl = TextEditingController();
+  final _confirmAccountCtrl = TextEditingController();
+  final _ifscCtrl = TextEditingController();
+  final _beneficiaryCtrl = TextEditingController();
+  final _branchCtrl = TextEditingController();
+  bool _isPrimary = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingCount == 0) _isPrimary = true;
+  }
+
+  @override
+  void dispose() {
+    _bankNameCtrl.dispose();
+    _accountNumberCtrl.dispose();
+    _confirmAccountCtrl.dispose();
+    _ifscCtrl.dispose();
+    _beneficiaryCtrl.dispose();
+    _branchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+
+    try {
+      final result = await ApiService.addBankAccount(
+        bankName: _bankNameCtrl.text.trim(),
+        accountNumber: _accountNumberCtrl.text.trim(),
+        ifscCode: _ifscCtrl.text.trim().toUpperCase(),
+        beneficiaryName: _beneficiaryCtrl.text.trim(),
+        branchAddress: _branchCtrl.text.trim(),
+        isPrimary: _isPrimary,
+      );
+      if (!mounted) return;
+      if (result['success'] == true) {
+        await AppHaptics.success();
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        await AppHaptics.error();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(result['error'] ?? 'Failed to add account'),
+            backgroundColor: AppColors.danger(context)));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Connection error')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: cs.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text('Add Bank Account',
+                  style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: cs.onSurface,
+                      letterSpacing: -0.5)),
+              const SizedBox(height: 4),
+              Text('Enter your bank details for payouts',
+                  style:
+                  TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
+              const SizedBox(height: 24),
+              _field(_bankNameCtrl, 'Bank Name',
+                  Icons.account_balance_rounded,
+                  validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field(_accountNumberCtrl, 'Account Number',
+                  Icons.numbers_rounded,
+                  keyboard: TextInputType.number,
+                  formatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length < 8) return 'Too short';
+                    return null;
+                  }),
+              const SizedBox(height: 14),
+              _field(_confirmAccountCtrl, 'Confirm Account Number',
+                  Icons.numbers_rounded,
+                  keyboard: TextInputType.number,
+                  formatters: [FilteringTextInputFormatter.digitsOnly],
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim() != _accountNumberCtrl.text.trim()) {
+                      return 'Account numbers do not match';
+                    }
+                    return null;
+                  }),
+              const SizedBox(height: 14),
+              _field(_ifscCtrl, 'IFSC Code', Icons.code_rounded,
+                  capitalization: TextCapitalization.characters,
+                  maxLength: 11,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Required';
+                    if (v.trim().length != 11) return 'Must be 11 characters';
+                    return null;
+                  }),
+              const SizedBox(height: 14),
+              _field(_beneficiaryCtrl, 'Beneficiary Name',
+                  Icons.person_outline_rounded,
+                  capitalization: TextCapitalization.words,
+                  validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Required' : null),
+              const SizedBox(height: 14),
+              _field(_branchCtrl, 'Branch Address',
+                  Icons.location_on_outlined,
+                  capitalization: TextCapitalization.sentences,
+                  validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Required' : null),
+              const SizedBox(height: 16),
+              if (widget.existingCount > 0)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Set as primary account',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface)),
+                  subtitle: Text('Used for withdrawals and payouts',
+                      style: TextStyle(
+                          fontSize: 12, color: cs.onSurfaceVariant)),
+                  value: _isPrimary,
+                  onChanged: (v) => setState(() => _isPrimary = v),
+                  activeColor: cs.primary,
+                ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    disabledBackgroundColor:
+                    cs.primary.withValues(alpha: 0.6),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 0,
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white))
+                      : const Text('Add Account',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Bank Account'),
-          ),
-        ]),
-  );
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+      TextEditingController ctrl,
+      String label,
+      IconData icon, {
+        TextInputType keyboard = TextInputType.text,
+        TextCapitalization capitalization = TextCapitalization.none,
+        int? maxLength,
+        List<TextInputFormatter>? formatters,
+        String? Function(String?)? validator,
+      }) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      textCapitalization: capitalization,
+      maxLength: maxLength,
+      inputFormatters: formatters,
+      validator: validator,
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon,
+            color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
+        counterText: '',
+      ),
+    );
+  }
 }

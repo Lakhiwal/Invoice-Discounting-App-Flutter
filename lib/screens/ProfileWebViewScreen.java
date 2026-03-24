@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
@@ -17,20 +16,14 @@ import 'login_screen.dart';
 //  ProfileWebViewScreen
 //
 //  Opens after OTP verification to let the user fill in their profile on the
-//  web dashboard. Uses a one-time login token (Item #3 security fix).
+//  web dashboard. Now uses a one-time login token instead of injecting the
+//  raw password via JavaScript (Item #3 security fix).
 //
 //  Flow:
 //    1. Flutter calls ApiService.createWebviewToken() → gets a token
 //    2. WebView loads /auto-login/<token>/ directly
 //    3. Django validates the token, creates a session, redirects to profile
 //    4. No password in memory, no JS injection, no race conditions
-//
-//  File picking:
-//    Android WebView delegates file selection to this class. We detect the
-//    accept types and route to:
-//      • ImagePicker  — for camera capture or gallery images
-//      • FilePicker   — for PDFs and other documents
-//    iOS WKWebView handles file picking natively.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ProfileWebViewScreen extends StatefulWidget {
@@ -123,6 +116,7 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
           });
         },
       ))
+    // Load auto-login URL directly — no JS injection needed
       ..loadRequest(
         Uri.parse('${AppConfig.baseUrl}/auto-login/${widget.token}/'),
       );
@@ -143,150 +137,58 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
   }
 
   // ── Android file picker ───────────────────────────────────────────────────
-  //
-  // Determines the file type from WebView's acceptTypes and routes to:
-  //   • ImagePicker for images (camera/gallery)
-  //   • FilePicker for PDFs and documents
-  //   • Combined sheet for */* or mixed types
 
   Future<List<String>> _androidFilePicker(FileSelectorParams params) async {
-    final accepts = params.acceptTypes;
-
-    final acceptsImage = accepts
+    final picker = ImagePicker();
+    final acceptsImage = params.acceptTypes
         .any((t) => t.contains('image') || t.contains('*/*') || t.isEmpty);
-    final acceptsPdf = accepts.any((t) =>
-        t.contains('pdf') ||
-        t.contains('application') ||
-        t.contains('*/*') ||
-        t.isEmpty);
-    final acceptsAll = accepts.any((t) => t.contains('*/*') || t.isEmpty);
-
-    // Pure image input (e.g. accept="image/*")
-    if (acceptsImage && !acceptsPdf) {
-      return _pickImage();
-    }
-
-    // Pure document input (e.g. accept="application/pdf" or accept=".pdf")
-    if (acceptsPdf && !acceptsImage) {
-      return _pickDocument();
-    }
-
-    // Mixed or */* — show combined picker sheet
-    final choice = await _showFileTypeSheet();
-    if (choice == null) return [];
-
-    switch (choice) {
-      case _FilePickChoice.camera:
-        return _pickImageFromSource(ImageSource.camera);
-      case _FilePickChoice.gallery:
-        return _pickImageFromSource(ImageSource.gallery);
-      case _FilePickChoice.document:
-        return _pickDocument();
-    }
-  }
-
-  /// Pick an image via camera/gallery selection sheet
-  Future<List<String>> _pickImage() async {
-    final source = await _showImageSourceSheet();
-    if (source == null) return [];
-    return _pickImageFromSource(source);
-  }
-
-  /// Pick an image from a specific source
-  Future<List<String>> _pickImageFromSource(ImageSource source) async {
     try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1920,
-        maxHeight: 1920,
-      );
-      if (file == null) return [];
-      return ['file://${file.path}'];
-    } catch (e) {
-      debugPrint('Image picker error: $e');
-      return [];
-    }
-  }
-
-  /// Pick a document (PDF, etc.) via system file picker
-  Future<List<String>> _pickDocument() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
-        allowMultiple: false,
-      );
-      if (result == null || result.files.isEmpty) return [];
-      final path = result.files.single.path;
-      if (path == null) return [];
-      return ['file://$path'];
+      if (acceptsImage) {
+        final source = await _showImageSourceSheet();
+        if (source == null) return [];
+        final file = await picker.pickImage(
+            source: source,
+            imageQuality: 85,
+            maxWidth: 1920,
+            maxHeight: 1920);
+        if (file == null) return [];
+        return ['file://${file.path}'];
+      } else {
+        final file = await picker.pickMedia();
+        if (file == null) return [];
+        return ['file://${file.path}'];
+      }
     } catch (e) {
       debugPrint('File picker error: $e');
       return [];
     }
   }
 
-  // ── Image source sheet (camera vs gallery) ────────────────────────────────
-
   Future<ImageSource?> _showImageSourceSheet() {
     return showModalBottomSheet<ImageSource>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: UI.sheetRadius),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Upload Photo',
-                style: TextStyle(
-                    color: AppColors.textPrimary(context),
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: UI.xs),
-            Text('Choose how to provide the image',
-                style: TextStyle(
-                    color: AppColors.textSecondary(context), fontSize: 13)),
-            const SizedBox(height: 20),
-            _SourceTile(
-              icon: Icons.camera_alt_rounded,
-              label: 'Take Photo',
-              subtitle: 'Use your camera to capture document',
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            const SizedBox(height: 10),
-            _SourceTile(
-              icon: Icons.photo_library_rounded,
-              label: 'Choose from Gallery',
-              subtitle: 'Select an existing photo',
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-          ],
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.navyCard(context),
+          borderRadius:
+          const BorderRadius.vertical(top: Radius.circular(20)),
         ),
-      ),
-    );
-  }
-
-  // ── Combined file type sheet (image + document) ───────────────────────────
-
-  Future<_FilePickChoice?> _showFileTypeSheet() {
-    return showModalBottomSheet<_FilePickChoice>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: UI.sheetRadius),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.divider(context),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text('Upload Document',
                 style: TextStyle(
                     color: AppColors.textPrimary(context),
@@ -300,22 +202,31 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
             _SourceTile(
               icon: Icons.camera_alt_rounded,
               label: 'Take Photo',
-              subtitle: 'Capture document with your camera',
-              onTap: () => Navigator.pop(context, _FilePickChoice.camera),
+              subtitle: 'Use your camera to capture document',
+              onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
             const SizedBox(height: 10),
             _SourceTile(
               icon: Icons.photo_library_rounded,
               label: 'Choose from Gallery',
-              subtitle: 'Select an existing photo',
-              onTap: () => Navigator.pop(context, _FilePickChoice.gallery),
+              subtitle: 'Select an existing photo or file',
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
             const SizedBox(height: 10),
-            _SourceTile(
-              icon: Icons.description_outlined,
-              label: 'Browse Files',
-              subtitle: 'Select a PDF or document from your files',
-              onTap: () => Navigator.pop(context, _FilePickChoice.document),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, null),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: AppColors.divider(context)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text('Cancel',
+                    style: TextStyle(
+                        color: AppColors.textSecondary(context))),
+              ),
             ),
           ],
         ),
@@ -545,12 +456,6 @@ class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
   }
 }
 
-// ── File pick choice enum ───────────────────────────────────────────────────
-
-enum _FilePickChoice { camera, gallery, document }
-
-// ── Source tile (shared by both sheets) ──────────────────────────────────────
-
 class _SourceTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -566,27 +471,27 @@ class _SourceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding:
         const EdgeInsets.symmetric(horizontal: UI.md, vertical: 14),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHigh,
+          color: AppColors.navyLight(context),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.divider(context)),
         ),
         child: Row(children: [
           Container(
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.1),
+              color:
+              AppColors.primary(context).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: colorScheme.primary, size: 20),
+            child:
+            Icon(icon, color: AppColors.primary(context), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -595,16 +500,17 @@ class _SourceTile extends StatelessWidget {
                 children: [
                   Text(label,
                       style: TextStyle(
-                      color: colorScheme.onSurface,
-                      fontSize: 14,
+                          color: AppColors.textPrimary(context),
+                          fontSize: 14,
                           fontWeight: FontWeight.w600)),
                   Text(subtitle,
                       style: TextStyle(
-                      color: colorScheme.onSurfaceVariant, fontSize: 11)),
+                          color: AppColors.textSecondary(context),
+                          fontSize: 11)),
                 ]),
           ),
           Icon(Icons.chevron_right_rounded,
-              color: colorScheme.onSurfaceVariant, size: 18),
+              color: AppColors.textSecondary(context), size: 18),
         ]),
       ),
     );

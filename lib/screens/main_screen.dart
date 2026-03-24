@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widget_previews.dart';
 import 'package:invoice_discounting_app/screens/unlock_screen.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 
-import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
+import 'analytics_screen.dart';
 import 'home_screen.dart';
 import 'marketplace_screen.dart';
 import 'portfolio_screen.dart';
-import 'analytics_screen.dart';
-import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -22,7 +21,7 @@ class _MainScreenState extends State<MainScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const platform = MethodChannel('widget_navigation');
 
-  static const int _tabCount = 5;
+  static const int _tabCount = 4;
   int _currentIndex = 0;
   DateTime? _lastBackPress;
   late final List<Widget> _tabs;
@@ -34,7 +33,6 @@ class _MainScreenState extends State<MainScreen>
     (_) => GlobalKey<NavigatorState>(),
   );
 
-  // ── Per-tab fade-up controllers ─────────────────────────────────────────
   final List<AnimationController> _tabControllers = [];
   final List<Animation<double>> _tabFades = [];
   final List<Animation<Offset>> _tabSlides = [];
@@ -89,9 +87,7 @@ class _MainScreenState extends State<MainScreen>
 
     if (state == AppLifecycleState.resumed) {
       if (_backgroundTime == null) return;
-
       final difference = DateTime.now().difference(_backgroundTime!);
-
       if (difference > _lockTimeout) {
         Navigator.pushAndRemoveUntil(
           context,
@@ -102,7 +98,6 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
-
   void _changeTab(int index) {
     if (_currentIndex == index) return;
 
@@ -110,7 +105,6 @@ class _MainScreenState extends State<MainScreen>
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     final previousIndex = _currentIndex;
-
     setState(() => _currentIndex = index);
 
     _tabControllers[previousIndex].reverse();
@@ -120,16 +114,12 @@ class _MainScreenState extends State<MainScreen>
     });
   }
 
-
-
-
   Widget _buildTabNavigator(int index) {
     const screens = [
       HomeScreen(),
       MarketplaceScreen(),
       PortfolioScreen(),
       AnalyticsScreen(),
-      ProfileScreen(),
     ];
 
     return Navigator(
@@ -143,6 +133,8 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -150,14 +142,12 @@ class _MainScreenState extends State<MainScreen>
 
         final currentNav = _navigatorKeys[_currentIndex].currentState;
 
-        // 1️⃣ Pop inner routes if present
         if (currentNav != null && currentNav.canPop()) {
           currentNav.pop();
           _lastBackPress = null;
           return;
         }
 
-        // 2️⃣ If not on Home tab → switch to Home
         if (_currentIndex != 0) {
           _changeTab(0);
           return;
@@ -165,26 +155,33 @@ class _MainScreenState extends State<MainScreen>
 
         final now = DateTime.now();
 
-        // 3️⃣ First press → show snackbar
         if (_lastBackPress == null ||
             now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
           _lastBackPress = now;
 
           await AppHaptics.buttonPress();
 
+          if (!context.mounted) return;
+
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    'Tap again to exit',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
+                content: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.exit_to_app_rounded,
+                          color: Colors.white70, size: 18),
+                      SizedBox(width: 10),
+                      Text('Tap again to exit',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                    ],
                   ),
                 ),
                 behavior: SnackBarBehavior.floating,
@@ -192,13 +189,11 @@ class _MainScreenState extends State<MainScreen>
                 duration: const Duration(seconds: 2),
                 elevation: 0,
                 margin: EdgeInsets.fromLTRB(
-                  12,
-                  0,
-                  12,
-                  MediaQuery.of(context).padding.bottom + 68,
-                ),
+                    16, 0, 16, MediaQuery.of(context).padding.bottom),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.08), width: 1),
                 ),
               ),
             );
@@ -206,7 +201,6 @@ class _MainScreenState extends State<MainScreen>
           return;
         }
 
-        // 4️⃣ Second press → exit
         await AppHaptics.error();
         SystemNavigator.pop();
       },
@@ -226,17 +220,25 @@ class _MainScreenState extends State<MainScreen>
           }),
         ),
         bottomNavigationBar: Material(
-          color: AppColors.navyLight(context),
+          // M3: surfaceContainer gives a tone-based lift that's visually
+          // distinct from the scaffold's cs.surface background.
+          color: cs.surfaceContainer,
+          elevation: 0,
           child: Container(
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(
-                  color: AppColors.divider(context).withValues(alpha: 0.4),
+                  color: cs.outlineVariant.withValues(alpha: 0.4),
                 ),
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 10, 4, 24),
+              padding: EdgeInsets.fromLTRB(
+                0,
+                2,
+                0,
+                MediaQuery.of(context).padding.bottom,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -276,15 +278,6 @@ class _MainScreenState extends State<MainScreen>
                         current: _currentIndex,
                         onTap: _changeTab),
                   ),
-                  Expanded(
-                    child: _NavItem(
-                        icon: Icons.person_outline_rounded,
-                        activeIcon: Icons.person_rounded,
-                        label: 'Profile',
-                        index: 4,
-                        current: _currentIndex,
-                        onTap: _changeTab),
-                  ),
                 ],
               ),
             ),
@@ -296,7 +289,8 @@ class _MainScreenState extends State<MainScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Nav item — Google Photos style pill
+// Nav item — M3 Navigation Bar indicator
+// Animations: bounce/scale pop, outlined↔filled crossfade, pill width expand
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _NavItem extends StatefulWidget {
@@ -320,68 +314,80 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem>
-    with SingleTickerProviderStateMixin {
+class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
+  // ── Main activation controller (pill + crossfade) ──
   late final AnimationController _ctrl;
   late final CurvedAnimation _curve;
+
+  // ── Bounce controller (scale pop on tap) ──
+  late final AnimationController _bounceCtrl;
+  late final Animation<double> _bounceAnim;
 
   void _showLabel(BuildContext context) {
     final overlay = Overlay.of(context);
     final renderBox = context.findRenderObject() as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
-    const double horizontalAdjust = 10;
-
     final size = renderBox.size;
 
     final entry = OverlayEntry(
-      builder: (_) {
-        return Positioned(
-          left: position.dx + size.width / 2 - 30 + horizontalAdjust,
-          top: position.dy - 30,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 8,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                  ),
-                ],
-              ),
-              child: Text(
-                widget.label,
-                style: const TextStyle(
-                  fontSize: 9,
-                  color: Colors.black,
-                ),
+      builder: (_) => Positioned(
+        left: position.dx + size.width / 2 - 30 + 10,
+        top: position.dy - 30,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.inverseSurface,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: 9,
+                color: Theme.of(context).colorScheme.onInverseSurface,
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
 
     overlay.insert(entry);
-
-    Future.delayed(const Duration(seconds: 1), () {
-      entry.remove();
-    });
+    Future.delayed(const Duration(seconds: 1), entry.remove);
   }
 
   @override
   void initState() {
     super.initState();
+
+    // Main activation animation (drives pill width + crossfade + colors)
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 200));
+        vsync: this, duration: const Duration(milliseconds: 350));
     _curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     if (widget.index == widget.current) _ctrl.value = 1.0;
+
+    // Bounce: quick scale pop using a spring-like sequence
+    // 1.0 → 1.18 → 0.95 → 1.0  (overshoot then settle)
+    _bounceCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 400));
+    _bounceAnim = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween(begin: 1.0, end: 1.18)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 1.18, end: 0.95)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 30,
+      ),
+      TweenSequenceItem(
+        tween: Tween(begin: 0.95, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 40,
+      ),
+    ]).animate(_bounceCtrl);
   }
 
   @override
@@ -389,8 +395,11 @@ class _NavItemState extends State<_NavItem>
     super.didUpdateWidget(old);
     if (old.current != widget.current) {
       if (widget.index == widget.current) {
+        // Becoming active: play both activation + bounce
         _ctrl.forward(from: 0.0);
+        _bounceCtrl.forward(from: 0.0);
       } else if (widget.index == old.current) {
+        // Becoming inactive: reverse activation, no bounce
         _ctrl.reverse();
       }
     }
@@ -400,26 +409,44 @@ class _NavItemState extends State<_NavItem>
   void dispose() {
     _curve.dispose();
     _ctrl.dispose();
+    _bounceCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final active = widget.index == widget.current;
-    final activeColor = AppColors.primary(context);
-    final idleColor = AppColors.textSecondary(context);
+
+    final activeIconColor = cs.onPrimaryContainer;
+    final inactiveIconColor = cs.onSurfaceVariant;
+    final activeLabelColor = cs.onPrimaryContainer;
+    final inactiveLabelColor = cs.onSurfaceVariant;
 
     return RepaintBoundary(
       child: AnimatedBuilder(
-        animation: _ctrl,
+        animation: Listenable.merge([_ctrl, _bounceCtrl]),
         builder: (context, _) {
           final t = _curve.value;
+          final bounce = _bounceAnim.value;
 
-          final color = Color.lerp(
-            idleColor.withValues(alpha: 0.7),
-            activeColor,
+          final iconColor = Color.lerp(
+            inactiveIconColor,
+            activeIconColor,
             Curves.easeOut.transform(t),
           )!;
+
+          final labelColor = Color.lerp(
+            inactiveLabelColor,
+            activeLabelColor,
+            Curves.easeOut.transform(t),
+          )!;
+
+          // Pill width: 0 → 64 driven by t
+          final pillWidth = 64.0 * t;
+
+          // Icon vertical shift: nudge up 2px when active
+          final iconYOffset = -1.0 * t;
 
           return Semantics(
             label: widget.label,
@@ -430,61 +457,89 @@ class _NavItemState extends State<_NavItem>
                 await AppHaptics.navTap();
                 widget.onTap(widget.index);
               },
-              onLongPress: () {
-                _showLabel(context);
-              },
+              onLongPress: () => _showLabel(context),
               containedInkWell: false,
               highlightShape: BoxShape.circle,
-              radius: 56,
+              radius: 64,
               splashFactory: InkRipple.splashFactory,
-              splashColor: activeColor.withValues(alpha: 0.12),
-              highlightColor: activeColor.withValues(alpha: 0.06),
+              splashColor: cs.onSecondaryContainer.withValues(alpha: 0.12),
+              highlightColor: cs.onSecondaryContainer.withValues(alpha: 0.06),
               child: SizedBox(
                 width: 64,
-                height: 72,
+                height: 64,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // ── Icon + pill container ──
                     SizedBox(
-                      width: 60,
-                      height: 32,
+                      width: 64,
+                      height: 28,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
+                          // Pill indicator with width animation
                           if (t > 0)
                             Opacity(
-                              opacity: t,
+                              opacity: t.clamp(0.0, 1.0),
                               child: Container(
-                                width: 60,
-                                height: 30,
+                                width: pillWidth,
+                                height: 26,
                                 decoration: BoxDecoration(
-                                  color: activeColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(18),
+                                  color: Color.lerp(cs.secondaryContainer,
+                                      cs.onSurface, 0.08),
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
                             ),
-                          Icon(
-                            active ? widget.activeIcon : widget.icon,
-                            color: color,
-                            size: 28,
+
+                          // Icon with bounce scale + vertical shift
+                          Transform.translate(
+                            offset: Offset(0, iconYOffset),
+                            child: Transform.scale(
+                              scale: bounce,
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Outlined icon (fades out)
+                                    Opacity(
+                                      opacity: (1.0 - t).clamp(0.0, 1.0),
+                                      child: Icon(
+                                        widget.icon,
+                                        color: iconColor,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    // Filled icon (fades in)
+                                    Opacity(
+                                      opacity: t.clamp(0.0, 1.0),
+                                      child: Icon(
+                                        widget.activeIcon,
+                                        color: iconColor,
+                                        size: 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    AnimatedOpacity(
-                      opacity: active ? 1 : 0.7,
+                    const SizedBox(height: 2),
+                    // ── Label ──
+                    AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 200),
-                      child: Text(
-                        widget.label,
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 12,
-                          fontWeight:
-                              active ? FontWeight.w600 : FontWeight.w500,
-                        ),
+                      style: TextStyle(
+                        color: labelColor,
+                        fontSize: 12,
+                        fontWeight: active ? FontWeight.w500 : FontWeight.w400,
                       ),
+                      child: Text(widget.label),
                     ),
                   ],
                 ),
@@ -493,6 +548,20 @@ class _NavItemState extends State<_NavItem>
           );
         },
       ),
+    );
+  }
+}
+
+@Preview(name: 'Nav Bar Only')
+Widget navBarPreview() => const NavBarPreview();
+
+class NavBarPreview extends StatelessWidget {
+  const NavBarPreview({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: MainScreen(),
     );
   }
 }

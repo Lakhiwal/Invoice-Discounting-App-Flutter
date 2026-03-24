@@ -52,4 +52,12 @@ class PortfolioCache {
     // false cache-hit if logic around the null check ever changes.
     _lastFetch = null;
   }
+
+  /// Full wipe — call on logout to ensure the next user session
+  /// never sees stale data from the previous account.
+  static void clear() {
+    _portfolio = null;
+    _lastFetch = null;
+    _inflight = null;
+  }
 }

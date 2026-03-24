@@ -6,16 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
+
 import 'screens/login_screen.dart';
-import 'screens/unlock_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/unlock_screen.dart';
 import 'services/api_service.dart';
-import 'services/notification_service.dart';
 import 'services/notification_provider.dart';
+import 'services/notification_service.dart';
 import 'theme/theme_provider.dart';
 import 'utils/refresh_rate_controller.dart';
 
@@ -90,7 +91,7 @@ class InvoFinApp extends StatelessWidget {
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return Consumer<ThemeProvider>(
           builder: (context, themeProvider, _) {
-            final textTheme = GoogleFonts.interTextTheme();
+            final textTheme = GoogleFonts.dmSansTextTheme();
             final isDark = themeProvider.flutterThemeMode == ThemeMode.dark || 
                 (themeProvider.flutterThemeMode == ThemeMode.system && 
                  MediaQuery.platformBrightnessOf(context) == Brightness.dark);
@@ -163,14 +164,37 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   DateTime? _pausedAt;
   bool _authInProgress = false;
+
+  late AnimationController _animCtrl;
+  late Animation<double> _fadeIn;
+  late Animation<double> _scaleUp;
+  late Animation<double> _loaderFade;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+    );
+    _scaleUp = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
+    );
+    _loaderFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.5, 1.0, curve: Curves.easeIn)),
+    );
+
+    _animCtrl.forward();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAuth();
     });
@@ -178,6 +202,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    _animCtrl.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -290,44 +315,94 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.navyCard(context) : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+              cs.surface,
+              cs.surfaceContainerLow,
+              cs.surface,
+            ]
+                : [
+              cs.surface,
+              cs.primaryContainer.withValues(alpha: 0.15),
+              cs.surface,
+            ],
+          ),
+        ),
+        child: Center(
+          child: AnimatedBuilder(
+            animation: _animCtrl,
+            builder: (context, _) => Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo with fade + scale
+                Opacity(
+                  opacity: _fadeIn.value,
+                  child: Transform.scale(
+                    scale: _scaleUp.value,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 18),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? cs.surfaceContainerHigh
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: cs.primary.withValues(alpha: 0.08),
+                            blurRadius: 30,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Image.asset(
+                        'assets/images/logo-colored.png',
+                        height: 44,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: Image.asset(
-                'assets/images/logo-colored.png',
-                height: 48,
-                fit: BoxFit.contain,
-              ),
+                ),
+                const SizedBox(height: 36),
+                // Loading indicator — fades in after logo settles
+                Opacity(
+                  opacity: _loaderFade.value,
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      color: cs.primary,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Tagline — fades in with loader
+                Opacity(
+                  opacity: _loaderFade.value,
+                  child: Text(
+                    'Smart Invoice Investing',
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                color: AppColors.blueFallback,
-                strokeWidth: 2.5,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

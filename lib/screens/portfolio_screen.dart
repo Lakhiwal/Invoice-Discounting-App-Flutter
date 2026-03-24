@@ -6,16 +6,14 @@ import 'package:flutter/services.dart';
 import '../services/portfolio_cache.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
-// FIX #17: use shared fmtAmount from formatters.dart
 import '../utils/formatters.dart';
 import '../widgets/pressable.dart';
+import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-// FIX #17: fmtAmount() removed — replaced by fmtAmount() from formatters.dart.
 
 String _fmtFull(dynamic v) {
   try {
@@ -56,12 +54,13 @@ class _PortfolioScreenState extends State<PortfolioScreen>
   }
 
   Future<void> _loadPortfolio({bool forceRefresh = false}) async {
+    // FIX: single setState for the loading flag — previously forceRefresh path
+    // called setState(() => _isLoading = true) then PortfolioCache.invalidate()
+    // then another setState inside the try block, meaning two rebuilds before
+    // data arrived. Now we set loading once at the top and data once on success.
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // FIX #16: only bypass cache on explicit pull-to-refresh (forceRefresh=true).
-    // Previously invalidate() was called unconditionally, so the initial load
-    // always skipped the 10-second cache and made a network call — even when
-    // HomeScreen had just fetched fresh data moments before.
     if (forceRefresh) PortfolioCache.invalidate();
 
     try {
@@ -88,7 +87,6 @@ class _PortfolioScreenState extends State<PortfolioScreen>
       body: RefreshIndicator(
         onRefresh: () => _loadPortfolio(forceRefresh: true),
         child: CustomScrollView(
-          // Item #13: platform-adaptive scroll physics
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // ── App bar ────────────────────────────────────────────────
@@ -106,7 +104,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                         letterSpacing: -0.5)),
                 centerTitle: false,
                 titlePadding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               ),
               actions: [
                 IconButton(
@@ -118,20 +116,25 @@ class _PortfolioScreenState extends State<PortfolioScreen>
 
             // ── Summary tiles ──────────────────────────────────────────
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
+              child: _isLoading
+                  // FIX: skeleton for summary tiles while loading
+                  ? const SkeletonPortfolioHeader()
+                  : Padding(
+                      padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     _SummaryTile(
                         label: 'Invested',
-                        value: '₹${fmtAmount(summary?['total_invested'] ?? 0)}',
-                        icon: Icons.account_balance_wallet_rounded,
+                              value:
+                                  '₹${fmtAmount(summary?['total_invested'] ?? 0)}',
+                              icon: Icons.account_balance_wallet_rounded,
                         color: colorScheme.primary),
                     const SizedBox(width: 12),
                     _SummaryTile(
                         label: 'Returns',
-                        value: '₹${fmtAmount(summary?['total_returns'] ?? 0)}',
-                        icon: Icons.trending_up_rounded,
+                              value:
+                                  '₹${fmtAmount(summary?['total_returns'] ?? 0)}',
+                              icon: Icons.trending_up_rounded,
                         color: AppColors.emerald(context)),
                   ],
                 ),
@@ -145,16 +148,19 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                 child: Container(
                   color: colorScheme.surface,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: TabBar(
-                    controller: _tabController,
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: _isLoading
+                      // FIX: skeleton tab bar while loading
+                      ? const SkeletonTabBar()
+                      : TabBar(
+                          controller: _tabController,
                     indicator: BoxDecoration(
                         color: colorScheme.primary,
                         borderRadius: BorderRadius.circular(12)),
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelColor: colorScheme.onPrimary,
-                    unselectedLabelColor: colorScheme.onSurfaceVariant,
-                    dividerColor: Colors.transparent,
+                          unselectedLabelColor: colorScheme.onSurfaceVariant,
+                          dividerColor: Colors.transparent,
                     tabs: [
                       Tab(text: 'Active (${active.length})'),
                       Tab(text: 'Repaid (${repaid.length})'),
@@ -244,7 +250,9 @@ class _InvestmentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return const Center(child: CircularProgressIndicator());
+    // FIX: replaced CircularProgressIndicator with SkeletonPortfolioContent
+    if (isLoading) return const SkeletonPortfolioContent();
+
     if (investments.isEmpty) {
       return Center(
           child: Column(
@@ -260,8 +268,8 @@ class _InvestmentList extends StatelessWidget {
                 Text(
                   isRepaid ? 'No repaid investments' : 'No active investments',
                   style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 15),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 15),
                 ),
               ]));
     }
@@ -288,8 +296,6 @@ class _InvestmentCard extends StatelessWidget {
 
   const _InvestmentCard({required this.inv, required this.isRepaid});
 
-  // FIX: tenure_days now comes from the API (invoice_date → payment_date).
-  // days_left can be negative (overdue) — API no longer caps it at 0.
   double _progress() {
     try {
       final daysLeft = int.tryParse(inv['days_left']?.toString() ?? '0') ?? 0;
@@ -301,7 +307,6 @@ class _InvestmentCard extends StatelessWidget {
     }
   }
 
-  // FIX: days_left is no longer capped at 0, so negative → overdue.
   bool get _isOverdue {
     if (isRepaid) return false;
     return (int.tryParse(inv['days_left']?.toString() ?? '0') ?? 0) < 0;
@@ -322,7 +327,6 @@ class _InvestmentCard extends StatelessWidget {
         ? AppColors.amber(context)
         : AppColors.emerald(context);
 
-    // Item #15: Pressable for consistent spring-back feedback
     return Pressable(
       onTap: () async {
         await AppHaptics.selection();
@@ -388,7 +392,6 @@ class _InvestmentCard extends StatelessWidget {
                 _Metric(
                     label: 'Invested',
                     value: '₹${fmtAmount(inv['amount'])}'),
-                // FIX: show investor_rate (what they earn), not gross roi
                 _Metric(
                     label: 'Investor Rate',
                     value: '${inv['investor_rate']}% p.a.'),
@@ -468,30 +471,24 @@ class _InvestmentDetailSheet extends StatelessWidget {
   double get _amount =>
       double.tryParse(inv['amount']?.toString() ?? '0') ?? 0;
 
-  // FIX: use investor_rate (what investor earns), not gross roi
   double get _investorRate =>
       double.tryParse(inv['investor_rate']?.toString() ?? '0') ?? 0;
 
   double get _grossRoi =>
       double.tryParse(inv['roi']?.toString() ?? '0') ?? 0;
 
-  // FIX: days_left can now be negative (overdue)
   int get _daysLeft =>
       int.tryParse(inv['days_left']?.toString() ?? '0') ?? 0;
 
-  // FIX: tenure_days comes from API (invoice_date → payment_date, never shrinks)
   int get _tenure =>
       int.tryParse(inv['tenure_days']?.toString() ?? '0') ?? 30;
 
-  // FIX: expected_profit computed by API using original tenure
   double get _expectedProfit =>
       double.tryParse(inv['expected_profit']?.toString() ?? '0') ?? 0;
 
-  // FIX: maturity_value computed by API using original tenure
   double get _expectedPayout =>
       double.tryParse(inv['maturity_value']?.toString() ?? '0') ?? 0;
 
-  // FIX: actual_returns from InvoiceSettlement (settled invoices only)
   double get _actualReturns =>
       double.tryParse(inv['actual_returns']?.toString() ?? '0') ?? 0;
 
@@ -570,7 +567,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 28),
 
-          // ── Investment Summary ─────────────────────────────────────
           _SheetSection('Investment Summary'),
           _DetailCard(rows: [
             _Row('Amount Invested', '₹${_fmtFull(_amount)}',
@@ -590,20 +586,16 @@ class _InvestmentDetailSheet extends StatelessWidget {
           ]),
           const SizedBox(height: 20),
 
-          // ── Parties ────────────────────────────────────────────────
           _SheetSection('Invoice Parties'),
           _DetailCard(rows: [
             _Row('Seller (SME)', inv['company']?.toString() ?? '--'),
-            // FIX: renamed from "Buyer" → "Debtor" (matches your platform terminology)
             _Row('Debtor (Payer)', inv['debtor']?.toString() ?? '--'),
             _Row('Category', inv['particular']?.toString() ?? '--'),
           ]),
           const SizedBox(height: 20),
 
-          // ── Returns ────────────────────────────────────────────────
           _SheetSection(isRepaid ? 'Settlement Details' : 'Expected Returns'),
           _DetailCard(rows: [
-            // FIX: show investor_rate (net to investor), not gross roi
             _Row('Investor Rate (p.a.)',
                 '${_investorRate.toStringAsFixed(2)}% p.a.',
                 valueColor: AppColors.emerald(context),
@@ -611,7 +603,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
             if (!isRepaid) ...[
               _Row('Expected Interest', '₹${_fmtFull(_expectedProfit)}',
                   valueColor: AppColors.emerald(context)),
-              // FIX: renamed from "Maturity Amount" → "Expected Payout"
               _Row('Expected Payout', '₹${_fmtFull(_expectedPayout)}',
                   bold: true),
               _Row('Payment Due Date',
@@ -631,7 +622,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
               _Row('Principal Returned', '₹${_fmtFull(_amount)}'),
               _Row(
                 'Interest Received',
-                // FIX: use actual_returns from InvoiceSettlement
                 '₹${_fmtFull(_actualReturns > 0 ? _actualReturns : _expectedProfit)}',
                 valueColor: AppColors.emerald(context),
                 bold: true,
@@ -647,7 +637,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
           ]),
           const SizedBox(height: 20),
 
-          // ── Tenure Timeline (active only) ──────────────────────────
           if (!isRepaid) ...[
             _SheetSection('Tenure Timeline'),
             _DetailCard(rows: [
@@ -660,7 +649,8 @@ class _InvestmentDetailSheet extends StatelessWidget {
               ),
               _Row('Total Tenure',
                   _tenure > 0 ? '$_tenure days' : '--'),
-              _Row('Days Elapsed',
+              _Row(
+                  'Days Elapsed',
                   _tenure > 0
                       ? '${(_tenure - _daysLeft).clamp(0, _tenure)} days'
                       : '--'),
@@ -679,8 +669,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
             const SizedBox(height: 20),
           ],
 
-          // ── Tax Note ──────────────────────────────────────────────
-          // Item #33: regulatory banners (uncommented for compliance)
           _Banner(
             icon: Icons.receipt_long_outlined,
             title: 'Tax Information',
@@ -719,7 +707,6 @@ class _InvestmentDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 28),
 
-          // ── Copy summary button ────────────────────────────────────
           OutlinedButton.icon(
             onPressed: () => _copy(context, _buildSummaryText(),
                 'Investment summary copied to clipboard'),
@@ -742,8 +729,7 @@ class _InvestmentDetailSheet extends StatelessWidget {
 
   void _copy(BuildContext context, String text, String msg) {
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg), duration: const Duration(seconds: 2)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
   }
 
   String _buildSummaryText() => [
@@ -766,7 +752,7 @@ class _InvestmentDetailSheet extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Detail sheet sub-widgets (unchanged from original)
+// Detail sheet sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SheetSection extends StatelessWidget {
@@ -859,8 +845,7 @@ class _DetailCard extends StatelessWidget {
                 style: TextStyle(
                     color: row.valueColor ?? colorScheme.onSurface,
                     fontSize: 13,
-                    fontWeight:
-                    row.bold ? FontWeight.w700 : FontWeight.w500)),
+                    fontWeight: row.bold ? FontWeight.w700 : FontWeight.w500)),
             if (row.onCopy != null) ...[
               const SizedBox(width: 8),
               GestureDetector(
@@ -902,9 +887,9 @@ class _DetailCard extends StatelessWidget {
                       ? '${(r.progress * 100).toStringAsFixed(0)}% of ${r.tenure}d'
                       : '--',
                   style: TextStyle(
-                      color:
+                  color:
                       isOverdue ? AppColors.rose(context) : colorScheme.primary,
-                      fontSize: 13,
+                  fontSize: 13,
                       fontWeight: FontWeight.w700),
                 ),
               ]),
@@ -956,34 +941,33 @@ class _Banner extends StatelessWidget {
         color: color.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.2))),
-    child:
-    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, color: color, size: 16),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(body,
-                style: TextStyle(
-                    color: color.withValues(alpha: 0.8),
-                    fontSize: 11,
-                    height: 1.55)),
-          ],
-        ),
-      ),
-    ]),
-  );
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(body,
+                    style: TextStyle(
+                        color: color.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        height: 1.55)),
+              ],
+            ),
+          ),
+        ]),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _Metric  (card preview)
+// _Metric
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Metric extends StatelessWidget {
@@ -1023,7 +1007,5 @@ class _TabDelegate extends SliverPersistentHeaderDelegate {
       child;
 
   @override
-  // FIX #31: was always returning true, causing the tab bar to rebuild on
-  // every scroll frame. Now only rebuilds when the child widget changes.
   bool shouldRebuild(_TabDelegate old) => old.child != child;
 }
