@@ -18,7 +18,7 @@
 
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
+            android:value="false" />
 
         <!-- Marketplace Widget -->
         <receiver

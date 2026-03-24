@@ -198,7 +198,7 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: colorScheme.surface,
-    fontFamily: 'Inter',
+    fontFamily: 'DM Sans',
     extensions: [
       FintechTheme(
         success: const Color(0xFF10B981),

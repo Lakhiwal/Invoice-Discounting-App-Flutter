@@ -745,15 +745,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ),
                 ),
                 if (_isLoading)
-                  SliverPadding(
-                    padding: const EdgeInsets.all(20),
-                    sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                                (ctx, i) => const Padding(
-                                padding: EdgeInsets.only(bottom: 16),
-                                child: SkeletonCard(height: 160)),
-                            childCount: 3)),
-                  )
+                    SliverToBoxAdapter(
+                      child: const SkeletonMarketplaceContent(cardCount: 3),
+                    )
                 else if (_filtered.isEmpty)
                   SliverFillRemaining(
                       child: Center(
@@ -781,28 +775,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                    sliver: SliverPrototypeExtentList(
-                      prototypeItem: const _InvoiceCard(
-                        item: InvoiceItem(
-                          id: '',
-                          company: '',
-                          particular: '',
-                          debtor: '',
-                          status: '',
-                          statusDisplay: '',
-                          roi: 0,
-                          daysLeft: 0,
-                          tenureDays: 0,
-                          remainingAmount: 0,
-                          fundingPct: 0,
-                          roiDisplay: '',
-                          daysLeftDisplay: '',
-                          tenureDisplay: '',
-                          remainingDisplay: '',
-                          fundingDisplay: '',
-                        ),
-                      ),
-                      delegate: SliverChildBuilderDelegate(
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
                         addAutomaticKeepAlives: false,
                         addRepaintBoundaries: true,
                             (ctx, i) => RepaintBoundary(

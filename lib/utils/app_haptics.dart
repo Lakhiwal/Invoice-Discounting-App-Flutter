@@ -70,7 +70,7 @@ class AppHaptics {
   // Uses selectionClick (level 0) — the lightest possible feedback.
   // At "Subtle" setting this still fires (clamp keeps it at 0).
   // At "Off" it correctly skips (the _tap guard handles that).
-  static Future<void> counterTick() => _tap(0);
+  static Future<void> counterTick() => _tap(1);
 
   // ── Primary interactions ──────────────────────────────────────────────────
   static Future<void> buttonPress() => _tap(1);

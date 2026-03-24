@@ -5,11 +5,9 @@ import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart'; // Item #8
+import '../utils/app_haptics.dart';
 import 'login_screen.dart';
 import 'verify_otp_screen.dart';
-
-// Item #22: removed _kGreen — use AppColors.success(context) or emerald(context) instead
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -35,7 +33,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   bool _isLoading = false;
   String? _errorMessage;
 
-  // FIX #11: store recognizer as field so it can be disposed
   late final TapGestureRecognizer _signInRecognizer;
 
   // ── Animation ─────────────────────────────────────────────────────────────
@@ -79,9 +76,10 @@ class _RegisterScreenState extends State<RegisterScreen>
     ).animate(_slideCurve);
     _animController.forward();
     _passwordController.addListener(_evaluatePassword);
-    // FIX #11: initialize here, not inline in build()
     _signInRecognizer = TapGestureRecognizer()
-      ..onTap = () {
+      ..onTap = () async {
+        await AppHaptics.selection();
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           SmoothPageRoute(builder: (_) => const LoginScreen()),
         );
@@ -99,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _panController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _signInRecognizer.dispose(); // FIX #11
+    _signInRecognizer.dispose();
     super.dispose();
   }
 
@@ -124,19 +122,13 @@ class _RegisterScreenState extends State<RegisterScreen>
     final confirm = _confirmPasswordController.text;
 
     if (name.isEmpty) return 'Full name is required.';
-    // FIX #12: proper email regex — old check (!email.contains('@')) passed
-    // values like '@', 'a@', '@b' as valid emails
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (email.isEmpty || !emailRegex.hasMatch(email)) {
       return 'Enter a valid email address.';
     }
-    // FIX #29: exact 10-digit Indian mobile starting with 6-9
-    // old check (mobile.length < 10) accepted 15-digit numbers
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(mobile)) {
       return 'Enter a valid 10-digit Indian mobile number.';
     }
-    // FIX #13: validate PAN format [A-Z]{5}[0-9]{4}[A-Z] — old check only
-    // verified length, accepting strings like 'AAAAAAAAAA'
     if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(pan)) {
       return 'Enter a valid PAN number (e.g. ABCDE1234F).';
     }
@@ -154,6 +146,8 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   // ── Register ──────────────────────────────────────────────────────────────
   Future<void> _handleRegister() async {
+    FocusScope.of(context).unfocus();
+
     final error = _validate();
     if (error != null) {
       setState(() => _errorMessage = error);
@@ -178,7 +172,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (!mounted) return;
 
       if (result['success'] == true) {
-        await AppHaptics.success(); // Item #8
+        await AppHaptics.success();
         Navigator.of(context).push(
           SmoothPageRoute(
             builder: (_) => VerifyOtpScreen(
@@ -189,18 +183,20 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
         );
       } else {
-        await AppHaptics.error(); // Item #8
+        await AppHaptics.error();
         setState(
                 () => _errorMessage = result['error'] ?? 'Registration failed.');
       }
     } catch (_) {
-      await AppHaptics.error(); // Item #8
+      await AppHaptics.error();
       setState(() =>
       _errorMessage = 'Cannot connect to server. Check your network.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  void _dismissError() => setState(() => _errorMessage = null);
 
   // ── Strength helpers ──────────────────────────────────────────────────────
   Color _strengthColor() {
@@ -212,7 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       case 3:
         return Colors.amber;
       case 4:
-        return AppColors.success(context); // Item #22: was _kGreen
+        return AppColors.success(context);
       default:
         return Colors.transparent;
     }
@@ -237,74 +233,89 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
-          // Background gradient
+          // ── Background gradient (matches login) ─────────────────────────
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: UI.authGradient(isDark), // Item #35: shared gradient
+                  colors: [
+                    scheme.surface,
+                    scheme.surfaceContainerLowest,
+                  ],
                 ),
               ),
             ),
           ),
 
-          // Blue glow
+          // ── Decorative glow (matches login: 520px + IgnorePointer) ──────
           Positioned(
             top: -80,
             right: -80,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [
-                  AppColors.blue(context)
-                      .withValues(alpha: isDark ? 0.15 : 0.08),
-                  Colors.transparent,
-                ]),
+            child: IgnorePointer(
+              child: Container(
+                width: 520,
+                height: 520,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    radius: 0.85,
+                    colors: [
+                      AppColors.blue(context)
+                          .withValues(alpha: isDark ? 0.18 : 0.10),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
 
+          // ── Content ─────────────────────────────────────────────────────
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SlideTransition(
                 position: _slideAnim,
                 child: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 40),
 
-                      // Logo
+                      // ── Logo (matches login: dark-mode aware) ───────────
                       Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: UI.lg, vertical: UI.md),
+                              horizontal: 24, vertical: 16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark
+                                ? AppColors.navyCard(context)
+                                : Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.blue(context)
-                                    .withValues(alpha: 0.1),
-                                blurRadius: 20,
-                                offset: const Offset(0, 4),
+                                    .withValues(alpha: 0.12),
+                                blurRadius: 24,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
                           child: Image.asset(
                             'assets/images/logo-colored.png',
-                            height: 44,
+                            height: 48,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -312,6 +323,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                       const SizedBox(height: 36),
 
+                      // ── Heading ─────────────────────────────────────────
                       Text('Create account.',
                           style: TextStyle(
                             fontSize: 34,
@@ -319,7 +331,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             color: AppColors.textPrimary(context),
                             height: 1.15,
                           )),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Text('Join Finworks360 as an investor or partner',
                           style: TextStyle(
                               fontSize: 14,
@@ -327,7 +339,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                       const SizedBox(height: 28),
 
-                      // Account type selector
+                      // ── Account type ────────────────────────────────────
                       Text('Account type',
                           style: TextStyle(
                               fontSize: 13,
@@ -338,6 +350,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                       const SizedBox(height: 20),
 
+                      // ── Form fields ─────────────────────────────────────
                       _buildField(
                         controller: _nameController,
                         label: 'Full name',
@@ -372,7 +385,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                       ),
                       const SizedBox(height: 14),
 
-                      // Password
+                      // ── Password ────────────────────────────────────────
                       TextField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -392,13 +405,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                               color: AppColors.textSecondary(context),
                               size: 20,
                             ),
-                            onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword),
+                            onPressed: () async {
+                              await AppHaptics.selection();
+                              setState(
+                                  () => _obscurePassword = !_obscurePassword);
+                            },
                           ),
                         ),
                       ),
 
-                      // Password strength bar
+                      // ── Password strength bar ──────────────────────────
                       if (_passwordController.text.isNotEmpty) ...[
                         const SizedBox(height: UI.sm),
                         Row(
@@ -430,7 +446,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                       const SizedBox(height: 14),
 
-                      // Confirm Password
+                      // ── Confirm Password ───────────────────────────────
                       TextField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirm,
@@ -451,45 +467,75 @@ class _RegisterScreenState extends State<RegisterScreen>
                               color: AppColors.textSecondary(context),
                               size: 20,
                             ),
-                            onPressed: () => setState(
-                                    () => _obscureConfirm = !_obscureConfirm),
+                            onPressed: () async {
+                              await AppHaptics.selection();
+                              setState(
+                                  () => _obscureConfirm = !_obscureConfirm);
+                            },
                           ),
                         ),
                       ),
 
-                      // Error
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color:
-                            AppColors.rose(context).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: AppColors.rose(context)
-                                    .withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error_outline_rounded,
-                                  color: AppColors.rose(context), size: 16),
-                              const SizedBox(width: UI.sm),
-                              Expanded(
-                                child: Text(_errorMessage!,
-                                    style: TextStyle(
+                      // ── Error banner (matches login: AnimatedSize + dismiss) ──
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeInOut,
+                        child: _errorMessage != null
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.rose(context)
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: AppColors.rose(context)
+                                            .withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 1),
+                                        child: Icon(
+                                          Icons.error_outline_rounded,
+                                          color: AppColors.rose(context),
+                                          size: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _errorMessage!,
+                                          style: TextStyle(
                                         color: AppColors.rose(context),
-                                        fontSize: 13)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                                              fontSize: 13),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          await AppHaptics.selection();
+                                          _dismissError();
+                                        },
+                                        child: Icon(
+                                          Icons.close_rounded,
+                                          color: AppColors.rose(context),
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
 
                       const SizedBox(height: 28),
 
-                      // Create Account button
+                      // ── Create Account button ──────────────────────────
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -498,6 +544,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary(context),
                             foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.primary(context)
+                                .withValues(alpha: 0.6),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14)),
                             elevation: 0,
@@ -517,7 +565,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                       const SizedBox(height: 28),
 
-                      // Already have account
+                      // ── Sign in link ───────────────────────────────────
                       Center(
                         child: RichText(
                           text: TextSpan(
@@ -532,7 +580,6 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   color: AppColors.primary(context),
                                   fontWeight: FontWeight.w700,
                                 ),
-                                // FIX #11: use stored recognizer
                                 recognizer: _signInRecognizer,
                               ),
                             ],
@@ -540,7 +587,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 40),
+                      // ── Bottom padding ─────────────────────────────────
+                      SizedBox(
+                          height: MediaQuery.of(context).padding.bottom + 24),
                     ],
                   ),
                 ),
@@ -562,8 +611,10 @@ class _RegisterScreenState extends State<RegisterScreen>
 
         return Expanded(
           child: GestureDetector(
-            onTap: () =>
-                setState(() => _selectedUserType = type['value'] as String),
+            onTap: () async {
+              await AppHaptics.selection();
+              setState(() => _selectedUserType = type['value'] as String);
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: EdgeInsets.only(right: isLast ? 0 : 8),
@@ -571,7 +622,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary(context)
-                    : (isDark ? const Color(0xFF1A2540) : Colors.white),
+                    : (isDark ? AppColors.navyCard(context) : Colors.white),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isSelected
@@ -633,6 +684,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       textCapitalization: capitalization,
       maxLength: maxLength,
       style: TextStyle(color: AppColors.textPrimary(context)),
+      onChanged: (_) {
+        if (_errorMessage != null) _dismissError();
+      },
       decoration: InputDecoration(
         labelText: label,
         labelStyle: TextStyle(color: AppColors.textSecondary(context)),

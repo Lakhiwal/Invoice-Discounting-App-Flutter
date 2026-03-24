@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/secure_storage_service.dart';
 
+import 'package:http_parser/http_parser.dart';
+
 /// Thrown when the user is unauthenticated and refresh failed.
 /// UI should catch this and navigate to login.
 class UnauthorizedException implements Exception {
@@ -85,6 +87,120 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', access);
   }
+
+  static Future<Map<String, dynamic>> verifyPayment({
+    required String paymentId,
+    required String orderId,
+    required String signature,
+  }) async {
+    try {
+      final response = await _post('$baseUrl/payments/verify/', {
+        'payment_id': paymentId,
+        'order_id': orderId,
+        'signature': signature,
+      });
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      return {
+        'success': false,
+        'status': data['status'] ?? 'failed',
+        'error': data['error'] ?? 'Verification failed',
+      };
+    } on UnauthorizedException {
+      return {
+        'success': false,
+        'status': 'failed',
+        'error': 'Session expired',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'status': 'pending',
+        'error': 'Connection error — wallet will update shortly',
+      };
+    }
+  }
+
+  static Future<Map<String, dynamic>> createRazorpayOrder(double amount) async {
+    try {
+      final response = await _post('$baseUrl/payments/create-order/', {
+        'amount': amount.toString(),
+      });
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return data;
+      }
+
+      return {'success': false, 'error': data['error']};
+    } on UnauthorizedException {
+      return {'success': false, 'error': 'Session expired'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> uploadProfilePicture(File imageFile) async {
+    final token = await _getAccessToken();
+    if (token == null) return {'error': 'Not authenticated'};
+
+    try {
+      final uri = Uri.parse('$baseUrl/api/profile/picture/');
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..files.add(await http.MultipartFile.fromPath(
+          'picture',
+          imageFile.path,
+          contentType: MediaType(
+              'image', imageFile.path.endsWith('.png') ? 'png' : 'jpeg'),
+        ));
+
+      final streamed =
+      await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'url': data['url']};
+      } else {
+        final data = jsonDecode(response.body);
+        return {'error': data['error'] ?? 'Upload failed'};
+      }
+    } catch (e) {
+      return {'error': 'Connection error: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteProfilePicture() async {
+    final token = await _getAccessToken();
+    if (token == null) return {'error': 'Not authenticated'};
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/profile/picture/delete/'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return {'success': true};
+      } else {
+        final data = jsonDecode(response.body);
+        return {'error': data['error'] ?? 'Failed to remove'};
+      }
+    } catch (e) {
+      return {'error': 'Connection error: $e'};
+    }
+  }
+
 
   static Future<Map<String, dynamic>?> calculateInvestment(
     int invoiceId,
