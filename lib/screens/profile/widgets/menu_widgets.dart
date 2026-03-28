@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../theme/ui_constants.dart';
 import '../../../utils/app_haptics.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// Profile menu widgets — section headers, card groups, menu items, switches
+// Profile menu widgets — divider-based, no card borders
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── Section header ──────────────────────────────────────────────────────────
@@ -22,14 +21,14 @@ class ProfileSectionHeader extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.6,
+          letterSpacing: 0.5,
         ),
       ),
     );
   }
 }
 
-// ── Card group ──────────────────────────────────────────────────────────────
+// ── Card group — subtle dividers, no border/card ────────────────────────────
 
 class ProfileCardGroup extends StatelessWidget {
   final List<Widget> children;
@@ -37,30 +36,24 @@ class ProfileCardGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(UI.radiusMd),
-        border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        children: children.asMap().entries.map((entry) {
-          return Column(
-            children: [
-              entry.value,
-              if (entry.key < children.length - 1)
-                Divider(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                  height: 1,
-                  indent: 58,
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      children: children.asMap().entries.map((entry) {
+        return Column(
+          children: [
+            entry.value,
+            if (entry.key < children.length - 1)
+              Padding(
+                padding: const EdgeInsets.only(left: 50),
+                child: Divider(
+                  color: cs.outlineVariant.withValues(alpha: 0.15),
+                  height: 0.5,
+                  thickness: 0.5,
                 ),
-            ],
-          );
-        }).toList(),
-      ),
+              ),
+          ],
+        );
+      }).toList(),
     );
   }
 }
@@ -95,24 +88,24 @@ class ProfileMenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
           child: Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: iconBg,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: iconColor, size: 16),
+                child: Icon(icon, color: iconColor, size: 15),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -122,9 +115,9 @@ class ProfileMenuItem extends StatelessWidget {
                     Text(
                       label,
                       style: TextStyle(
-                        color: colorScheme.onSurface,
+                        color: cs.onSurface,
                         fontSize: 14,
-                        fontWeight: FontWeight.w400,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     if (subtitle != null && subtitle!.isNotEmpty)
@@ -133,7 +126,7 @@ class ProfileMenuItem extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: subtitleColor ?? colorScheme.onSurfaceVariant,
+                          color: subtitleColor ?? cs.onSurfaceVariant,
                           fontSize: 11,
                         ),
                       ),
@@ -148,7 +141,7 @@ class ProfileMenuItem extends StatelessWidget {
                 const SizedBox(width: 6),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                   size: 18,
                 ),
               ],
@@ -217,24 +210,24 @@ class ProfileSwitchItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () async {
         await AppHaptics.selection();
         onChanged(!value);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
         child: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: iconBg,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: iconColor, size: 16),
+              child: Icon(icon, color: iconColor, size: 15),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -243,10 +236,12 @@ class ProfileSwitchItem extends StatelessWidget {
                 children: [
                   Text(label,
                       style: TextStyle(
-                          color: colorScheme.onSurface, fontSize: 14)),
+                          color: cs.onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500)),
                   Text(subtitle,
                       style: TextStyle(
-                          color: colorScheme.onSurfaceVariant, fontSize: 11)),
+                          color: cs.onSurfaceVariant, fontSize: 11)),
                 ],
               ),
             ),

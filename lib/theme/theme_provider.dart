@@ -83,7 +83,6 @@ class AppColors {
   static Color amber(BuildContext c) => warning(c);
   static Color blue(BuildContext c) => info(c);
 
-  // Const fallbacks for use where BuildContext is unavailable
   static const Color blueFallback = Color(0xFF1B4EDE);
   static const Color emeraldFallback = Color(0xFF10B981);
   static const Color roseFallback = Color(0xFFEF4444);
@@ -103,7 +102,7 @@ class AppColors {
 
 // ── ThemeProvider ─────────────────────────────────────────────────────────────
 
-enum AppThemeMode { light, dark, system }
+enum AppThemeMode { system, light, dark, black }
 
 class ThemeProvider extends ChangeNotifier {
   static const _kThemeKey = 'theme_mode';
@@ -115,16 +114,23 @@ class ThemeProvider extends ChangeNotifier {
   AppThemeMode get mode => _mode;
   bool get hideBalance => _hideBalance;
 
+  /// Returns the Flutter ThemeMode for MaterialApp.
+  /// Both dark and black use ThemeMode.dark — the difference is in the
+  /// ThemeData returned by darkThemeFor().
   ThemeMode get flutterThemeMode {
     switch (_mode) {
       case AppThemeMode.light:
         return ThemeMode.light;
       case AppThemeMode.dark:
+      case AppThemeMode.black:
         return ThemeMode.dark;
       case AppThemeMode.system:
         return ThemeMode.system;
     }
   }
+
+  /// True when the user explicitly chose black mode.
+  bool get isBlackMode => _mode == AppThemeMode.black;
 
   ThemeProvider() {
     _load();
@@ -153,38 +159,71 @@ class ThemeProvider extends ChangeNotifier {
     (await SharedPreferences.getInstance()).setBool(_kBalanceKey, hide);
   }
 
+  // ── Theme getters ─────────────────────────────────────────────────────────
+
   static ThemeData get lightTheme => buildLightTheme(null);
   static ThemeData get darkTheme => buildDarkTheme(null);
+  static ThemeData get blackTheme => buildBlackTheme(null);
+
+  /// Returns the correct dark ThemeData based on current mode.
+  ThemeData darkThemeFor(ColorScheme? dynamicScheme) =>
+      isBlackMode ? buildBlackTheme(dynamicScheme) : buildDarkTheme(dynamicScheme);
 }
 
 // ── Theme builders ────────────────────────────────────────────────────────────
 
-// Dynamic color (Material You) is supported but off by default.
-// Pass a non-null [dynamicScheme] from DynamicColorBuilder to enable it.
 ThemeData buildLightTheme(ColorScheme? dynamicScheme) =>
-    _build(Brightness.light, dynamicScheme);
+    _build(Brightness.light, _DarkVariant.none, dynamicScheme);
 
 ThemeData buildDarkTheme(ColorScheme? dynamicScheme) =>
-    _build(Brightness.dark, dynamicScheme);
+    _build(Brightness.dark, _DarkVariant.dark, dynamicScheme);
 
-ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
+ThemeData buildBlackTheme(ColorScheme? dynamicScheme) =>
+    _build(Brightness.dark, _DarkVariant.black, dynamicScheme);
+
+enum _DarkVariant { none, dark, black }
+
+ThemeData _build(Brightness brightness, _DarkVariant variant,
+    [ColorScheme? dynamicScheme]) {
   final isDark = brightness == Brightness.dark;
+  final isBlack = variant == _DarkVariant.black;
   const brandSeed = Color(0xFF1B4EDE);
 
-  // Resolve color scheme: dynamic (Material You) or fallback (brand navy)
   final ColorScheme colorScheme;
-  if (dynamicScheme != null) {
+  if (dynamicScheme != null && !isBlack) {
     colorScheme = dynamicScheme.copyWith(
       error: const Color(0xFFEF4444),
       surfaceTint: Colors.transparent,
     );
   } else {
+    // Surface colors per variant
+    final Color surface;
+    final Color surfaceContainer;
+    final Color surfaceContainerHigh;
+
+    if (isBlack) {
+      // True AMOLED black
+      surface = const Color(0xFF000000);
+      surfaceContainer = const Color(0xFF000000);
+      surfaceContainerHigh = const Color(0xFF0D0D0D);
+    } else if (isDark) {
+      // Dark mode — very dark but not pure black
+      surface = const Color(0xFF050508);
+      surfaceContainer = const Color(0xFF0A0A0F);
+      surfaceContainerHigh = const Color(0xFF111118);
+    } else {
+      // Light mode
+      surface = const Color(0xFFF4F7FF);
+      surfaceContainer = const Color(0xFFFFFFFF);
+      surfaceContainerHigh = const Color(0xFFEEF2FF);
+    }
+
     colorScheme = ColorScheme.fromSeed(
       seedColor: brandSeed,
       brightness: brightness,
-      surface: isDark ? const Color(0xFF060B14) : const Color(0xFFF4F7FF),
-      surfaceContainer: isDark ? const Color(0xFF0D1422) : const Color(0xFFFFFFFF),
-      surfaceContainerHigh: isDark ? const Color(0xFF111B2D) : const Color(0xFFEEF2FF),
+      surface: surface,
+      surfaceContainer: surfaceContainer,
+      surfaceContainerHigh: surfaceContainerHigh,
     ).copyWith(
       primary: brandSeed,
       onPrimary: Colors.white,
@@ -193,19 +232,18 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
     );
   }
 
-  // Item #11: single ThemeData builder for both dynamic and fallback schemes
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: colorScheme.surface,
-    fontFamily: 'DM Sans',
+    fontFamily: 'Inter',
     extensions: [
       FintechTheme(
         success: const Color(0xFF10B981),
         danger: const Color(0xFFEF4444),
         warning: const Color(0xFFF59E0B),
         info: colorScheme.primary,
-        cardRadius: 24,
+        cardRadius: 14,
         glassOpacity: isDark ? 0.08 : 0.7,
       ),
     ],
@@ -213,7 +251,7 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
       backgroundColor: colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      scrolledUnderElevation: 0.5, // Item #19: reduced from 4 to avoid tint conflict
+      scrolledUnderElevation: 0.5,
       centerTitle: false,
       titleTextStyle: TextStyle(
         color: colorScheme.onSurface,
@@ -229,7 +267,7 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(
             color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
       ),
@@ -238,11 +276,11 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
       filled: true,
       fillColor: colorScheme.surfaceContainerHigh,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -253,23 +291,22 @@ ThemeData _build(Brightness brightness, [ColorScheme? dynamicScheme]) {
         foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         minimumSize: const Size.fromHeight(56),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
-    // Item #14: add textButtonTheme and outlinedButtonTheme
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: colorScheme.primary,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: colorScheme.primary,
         side: BorderSide(color: colorScheme.outlineVariant),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),

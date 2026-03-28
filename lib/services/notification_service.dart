@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
@@ -33,21 +32,21 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   if (message.notification == null && data.isNotEmpty) {
     final plugin = FlutterLocalNotificationsPlugin();
     await plugin.initialize(
-      const InitializationSettings(
+      settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       ),
     );
     await plugin.show(
-      message.hashCode,
-      data['title'] ?? 'New Alert',
-      data['body'] ?? '',
-      const NotificationDetails(
+      id: message.hashCode,
+      title: data['title'] ?? 'New Alert',
+      body: data['body'] ?? '',
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'new_invoices',
           'New Invoice Alerts',
           channelDescription:
-              'Alerts when a new invoice is available for investment',
+          'Alerts when a new invoice is available for investment',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
@@ -65,12 +64,10 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   print('Background notification: ${message.notification?.title}');
 }
 
-
-
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
 
   static const String _prefKeyPush = 'push_enabled';
   static const String _prefKeyQuietStart = 'quiet_start';
@@ -91,22 +88,22 @@ class NotificationService {
       FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
       const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings();
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = IOSInitializationSettings();
       const initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       );
 
       await _localNotifications.initialize(
-        initSettings,
+        settings: initSettings,
         onDidReceiveNotificationResponse: _onNotificationTapped,
         onDidReceiveBackgroundNotificationResponse: _onNotificationTapped,
       );
 
       await _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_channel);
 
       try {
@@ -155,7 +152,6 @@ class NotificationService {
       }());
 
       await ApiService.registerFcmToken(token);
-
     } catch (e) {
       assert(() {
         debugPrint('⚠️ FCM disabled on this device: $e');
@@ -219,7 +215,7 @@ class NotificationService {
           'new_invoices',
           'New Invoice Alerts',
           channelDescription:
-              'Alerts when a new invoice is available for investment',
+          'Alerts when a new invoice is available for investment',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
@@ -232,10 +228,10 @@ class NotificationService {
       );
 
       await _localNotifications.show(
-        message.hashCode,
-        title,
-        body,
-        details,
+        id: message.hashCode,
+        title: title,
+        body: body,
+        notificationDetails: details,
         payload: payload,
       );
     } catch (e) {
@@ -257,10 +253,12 @@ class NotificationService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final List<String> saved = prefs.getStringList(_prefKeyLocalStore) ?? [];
-      
+
       final notificationData = {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'title': message.notification?.title ?? message.data['title'] ?? 'New Alert',
+        'title': message.notification?.title ??
+            message.data['title'] ??
+            'New Alert',
         'body': message.notification?.body ?? message.data['body'] ?? '',
         'type': message.data['type'] ?? 'system',
         'invoice_id': message.data['invoice_id'],
@@ -269,7 +267,7 @@ class NotificationService {
       };
 
       saved.add(jsonEncode(notificationData));
-      
+
       // Keep only last 50 notifications
       if (saved.length > 50) {
         saved.removeRange(0, saved.length - 50);

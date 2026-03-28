@@ -151,7 +151,7 @@ class ApiService {
     if (token == null) return {'error': 'Not authenticated'};
 
     try {
-      final uri = Uri.parse('$baseUrl/api/profile/picture/');
+      final uri = Uri.parse('$baseUrl/profile/picture/');
       final request = http.MultipartRequest('POST', uri)
         ..headers['Authorization'] = 'Bearer $token'
         ..files.add(await http.MultipartFile.fromPath(
@@ -183,7 +183,7 @@ class ApiService {
 
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/profile/picture/delete/'),
+        Uri.parse('$baseUrl/profile/picture/delete/'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -839,7 +839,45 @@ class ApiService {
     return null;
   }
 
+  static Future<Map<String, dynamic>> createCashfreeOrder(double amount) async {
+    try {
+      final response = await _post('$baseUrl/payments/cashfree/create-order/', {
+        'amount': amount.toStringAsFixed(2),
+      });
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return data;
+      }
+      return {'success': false, 'error': data['error'] ?? 'Failed to create order'};
+    } on UnauthorizedException {
+      return {'success': false, 'error': 'Session expired'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error: $e'};
+    }
+  }
 
+  static Future<Map<String, dynamic>> verifyCashfreePayment({
+    required String orderId,
+  }) async {
+    try {
+      final response = await _post('$baseUrl/payments/cashfree/verify/', {
+        'order_id': orderId,
+      });
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return data;
+      }
+      return {
+        'success': false,
+        'status': data['status'] ?? 'failed',
+        'error': data['error'] ?? 'Verification failed',
+      };
+    } on UnauthorizedException {
+      return {'success': false, 'status': 'failed', 'error': 'Session expired'};
+    } catch (e) {
+      return {'success': false, 'status': 'pending', 'error': 'Connection error — wallet will update shortly'};
+    }
+  }
   //=============================================================
 // WEBVIEW TOKENS
 // ============================================================

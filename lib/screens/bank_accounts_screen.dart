@@ -205,7 +205,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: () async { await AppHaptics.selection(); await _load(); },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
@@ -217,7 +217,7 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
               surfaceTintColor: Colors.transparent,
               scrolledUnderElevation: 0,
               leading: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
+                icon: Icon(Icons.chevron_left,
                     color: cs.onSurface, size: 18),
                 onPressed: () => Navigator.pop(context),
               ),
@@ -858,7 +858,7 @@ class _AddBankAccountSheetState extends State<_AddBankAccountSheet> {
                           fontSize: 12, color: cs.onSurfaceVariant)),
                   value: _isPrimary,
                   onChanged: (v) => setState(() => _isPrimary = v),
-                  activeColor: cs.primary,
+                  activeThumbColor: cs.primary,
                 ),
               const SizedBox(height: 24),
               SizedBox(

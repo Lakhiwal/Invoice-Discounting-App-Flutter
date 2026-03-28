@@ -4,6 +4,7 @@ import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
+import '../services/cashfree_service.dart';
 import '../services/portfolio_cache.dart';
 import '../services/razorpay_service.dart';
 import '../theme/theme_provider.dart';
@@ -16,11 +17,10 @@ import '../widgets/gradient_text.dart';
 import '../widgets/pressable.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
+import 'invoice_detail_screen.dart';
 import 'marketplace_screen.dart';
 import 'transaction_history_screen.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
-// ── Masked amount constants ───────────────────────────────────────────────────
 const String _kMasked = '● ● ● ● ●';
 const String _kMaskedShort = '● ● ●';
 
@@ -127,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   bool _hasError = false;
   late RazorpayService _razorpay;
+  late CashfreeService _cashfree;
   double _cachedCurrentlyInvested = 0;
 
   double _computeCurrentlyInvested() {
@@ -143,23 +144,25 @@ class _HomeScreenState extends State<HomeScreen> {
   double get _totalInvested =>
       double.tryParse(
           _portfolio?['summary']?['total_invested']?.toString() ?? '0') ??
-          0;
+      0;
   double get _totalReturns =>
       double.tryParse(
           _portfolio?['summary']?['total_returns']?.toString() ?? '0') ??
-          0;
+      0;
   List get _activeInvestments => _portfolio?['active'] as List? ?? [];
 
   @override
   void initState() {
     super.initState();
-    _razorpay = RazorpayService();
+    // _razorpay = RazorpayService();
+    _cashfree = CashfreeService();
     _loadData();
   }
 
   @override
   void dispose() {
-    _razorpay.dispose();
+    // _razorpay.dispose();
+    _cashfree.dispose();
     super.dispose();
   }
 
@@ -182,32 +185,36 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = true;
       _hasError = false;
     });
+
     try {
       final results = await Future.wait([
         PortfolioCache.getPortfolio(),
         ApiService.getWallet(),
         ApiService.getCachedUser(),
+        ApiService.getProfile(),
       ]);
+
       if (mounted) {
         setState(() {
           _portfolio = results[0];
           _wallet = results[1];
-          _user = results[2];
+          _user = (results[3] ?? results[2]);
           _cachedCurrentlyInvested = _computeCurrentlyInvested();
           _isLoading = false;
         });
         AppHaptics.numberReveal();
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = false;
           _hasError = true;
         });
+      }
     }
   }
 
-  // ── Bottom sheets ───────────────────────────────────────────────────────────
+  // ── Bottom sheets (unchanged) ───────────────────────────────────────────
 
   void _showAddFundsSheet({double? prefillAmount}) {
     final controller = TextEditingController();
@@ -225,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
             child: Column(
@@ -246,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextField(
                   controller: controller,
                   keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))
                   ],
@@ -281,8 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: ['1000', '5000', '10000', '25000', '50000']
                         .map((amt) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ActionChip(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ActionChip(
                                   label: Text('₹$amt'),
                                   onPressed: () {
                                     AppHaptics.selection();
@@ -302,37 +309,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                    final amt = double.tryParse(controller.text);
+                          final amt = double.tryParse(controller.text);
                           if (amt == null || amt <= 0 || amt > 50000) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                                const SnackBar(
                                     content: Text(
                                         'Maximum ₹50,000 allowed per transaction')));
                             return;
-                    }
+                          }
 
-                          setModal(() => isLoading = true);
+                          final result = await ApiService.createCashfreeOrder(amt);
 
-                          final result =
-                              await ApiService.createRazorpayOrder(amt);
-
-                          if (result['success'] == false) {
+                          if (result['error'] != null && result['success'] == false) {
                             setModal(() => isLoading = false);
                             ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(result['error'])));
                             return;
                           }
 
+                          final orderId = result['order_id'] as String;
+                          final sessionId = result['payment_session_id'] as String;
+                          final env = result['environment'] as String? ?? 'SANDBOX';
+
                           final homeNavigator = Navigator.of(this.context);
 
-                          _razorpay.onSuccess =
-                              (paymentId, orderId, signature) async {
+                          _cashfree.onSuccess = (cfOrderId) async {
                             if (!mounted) return;
-
-                            // 1) Close bottom sheet
-                            homeNavigator.pop();
-
-                            // 2) Show processing screen
+                            homeNavigator.pop(); // close bottom sheet
                             homeNavigator.push(
                               MaterialPageRoute(
                                 builder: (_) => const PaymentStatusScreen(
@@ -341,11 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
 
-                            // 3) Verify payment server-side
-                            final verifyResult = await ApiService.verifyPayment(
-                              paymentId: paymentId,
+                            final verifyResult = await ApiService.verifyCashfreePayment(
                               orderId: orderId,
-                              signature: signature,
                             );
 
                             if (!mounted) return;
@@ -362,11 +362,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               );
                             } else if (paymentStatus == 'pending') {
-                              final walletUpdated =
-                                  await _waitForWalletUpdate(maxRetries: 8);
-
+                              final walletUpdated = await _waitForWalletUpdate(maxRetries: 8);
                               if (!mounted) return;
-
                               homeNavigator.pushReplacement(
                                 MaterialPageRoute(
                                   builder: (_) => PaymentStatusScreen(
@@ -389,13 +386,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             }
                           };
 
-                          _razorpay.onError = (err) {
+                          _cashfree.onError = (error) {
                             if (!mounted) return;
-
-                            try {
-                              homeNavigator.pop();
-                            } catch (_) {}
-
+                            try { homeNavigator.pop(); } catch (_) {}
                             homeNavigator.push(
                               MaterialPageRoute(
                                 builder: (_) => PaymentStatusScreen(
@@ -406,18 +399,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           };
 
-                          _razorpay.openCheckout(
-                            orderId: result['order_id'],
-                            amount: amt,
-                            key: result['key'],
+                          // Open Cashfree checkout
+                          _cashfree.openCheckout(
+                            orderId: orderId,
+                            paymentSessionId: sessionId,
+                            environment: env,
                           );
                         },
                   child: isLoading
                       ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 3, color: Colors.white))
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 3, color: Colors.white))
                       : const Text('Confirm Deposit'),
                 ),
               ],
@@ -441,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
           padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
             child: Column(
@@ -462,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextField(
                   controller: controller,
                   keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))
                   ],
@@ -504,43 +498,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   onPressed: isLoading
                       ? null
                       : () async {
-                    final amt = double.tryParse(controller.text);
+                          final amt = double.tryParse(controller.text);
                           if (amt == null || amt <= 0 || amt > _walletBalance) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Invalid amount or insufficient balance')));
-                      return;
-                    }
-                    setModal(() => isLoading = true);
-                    final messenger = ScaffoldMessenger.of(context);
-                    final successColor = AppColors.success(context);
-                    final errorColor = colorScheme.error;
-                    try {
-                      await ApiService.withdrawFunds(amt);
-                      if (!mounted) return;
-                      await AppHaptics.success();
-                      Navigator.pop(context);
-                      _loadData();
-                      messenger.showSnackBar(SnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Invalid amount or insufficient balance')));
+                            return;
+                          }
+                          setModal(() => isLoading = true);
+                          final messenger = ScaffoldMessenger.of(context);
+                          final successColor = AppColors.success(context);
+                          final errorColor = colorScheme.error;
+                          try {
+                            await ApiService.withdrawFunds(amt);
+                            if (!mounted) return;
+                            await AppHaptics.success();
+                            Navigator.pop(context);
+                            _loadData();
+                            messenger.showSnackBar(SnackBar(
                                 content: Text(
                                     '₹${fmtAmount(amt)} withdrawn successfully'),
                                 backgroundColor: successColor));
                           } catch (e) {
-                      if (!mounted) return;
-                      setModal(() => isLoading = false);
-                      await AppHaptics.error();
-                      messenger.showSnackBar(SnackBar(
-                          content: Text('Failed: $e'),
-                          backgroundColor: errorColor));
-                    }
-                  },
+                            if (!mounted) return;
+                            setModal(() => isLoading = false);
+                            await AppHaptics.error();
+                            messenger.showSnackBar(SnackBar(
+                                content: Text('Failed: $e'),
+                                backgroundColor: errorColor));
+                          }
+                        },
                   child: isLoading
                       ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 3, color: Colors.white))
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 3, color: Colors.white))
                       : const Text('Withdraw Funds'),
                 ),
               ],
@@ -557,53 +551,72 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final summary = _portfolio?['summary'];
-    final userName = _user?['name'] ?? 'Investor';
-    final firstName = userName.split(' ').first;
     final transactions = _wallet?['transactions'] as List? ?? [];
     final themeProvider = context.watch<ThemeProvider>();
     final hideBalance = themeProvider.hideBalance;
+    final isBlack = themeProvider.isBlackMode;
+
+    final dividerColor = colorScheme.outlineVariant.withValues(
+      alpha: isBlack ? 0.12 : 0.15,
+    );
 
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          colorScheme.surface,
-          colorScheme.surfaceContainerLow,
-          colorScheme.surface
-        ], begin: Alignment.topCenter, end: Alignment.bottomCenter),
-      ),
+      decoration: isBlack
+          ? null
+          : BoxDecoration(
+              gradient: LinearGradient(colors: [
+                colorScheme.surface,
+                colorScheme.surfaceContainerLow,
+                colorScheme.surface
+              ], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+            ),
       child: Scaffold(
-        backgroundColor: Colors.transparent,
+        backgroundColor: isBlack ? colorScheme.surface : Colors.transparent,
         body: RefreshIndicator(
-          onRefresh: _loadData,
+          onRefresh: () async {
+            await AppHaptics.selection();
+            await _loadData();
+          },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics()),
             slivers: [
               SliverAppBar(
                 scrolledUnderElevation: 0,
-                expandedHeight: 120,
-                collapsedHeight: 80,
+                toolbarHeight: 72,
                 pinned: true,
-                stretch: true,
                 backgroundColor: colorScheme.surface,
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [
-                    StretchMode.blurBackground,
-                    StretchMode.zoomBackground
-                  ],
-                  titlePadding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  centerTitle: false,
-                  title: Text('Hey, $firstName',
+                titleSpacing: 20,
+                title: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      padding: const EdgeInsets.all(7),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Image.asset('assets/icon/app_icon.png'),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Home',
                       style: TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5)),
+                        color: colorScheme.onSurface,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
                 ),
-                actions: const [AppBarActions()],
+                actions: const [
+                  AppBarActions(),
+                ],
               ),
               if (_hasError && !_isLoading)
                 SliverFillRemaining(
@@ -653,6 +666,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         activeCount: summary?['active_count'] ?? 0,
                         repaidCount: summary?['repaid_count'] ?? 0,
                         hideBalance: hideBalance,
+                        isBlackMode: isBlack,
                         onAdd: _showAddFundsSheet,
                         onWithdraw: _showWithdrawSheet,
                         onToggleHide: () {
@@ -667,6 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                       child: _QuickActions(
+                          isBlackMode: isBlack,
                           onAdd: _showAddFundsSheet,
                           onWithdraw: _showWithdrawSheet,
                           onMarketplace: () {
@@ -695,7 +710,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
                                         color: AppColors.success(context)
-                                            .withValues(alpha: 0.1),
+                                            .withValues(
+                                                alpha: isBlack ? 0.08 : 0.1),
                                         borderRadius:
                                             BorderRadius.circular(20)),
                                     child: Text(
@@ -716,7 +732,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           itemBuilder: (ctx, i) => _ActiveInvestmentCard(
                               investment: _activeInvestments[i],
                               index: i,
-                              hideBalance: hideBalance),
+                              hideBalance: hideBalance,
+                              isBlackMode: isBlack),
                         ))),
                   ),
                 ],
@@ -742,7 +759,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           const TransactionHistoryScreen(),
                                     ),
                                   );
-
                                   if (result is RetryPaymentRequest &&
                                       mounted) {
                                     _showAddFundsSheet(
@@ -752,28 +768,49 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: const Text('View All'),
                               ),
                             ]))),
+                // ── Transaction list with dividers ──────────────────
                 if (transactions.isNotEmpty)
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, i) {
-                      if (i >= transactions.length) return null;
-                      return RepaintBoundary(
-                          child: StaggerItem(
-                              index: i,
-                              child: _TransactionTile(
-                                  tx: transactions[i],
-                                  hideBalance: hideBalance)));
-                    }, childCount: transactions.length)),
+                        delegate: SliverChildBuilderDelegate(
+                      (context, i) {
+                        if (i >= transactions.length * 2 - 1) return null;
+
+                        // Even indices = tiles, odd indices = dividers
+                        if (i.isOdd) {
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 54),
+                            child: Divider(
+                              color: dividerColor,
+                              height: 0.5,
+                              thickness: 0.5,
+                            ),
+                          );
+                        }
+
+                        final txIndex = i ~/ 2;
+                        return RepaintBoundary(
+                            child: StaggerItem(
+                                index: txIndex,
+                                child: _TransactionTile(
+                                    tx: transactions[txIndex],
+                                    hideBalance: hideBalance)));
+                      },
+                      childCount: transactions.length * 2 - 1,
+                    )),
                   )
                 else
-                  SliverToBoxAdapter(child: _EmptyActivity(onExplore: () {
-                    AppHaptics.selection();
-                    Navigator.push(
-                        context,
-                        SmoothPageRoute(
-                            builder: (_) => const MarketplaceScreen()));
-                  })),
+                  SliverToBoxAdapter(
+                      child: _EmptyActivity(
+                          isBlackMode: isBlack,
+                          onExplore: () {
+                            AppHaptics.selection();
+                            Navigator.push(
+                                context,
+                                SmoothPageRoute(
+                                    builder: (_) => const MarketplaceScreen()));
+                          })),
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
             ],
@@ -790,6 +827,7 @@ class _PortfolioHero extends StatefulWidget {
   final double totalInvested, wallet, returns;
   final dynamic activeCount, repaidCount;
   final bool hideBalance;
+  final bool isBlackMode;
   final VoidCallback onAdd, onWithdraw, onToggleHide;
 
   const _PortfolioHero({
@@ -799,6 +837,7 @@ class _PortfolioHero extends StatefulWidget {
     required this.activeCount,
     required this.repaidCount,
     required this.hideBalance,
+    required this.isBlackMode,
     required this.onAdd,
     required this.onWithdraw,
     required this.onToggleHide,
@@ -838,158 +877,297 @@ class _PortfolioHeroState extends State<_PortfolioHero>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hide = widget.hideBalance;
+    final isBlack = widget.isBlackMode;
 
     return AnimatedBuilder(
       animation: _scale,
       builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [colorScheme.primaryFixedDim, colorScheme.primaryFixed]),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-                color: colorScheme.primary.withValues(alpha: 0.3),
-                blurRadius: 40,
-                spreadRadius: 2,
-                offset: const Offset(0, 12))
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(children: [
-          Positioned.fill(child: _HeroTexture()),
-          Positioned(
-              right: -60,
-              top: -60,
+      child: isBlack
+          ? _buildBlackHero(colorScheme, hide)
+          : _buildDarkHero(colorScheme, hide),
+    );
+  }
+
+  Widget _buildBlackHero(ColorScheme colorScheme, bool hide) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A0A),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(6)),
+              child: Text('PORTFOLIO VALUE',
+                  style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0)),
+            ),
+            GestureDetector(
+              onTap: widget.onToggleHide,
               child: Container(
-                  width: 220,
-                  height: 220,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.06)))),
-          Positioned(
-              left: -40,
-              bottom: -70,
-              child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.04)))),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6)),
-                  child: const Text('PORTFOLIO VALUE',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0)),
-                ),
-                GestureDetector(
-                  onTap: widget.onToggleHide,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        shape: BoxShape.circle),
-                    child: Icon(
-                        hide
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        color: Colors.white70,
-                        size: 16),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 8),
-              ShaderMask(
-                blendMode: BlendMode.srcIn,
-                shaderCallback: (bounds) => GradientText.blue.createShader(
-                    Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-                child: _AnimatedCounter(
-                  value: widget.totalInvested,
-                  prefix: '₹',
-                  enableHaptics: true,
-                  hideValue: hide,
-                  onCompleted: pulse,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 38,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.5,
-                      height: 1.1),
-                ),
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    shape: BoxShape.circle),
+                child: Icon(
+                    hide
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
+                    color: Colors.white.withValues(alpha: 0.4),
+                    size: 16),
               ),
-              const SizedBox(height: 20),
-              Row(children: [
-                Expanded(
-                    child: GlassStatCard(
-                        label: 'Returns',
-                        value: hide
-                            ? '₹$_kMaskedShort'
-                            : '₹${fmtAmount(widget.returns)}',
-                        valueColor: const Color(0xFF22C55E),
-                        icon: Icons.trending_up_rounded)),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: GlassStatCard(
-                        label: 'Active',
-                        value: '${(widget.activeCount as num).toInt()}',
-                        icon: Icons.pending_outlined)),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: GlassStatCard(
-                        label: 'Repaid',
-                        value: '${(widget.repaidCount as num).toInt()}',
-                        icon: Icons.check_circle_outline_rounded)),
-              ]),
-              const SizedBox(height: 20),
-              GlassCard(
-                blur: 12,
-                opacity: 0.1,
-                borderRadius: 18,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-                boxShadow: const [],
-                child: Row(children: [
-                  const Icon(Icons.account_balance_wallet_outlined,
-                      color: Colors.white70, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        const Text('Wallet Balance',
-                            style:
-                                TextStyle(color: Colors.white60, fontSize: 11)),
-                        _AnimatedCounter(
-                            value: widget.wallet,
-                            prefix: '₹',
-                            hideValue: hide,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800)),
-                      ])),
-                ]),
-              ),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          _AnimatedCounter(
+            value: widget.totalInvested,
+            prefix: '₹',
+            enableHaptics: true,
+            hideValue: hide,
+            onCompleted: pulse,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 38,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -1.5,
+                height: 1.1),
+          ),
+          const SizedBox(height: 20),
+          Row(children: [
+            Expanded(
+                child: _BlackStatCard(
+                    label: 'Returns',
+                    value: hide
+                        ? '₹$_kMaskedShort'
+                        : '₹${fmtAmount(widget.returns)}',
+                    valueColor: const Color(0xFF10B981))),
+            const SizedBox(width: 6),
+            Expanded(
+                child: _BlackStatCard(
+                    label: 'Active',
+                    value: '${(widget.activeCount as num).toInt()}')),
+            const SizedBox(width: 6),
+            Expanded(
+                child: _BlackStatCard(
+                    label: 'Repaid',
+                    value: '${(widget.repaidCount as num).toInt()}')),
+          ]),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: Row(children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  color: Colors.white.withValues(alpha: 0.35), size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text('Wallet Balance',
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            fontSize: 11)),
+                    _AnimatedCounter(
+                        value: widget.wallet,
+                        prefix: '₹',
+                        hideValue: hide,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800)),
+                  ])),
             ]),
           ),
         ]),
       ),
+    );
+  }
+
+  Widget _buildDarkHero(ColorScheme colorScheme, bool hide) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [colorScheme.primaryFixedDim, colorScheme.primaryFixed]),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(children: [
+        Positioned.fill(child: _HeroTexture()),
+        Positioned(
+            right: -60,
+            top: -60,
+            child: Container(
+                width: 220,
+                height: 220,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.06)))),
+        Positioned(
+            left: -40,
+            bottom: -70,
+            child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.04)))),
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6)),
+                child: const Text('PORTFOLIO VALUE',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0)),
+              ),
+              GestureDetector(
+                onTap: widget.onToggleHide,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      shape: BoxShape.circle),
+                  child: Icon(
+                      hide
+                          ? Icons.visibility_off_rounded
+                          : Icons.visibility_rounded,
+                      color: Colors.white70,
+                      size: 16),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            ShaderMask(
+              blendMode: BlendMode.srcIn,
+              shaderCallback: (bounds) => GradientText.blue.createShader(
+                  Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+              child: _AnimatedCounter(
+                value: widget.totalInvested,
+                prefix: '₹',
+                enableHaptics: true,
+                hideValue: hide,
+                onCompleted: pulse,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.5,
+                    height: 1.1),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(
+                  child: GlassStatCard(
+                      label: 'Returns',
+                      value: hide
+                          ? '₹$_kMaskedShort'
+                          : '₹${fmtAmount(widget.returns)}',
+                      valueColor: const Color(0xFF22C55E),
+                      icon: Icons.trending_up_rounded)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: GlassStatCard(
+                      label: 'Active',
+                      value: '${(widget.activeCount as num).toInt()}',
+                      icon: Icons.pending_outlined)),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: GlassStatCard(
+                      label: 'Repaid',
+                      value: '${(widget.repaidCount as num).toInt()}',
+                      icon: Icons.check_circle_outline_rounded)),
+            ]),
+            const SizedBox(height: 20),
+            GlassCard(
+              blur: 12,
+              opacity: 0.1,
+              borderRadius: 14,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+              boxShadow: const [],
+              child: Row(children: [
+                const Icon(Icons.account_balance_wallet_outlined,
+                    color: Colors.white70, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('Wallet Balance',
+                          style:
+                              TextStyle(color: Colors.white60, fontSize: 11)),
+                      _AnimatedCounter(
+                          value: widget.wallet,
+                          prefix: '₹',
+                          hideValue: hide,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800)),
+                    ])),
+              ]),
+            ),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _BlackStatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  const _BlackStatCard(
+      {required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Column(children: [
+        Text(value,
+            style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700)),
+        const SizedBox(height: 2),
+        Text(label,
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
+      ]),
     );
   }
 }
@@ -1021,10 +1199,12 @@ class _DotGridPainter extends CustomPainter {
 // ── Quick actions row ─────────────────────────────────────────────────────────
 
 class _QuickActions extends StatelessWidget {
+  final bool isBlackMode;
   final VoidCallback onAdd, onWithdraw, onMarketplace;
 
   const _QuickActions(
-      {required this.onAdd,
+      {required this.isBlackMode,
+      required this.onAdd,
       required this.onWithdraw,
       required this.onMarketplace});
 
@@ -1034,10 +1214,12 @@ class _QuickActions extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-          color: colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(20),
+          color:
+              isBlackMode ? Colors.transparent : colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
+              color: colorScheme.outlineVariant
+                  .withValues(alpha: isBlackMode ? 0.06 : 0.3))),
       child: Row(children: [
         _ActionButton(
             icon: Icons.add_rounded,
@@ -1095,7 +1277,7 @@ class _ActionButton extends StatelessWidget {
                       height: 36,
                       decoration: BoxDecoration(
                           color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(10)),
                       child: Icon(icon, color: color, size: 18)),
                   const SizedBox(height: 5),
                   Text(label,
@@ -1113,9 +1295,14 @@ class _ActiveInvestmentCard extends StatelessWidget {
   final Map<String, dynamic> investment;
   final int index;
   final bool hideBalance;
-  const _ActiveInvestmentCard({required this.investment,
+  final bool isBlackMode;
+
+  const _ActiveInvestmentCard({
+    required this.investment,
     required this.index,
-    this.hideBalance = false});
+    this.hideBalance = false,
+    this.isBlackMode = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1128,85 +1315,147 @@ class _ActiveInvestmentCard extends StatelessWidget {
             investment['roi']?.toString() ??
             '0') ??
         0;
+    final invoiceId = investment['invoice_id']?.toString() ?? '0';
+
+    final remainingAmount = amount;
+    final fundingPct = 100.0;
+    final tenureDays = daysLeft;
+
     final urgencyColor = daysLeft <= 7
         ? AppColors.danger(context)
         : daysLeft <= 30
-        ? AppColors.warning(context)
-        : AppColors.success(context);
-    final cardColors = [
-      colorScheme.primaryContainer,
-      colorScheme.secondaryContainer,
-      colorScheme.tertiaryContainer
-    ];
-    final onCardColors = [
-      colorScheme.onPrimaryContainer,
-      colorScheme.onSecondaryContainer,
-      colorScheme.onTertiaryContainer
-    ];
-    final bg = cardColors[index % cardColors.length];
-    final fg = onCardColors[index % onCardColors.length];
+            ? AppColors.warning(context)
+            : AppColors.success(context);
+
+    // Consistent card color — no alternating
+    final bg = isBlackMode
+        ? const Color(0xFF0A0A0A)
+        : colorScheme.surfaceContainerHigh;
+    final fg = colorScheme.onSurface;
+
+    final invoiceItem = InvoiceItem(
+      id: invoiceId,
+      company: company,
+      particular: '',
+      debtor: '',
+      status: 'active',
+      statusDisplay: 'Active',
+      roi: roi,
+      daysLeft: daysLeft,
+      tenureDays: tenureDays,
+      remainingAmount: remainingAmount,
+      fundingPct: fundingPct,
+      roiDisplay: '${roi.toStringAsFixed(1)}%',
+      daysLeftDisplay: '${daysLeft}d left',
+      tenureDisplay: '${tenureDays}d',
+      remainingDisplay: '₹${fmtAmount(remainingAmount)}',
+      fundingDisplay: '${fundingPct.toStringAsFixed(1)}%',
+    );
 
     return Container(
       width: 200,
       margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(14),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Expanded(
-                  child: Text(company,
+      child: Pressable(
+        onTap: () async {
+          await AppHaptics.selection();
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            SmoothPageRoute(
+              builder: (_) => InvoiceDetailScreen(item: invoiceItem),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          foregroundDecoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border(
+              left: BorderSide(
+                color: colorScheme.primary
+                    .withValues(alpha: isBlackMode ? 0.5 : 0.7),
+                width: 2.5,
+              ),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      company,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: fg,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13))),
-              const SizedBox(width: 6),
-              Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
+                        color: fg,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
                       color: urgencyColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: Text('${daysLeft}d',
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${daysLeft}d',
                       style: TextStyle(
-                          color: urgencyColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800))),
-            ]),
-            const SizedBox(height: 10),
-            Text(hideBalance ? '₹$_kMasked' : '₹${fmtAmount(amount)}',
+                        color: urgencyColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                hideBalance ? '₹$_kMasked' : '₹${fmtAmount(amount)}',
                 style: TextStyle(
-                    color: fg,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5)),
-            const SizedBox(height: 4),
-            Text('${roi.toStringAsFixed(1)}% p.a.',
+                  color: fg,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${roi.toStringAsFixed(1)}% p.a.',
                 style: TextStyle(
-                    color: fg.withValues(alpha: 0.7),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          ]),
+                  color: fg.withValues(alpha: 0.7),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-// ── Transaction tile ──────────────────────────────────────────────────────────
+// ── Transaction tile — flat, no card border ──────────────────────────────────
 
 class _TransactionTile extends StatelessWidget {
   final Map<String, dynamic> tx;
   final bool hideBalance;
-  final VoidCallback? onRetry;
 
   const _TransactionTile({
     required this.tx,
     this.hideBalance = false,
-    this.onRetry,
   });
 
   static const _iconMap = {
@@ -1237,6 +1486,26 @@ class _TransactionTile extends StatelessWidget {
         : (Icons.north_east_rounded, false);
   }
 
+  /// Parse settlement description to extract interest amount.
+  /// Backend format: "Settlement — INV-001 | Principal ₹50000.00 + Interest ₹1200.00"
+  static ({String title, String? interestLabel}) _parseSettlement(String desc) {
+    if (!desc.toLowerCase().startsWith('settlement')) {
+      return (title: desc, interestLabel: null);
+    }
+    // Clean title: show just "Settlement — INV-001"
+    final pipeIdx = desc.indexOf('|');
+    final title = pipeIdx > 0 ? desc.substring(0, pipeIdx).trim() : desc;
+    // Extract interest value after "Interest ₹"
+    final match = RegExp(r'Interest\s*₹?([\d,.]+)').firstMatch(desc);
+    if (match != null) {
+      final val = double.tryParse(match.group(1)!.replaceAll(',', ''));
+      if (val != null && val > 0) {
+        return (title: title, interestLabel: '+₹${fmtAmount(val)} earned');
+      }
+    }
+    return (title: title, interestLabel: null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -1247,6 +1516,9 @@ class _TransactionTile extends StatelessWidget {
     final (icon, _) = _resolveIcon(desc, txStatus, !isDebit);
     final amount = double.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
 
+    // Parse settlement for cleaner display
+    final parsed = _parseSettlement(desc);
+
     final Color accentColor;
     if (isFailed) {
       accentColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
@@ -1255,37 +1527,23 @@ class _TransactionTile extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: isFailed && onRetry != null ? onRetry : null,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: ElevationOverlay.applySurfaceTint(
-              colorScheme.surfaceContainerHigh, colorScheme.primary, 2),
-          borderRadius: BorderRadius.circular(18),
-          border:
-              Border.all(color: colorScheme.outline.withValues(alpha: 0.06)),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 3))
-          ],
-        ),
+      onTap: null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Row(children: [
           Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                   color: accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14)),
-              child: Icon(icon, color: accentColor, size: 19)),
+                  borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: accentColor, size: 18)),
           const SizedBox(width: 14),
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Text(desc,
+                Text(parsed.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1299,11 +1557,31 @@ class _TransactionTile extends StatelessWidget {
                             : TextDecoration.none,
                         decorationColor: colorScheme.onSurfaceVariant
                             .withValues(alpha: 0.4))),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Row(children: [
                   Text(tx['date'] ?? '',
                       style: TextStyle(
                           color: colorScheme.onSurfaceVariant, fontSize: 12)),
+                  // Interest earned badge for settlements
+                  if (parsed.interestLabel != null &&
+                      !isFailed &&
+                      !hideBalance) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color:
+                            AppColors.success(context).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(parsed.interestLabel!,
+                          style: TextStyle(
+                              color: AppColors.success(context),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
                   if (isFailed) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -1354,8 +1632,9 @@ class _TransactionTile extends StatelessWidget {
 // ── Empty activity state ──────────────────────────────────────────────────────
 
 class _EmptyActivity extends StatelessWidget {
+  final bool isBlackMode;
   final VoidCallback onExplore;
-  const _EmptyActivity({required this.onExplore});
+  const _EmptyActivity({this.isBlackMode = false, required this.onExplore});
 
   @override
   Widget build(BuildContext context) {
@@ -1365,10 +1644,13 @@ class _EmptyActivity extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-            color: colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(24),
+            color: isBlackMode
+                ? const Color(0xFF0A0A0A)
+                : colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.3))),
+                color: colorScheme.outlineVariant
+                    .withValues(alpha: isBlackMode ? 0.06 : 0.3))),
         child: Column(children: [
           Container(
               width: 64,
@@ -1400,7 +1682,7 @@ class _EmptyActivity extends StatelessWidget {
                     side: BorderSide(color: colorScheme.primary),
                     foregroundColor: colorScheme.primary,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                        borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12)),
               )),
         ]),
