@@ -9,18 +9,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  meta: ^1.17.0
   fl_chart: ^1.2.0
   # Networking
   http: ^1.6.0
   # Storage
   shared_preferences: ^2.5.4
   # Firebase Push Notifications
-  firebase_core: ^4.5.0
-  firebase_messaging: ^16.1.2
-  flutter_local_notifications: ^17.2.4
+  firebase_core: ^4.6.0
+  firebase_messaging: ^16.1.3
+  flutter_local_notifications: ^21.0.0
   # Biometric
   local_auth: ^3.0.1
-  local_auth_android: ^2.0.5
+  local_auth_android: ^2.0.7
   # Theme
   provider: ^6.1.5+1
   # PDF
@@ -45,9 +46,12 @@ dependencies:
   screen_protector: ^1.5.1
   jailbreak_root_detection: ^1.2.0+1
   file_picker: ^8.1.7
-  razorpay_flutter: ^1.3.6
+  razorpay_flutter: ^1.4.1
   lottie: ^2.7.0
+  image_cropper: ^12.0.0
 
+  http_parser: any
+  flutter_cashfree_pg_sdk: ^2.2.10+48
 dev_dependencies:
   flutter_test:
     sdk: flutter

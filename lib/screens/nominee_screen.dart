@@ -90,7 +90,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
         backgroundColor: AppColors.scaffold(context),
         elevation: 0,
         leading: IconButton(
-            icon: Icon(Icons.arrow_back_rounded,
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
                 color: AppColors.textPrimary(context)),
             onPressed: () {
               if (_isEditing && _nominee != null) {
@@ -569,7 +569,7 @@ class _NomineeFormState extends State<_NomineeForm> {
     IconData? icon,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       style: TextStyle(
         color: AppColors.textPrimary(context),

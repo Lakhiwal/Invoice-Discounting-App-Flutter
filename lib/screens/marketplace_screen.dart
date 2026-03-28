@@ -54,7 +54,7 @@ class InvoiceItem {
     required this.fundingDisplay,
   });
 
-  bool get isAvailable => status == 'available';
+  bool get isAvailable => fundingPct < 100;
 
   @override
   bool operator ==(Object other) => other is InvoiceItem && other.id == id;
@@ -64,8 +64,8 @@ class InvoiceItem {
 
   factory InvoiceItem.fromMap(Map<String, dynamic> m) {
     final rawRoi = double.tryParse(
-        (m['investor_rate'] ?? m['roi_value'] ?? m['roi'] ?? '0')
-            .toString()) ??
+            (m['investor_rate'] ?? m['roi_value'] ?? m['roi'] ?? '0')
+                .toString()) ??
         0;
 
     final rawDaysLeft = (m['days_until_payment'] as num?)?.toInt() ?? 0;
@@ -83,12 +83,18 @@ class InvoiceItem {
     } catch (_) {
       rawTenure = rawDaysLeft;
     }
+    final approved =
+        double.tryParse((m['approved_amount'] ?? '0').toString()) ?? 0;
 
-    final rawRemain =
-        double.tryParse((m['remaining_amount'] ?? '0').toString()) ?? 0;
+    final funded =
+        double.tryParse((m['funded_amount_cached'] ?? '0').toString()) ?? 0;
+
+    final remaining = approved > funded ? (approved - funded) : 0.0;
+
+    final safeFunded = funded > approved ? approved : funded;
+
     final rawFunding =
-    (double.tryParse((m['funding_percentage'] ?? '0').toString()) ?? 0)
-        .clamp(0.0, 100.0);
+        approved > 0 ? ((safeFunded / approved) * 100).clamp(0.0, 100.0) : 0.0;
 
     return InvoiceItem(
       id: (m['id'] ?? '').toString(),
@@ -100,13 +106,13 @@ class InvoiceItem {
       roi: rawRoi,
       daysLeft: rawDaysLeft,
       tenureDays: rawTenure,
-      remainingAmount: rawRemain,
+      remainingAmount: remaining,
       fundingPct: rawFunding,
       roiDisplay: '${rawRoi.toStringAsFixed(2)}%',
       daysLeftDisplay: '${rawDaysLeft}D left',
       tenureDisplay: '${rawTenure}D',
       // FIX: use shared fmtAmount — was using private _fmt which is identical
-      remainingDisplay: '₹${fmtAmount(rawRemain)}',
+      remainingDisplay: '₹${fmtAmount(remaining)}',
       fundingDisplay: '${rawFunding.toStringAsFixed(1)}%',
     );
   }
@@ -114,10 +120,9 @@ class InvoiceItem {
 
 // ── Isolate Logic ─────────────────────────────────────────────────────────────
 
-const int _isolateThreshold = 150;
+const int _isolateThreshold = 300;
 
-List<Map<String, dynamic>> _filterInvoicesIsolate(
-    Map<String, dynamic> params) {
+List<Map<String, dynamic>> _filterInvoicesIsolate(Map<String, dynamic> params) {
   final raw = List<Map<String, dynamic>>.from(params['invoices'] as List);
   final selectedStatus = params['status'] as String;
   final minRoi = params['minRoi'] as double;
@@ -133,7 +138,9 @@ List<Map<String, dynamic>> _filterInvoicesIsolate(
 
   var result = raw;
   if (selectedStatus == 'Available') {
-    result = result.where((i) => i['status'] == 'available').toList();
+    result = result.where((i) =>
+    (i['status'] ?? '').toString().toLowerCase() == 'available'
+    ).toList();
   } else if (selectedStatus == 'Partially Funded') {
     result = result.where((i) {
       final status = (i['status'] ?? '').toString().toLowerCase();
@@ -161,8 +168,8 @@ List<Map<String, dynamic>> _filterInvoicesIsolate(
   if (query.isNotEmpty) {
     result = result
         .where((i) =>
-    (i['company'] as String).toLowerCase().contains(query) ||
-        (i['status'] as String).toLowerCase().contains(query))
+            (i['company'] as String).toLowerCase().contains(query) ||
+            (i['status'] as String).toLowerCase().contains(query))
         .toList();
   }
 
@@ -188,16 +195,16 @@ List<Map<String, dynamic>> _filterInvoicesIsolate(
 }
 
 Map<String, dynamic> _itemToMap(InvoiceItem i) => {
-  'id': i.id,
-  'company': i.company,
-  'status': i.status,
-  'statusDisplay': i.statusDisplay,
-  'roi': i.roi,
-  'daysLeft': i.daysLeft,
-  'tenureDays': i.tenureDays,
-  'remainingAmount': i.remainingAmount,
-  'fundingPct': i.fundingPct,
-};
+      'id': i.id,
+      'company': i.company,
+      'status': i.status,
+      'statusDisplay': i.statusDisplay,
+      'roi': i.roi,
+      'daysLeft': i.daysLeft,
+      'tenureDays': i.tenureDays,
+      'remainingAmount': i.remainingAmount,
+      'fundingPct': i.fundingPct,
+    };
 
 // ── Marketplace Screen ────────────────────────────────────────────────────────
 
@@ -302,12 +309,16 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       final data = await ApiService.getInvoices(page: _page, limit: _limit);
       if (!mounted) return;
 
-      final incoming = (data)
-          .cast<Map<String, dynamic>>()
-          .map(InvoiceItem.fromMap)
-          .toList();
-      final existingIds = _invoices.map((i) => i.id).toSet();
-      _invoices.addAll(incoming.where((i) => !existingIds.contains(i.id)));
+      final incoming =
+          (data).cast<Map<String, dynamic>>().map(InvoiceItem.fromMap).toList();
+      for (var item in incoming) {
+        final index = _invoices.indexWhere((i) => i.id == item.id);
+        if (index != -1) {
+          _invoices[index] = item; // update existing
+        } else {
+          _invoices.add(item); // add new
+        }
+      }
 
       if (data.length < _limit) {
         _hasMore = false;
@@ -344,8 +355,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       await HomeWidget.saveWidgetData(
           'remaining', top.remainingAmount.toStringAsFixed(0));
       await HomeWidget.saveWidgetData('funding', top.fundingPct.toInt());
-      await HomeWidget.updateWidget(
-          androidName: 'MarketplaceWidgetProvider');
+      await HomeWidget.updateWidget(androidName: 'MarketplaceWidgetProvider');
     } catch (_) {}
   }
 
@@ -373,10 +383,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     if (generation != _filterGeneration || !mounted) return;
 
     final idMap = {for (final item in _invoices) item.id: item};
-    setState(() => _filtered = rawResult
-        .map((m) => idMap[m['id']])
-        .whereType<InvoiceItem>()
-        .toList());
+    setState(() => _filtered =
+        rawResult.map((m) => idMap[m['id']]).whereType<InvoiceItem>().toList());
   }
 
   void _onSearchChanged(String value) {
@@ -473,18 +481,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       label: 'ROI',
                       selected: localSortBy == 'roi_high',
                       onSelected: (s) => setSheet(
-                              () => localSortBy = s ? 'roi_high' : 'default')),
+                          () => localSortBy = s ? 'roi_high' : 'default')),
                   _FilterChip(
                       label: 'Days Left',
                       selected: localSortBy == 'days_low',
                       onSelected: (s) => setSheet(
-                              () => localSortBy = s ? 'days_low' : 'default')),
+                          () => localSortBy = s ? 'days_low' : 'default')),
                   _FilterChip(
                       label: 'Amount',
                       selected: localSortBy == 'amount_high',
                       onSelected: (s) => setSheet(
-                              () => localSortBy =
-                          s ? 'amount_high' : 'default')),
+                          () => localSortBy = s ? 'amount_high' : 'default')),
                 ],
               ),
               const SizedBox(height: 24),
@@ -494,9 +501,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   min: 0,
                   max: 30,
                   onChanged: (v) => setSheet(() {
-                    localMinRoi = v.start;
-                    localMaxRoi = v.end;
-                  })),
+                        localMinRoi = v.start;
+                        localMaxRoi = v.end;
+                      })),
               const SizedBox(height: 24),
               _RangeSection(
                   title: 'Total Tenure (Days)',
@@ -504,9 +511,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   min: 0,
                   max: 365,
                   onChanged: (v) => setSheet(() {
-                    localMinDays = v.start;
-                    localMaxDays = v.end;
-                  })),
+                        localMinDays = v.start;
+                        localMaxDays = v.end;
+                      })),
               const SizedBox(height: 24),
               _RangeSection(
                 title: 'Funding Progress (%)',
@@ -552,263 +559,257 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
       body: RefreshIndicator(
-        onRefresh: () => _loadInvoices(refresh: true),
+        onRefresh: () async { await AppHaptics.selection(); await _loadInvoices(refresh: true); },
         child: Listener(
           onPointerDown: (_) {
             _fastScrollbarKey.currentState?.show();
           },
           child: Stack(
-          children: [
-            CustomScrollView(
-              controller: _scrollController,
-              // Item #13: platform-adaptive scroll physics
-              physics: const AlwaysScrollableScrollPhysics(),
-              cacheExtent: 180 * 8,
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: _searchVisible ? 180 : 120,
-                  pinned: true,
-                  stretch: true,
-                  backgroundColor: AppColors.scaffold(context),
-                  elevation: 0,
-                  flexibleSpace: FlexibleSpaceBar(
-                    title: Text('Marketplace',
-                        style: TextStyle(
-                            color: AppColors.textPrimary(context),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
-                            letterSpacing: -0.5)),
-                    centerTitle: false,
-                    titlePadding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    background: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (_searchVisible)
-                          Padding(
-                            padding:
-                            const EdgeInsets.fromLTRB(24, 0, 24, 60),
-                            child: TextField(
-                              controller: _searchCtrl,
-                              onChanged: _onSearchChanged,
-                              style: TextStyle(
-                                  color: AppColors.textPrimary(context)),
-                              decoration: InputDecoration(
-                                hintText: 'Search companies...',
-                                prefixIcon:
-                                const Icon(Icons.search_rounded),
-                                filled: true,
-                                fillColor: AppColors.navyCard(context),
-                                border: OutlineInputBorder(
-                                    borderRadius:
-                                    BorderRadius.circular(16),
-                                    borderSide: BorderSide.none),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    IconButton(
-                        icon: Icon(_searchVisible
-                            ? Icons.search_off_rounded
-                            : Icons.search_rounded),
-                        onPressed: _toggleSearch),
-                    Stack(
-                      children: [
-                        IconButton(
-                            icon: const Icon(Icons.tune_rounded),
-                            onPressed: _showFilterSheet),
-                        if (_activeFilterCount > 0)
-                          Positioned(
-                              right: 8,
-                              top: 8,
-                              child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                      color: colorScheme.primary,
-                                      shape: BoxShape.circle))),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Status Filters ─────────────────────────
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _statusFilters.map((f) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(f),
-                                  selected: _selectedStatus == f,
-                                  onSelected: (s) {
-                                    if (s) {
-                                      setState(
-                                              () => _selectedStatus = f);
-                                      _applyFilters();
-                                    }
-                                  },
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        // ── Quick Filters ─────────────────────────
-                        // ── Quick Filters ─────────────────────────
-                        Row(
-                          children: [
-                            Expanded(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: _quickFilters.map((f) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: ChoiceChip(
-                                        label: Text(f),
-                                        avatar: const Icon(Icons.flash_on, size: 16),
-                                        selected: _activeQuickFilter == f,
-                                        onSelected: (_) {
-                                          setState(() {
-                                            _minRoi = 0;
-                                            _maxRoi = 30;
-                                            _minDays = 0;
-                                            _maxDays = 365;
-                                            _minFunding = 0;
-                                            _maxFunding = 100;
-
-                                            if (_activeQuickFilter == f) {
-                                              _activeQuickFilter = null;
-                                            } else {
-                                              _activeQuickFilter = f;
-
-                                              if (f == 'High ROI') {
-                                                _minRoi = 13;
-                                              }
-                                              if (f == 'Short Tenure') {
-                                                _maxDays = 30;
-                                              }
-                                              if (f == 'Almost Funded') {
-                                                _minFunding = 75;
-                                              }
-                                            }
-                                          });
-
-                                          _applyFilters();
-                                        },
-                                      ),
-                                    );
-                                  }).toList(),
+            children: [
+              CustomScrollView(
+                controller: _scrollController,
+                // Item #13: platform-adaptive scroll physics
+                physics: const AlwaysScrollableScrollPhysics(),
+                cacheExtent: 180 * 8,
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: _searchVisible ? 180 : 120,
+                    pinned: true,
+                    stretch: true,
+                    backgroundColor: AppColors.scaffold(context),
+                    elevation: 0,
+                    flexibleSpace: FlexibleSpaceBar(
+                      title: Text('Marketplace',
+                          style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 20,
+                              letterSpacing: -0.5)),
+                      centerTitle: false,
+                      titlePadding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 16),
+                      background: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (_searchVisible)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 60),
+                              child: TextField(
+                                controller: _searchCtrl,
+                                onChanged: _onSearchChanged,
+                                style: TextStyle(
+                                    color: AppColors.textPrimary(context)),
+                                decoration: InputDecoration(
+                                  hintText: 'Search companies...',
+                                  prefixIcon: const Icon(Icons.search_rounded),
+                                  filled: true,
+                                  fillColor: AppColors.navyCard(context),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      borderSide: BorderSide.none),
                                 ),
                               ),
                             ),
-
-                            const SizedBox(width: 8),
-
-                            ActionChip(
-                              label: const Text('Clear'),
-                              avatar: const Icon(Icons.close_rounded, size: 16),
-                              onPressed: () {
-                                setState(() {
-                                  _activeQuickFilter = null;
-                                  _minRoi = 0;
-                                  _maxRoi = 30;
-                                  _minDays = 0;
-                                  _maxDays = 365;
-                                  _minFunding = 0;
-                                  _maxFunding = 100;
-                                });
-
-                                _applyFilters();
-                              },
-                            ),
-                          ],
-                        ),
-
-                              const SizedBox(height: 16),
-                      ],
+                        ],
+                      ),
                     ),
+                    actions: [
+                      IconButton(
+                          icon: Icon(_searchVisible
+                              ? Icons.search_off_rounded
+                              : Icons.search_rounded),
+                          onPressed: _toggleSearch),
+                      Stack(
+                        children: [
+                          IconButton(
+                              icon: const Icon(Icons.tune_rounded),
+                              onPressed: _showFilterSheet),
+                          if (_activeFilterCount > 0)
+                            Positioned(
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                        color: colorScheme.primary,
+                                        shape: BoxShape.circle))),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                   ),
-                ),
-                if (_isLoading)
-                    SliverToBoxAdapter(
-                      child: const SkeletonMarketplaceContent(cardCount: 3),
-                    )
-                else if (_filtered.isEmpty)
-                  SliverFillRemaining(
-                      child: Center(
-                          child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.search_off_rounded,
-                                    size: 64, color: colorScheme.outline),
-                                const SizedBox(height: 16),
-                                Text(_loadError ?? 'No invoices found',
-                                    style: TextStyle(
-                                        color:
-                                        AppColors.textSecondary(context))),
-                                if (_loadError != null) ...[
-                                  const SizedBox(height: 16),
-                                  TextButton.icon(
-                                    icon: const Icon(Icons.refresh_rounded,
-                                        size: 16),
-                                    label: const Text('Retry'),
-                                    onPressed: () =>
-                                        _loadInvoices(refresh: true),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Status Filters ─────────────────────────
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: _statusFilters.map((f) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    label: Text(f),
+                                    selected: _selectedStatus == f,
+                                    onSelected: (s) {
+                                      if (s) {
+                                        setState(() => _selectedStatus = f);
+                                        _applyFilters();
+                                      }
+                                    },
                                   ),
-                                ],
-                              ])))
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                        addAutomaticKeepAlives: false,
-                        addRepaintBoundaries: true,
-                            (ctx, i) => RepaintBoundary(
-                          child: _animateList
-                              ? StaggerItem(
-                            index: i,
-                            child: _InvoiceCard(item: _filtered[i]),
-                          )
-                              : _InvoiceCard(item: _filtered[i]),
-                        ),
-                        childCount: _filtered.length,
+                                );
+                              }).toList(),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          // ── Quick Filters ─────────────────────────
+                          // ── Quick Filters ─────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: _quickFilters.map((f) {
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(right: 8),
+                                        child: ChoiceChip(
+                                          label: Text(f),
+                                          avatar: const Icon(Icons.flash_on,
+                                              size: 16),
+                                          selected: _activeQuickFilter == f,
+                                          onSelected: (_) {
+                                            setState(() {
+                                              _minRoi = 0;
+                                              _maxRoi = 30;
+                                              _minDays = 0;
+                                              _maxDays = 365;
+                                              _minFunding = 0;
+                                              _maxFunding = 100;
+
+                                              if (_activeQuickFilter == f) {
+                                                _activeQuickFilter = null;
+                                              } else {
+                                                _activeQuickFilter = f;
+
+                                                if (f == 'High ROI') {
+                                                  _minRoi = 13;
+                                                }
+                                                if (f == 'Short Tenure') {
+                                                  _maxDays = 30;
+                                                }
+                                                if (f == 'Almost Funded') {
+                                                  _minFunding = 75;
+                                                }
+                                              }
+                                            });
+
+                                            _applyFilters();
+                                          },
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ActionChip(
+                                label: const Text('Clear'),
+                                avatar:
+                                    const Icon(Icons.close_rounded, size: 16),
+                                onPressed: () {
+                                  setState(() {
+                                    _activeQuickFilter = null;
+                                    _minRoi = 0;
+                                    _maxRoi = 30;
+                                    _minDays = 0;
+                                    _maxDays = 365;
+                                    _minFunding = 0;
+                                    _maxFunding = 100;
+                                  });
+
+                                  _applyFilters();
+                                },
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 16),
+                        ],
                       ),
                     ),
                   ),
-              ],
-            ),
-
-            // ── Fast scrollbar overlay ─────────────────────────────
-            if (!_isLoading && _filtered.length > 6)
-              Positioned(
-                right: 4,
-                top: MediaQuery.of(context).padding.top + 120,
-                bottom: 80,
-                child: _FastScrollbar(
-                  key: _fastScrollbarKey,
-                  controller: _scrollController,
-                  itemCount: _filtered.length,
-                ),
+                  if (_isLoading)
+                    SliverToBoxAdapter(
+                      child: const SkeletonMarketplaceContent(cardCount: 3),
+                    )
+                  else if (_filtered.isEmpty)
+                    SliverFillRemaining(
+                        child: Center(
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                          Icon(Icons.search_off_rounded,
+                              size: 64, color: colorScheme.outline),
+                          const SizedBox(height: 16),
+                          Text(_loadError ?? 'No invoices found',
+                              style: TextStyle(
+                                  color: AppColors.textSecondary(context))),
+                          if (_loadError != null) ...[
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry'),
+                              onPressed: () => _loadInvoices(refresh: true),
+                            ),
+                          ],
+                        ])))
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: true,
+                          (ctx, i) => RepaintBoundary(
+                            child: _animateList
+                                ? StaggerItem(
+                                    index: i,
+                                    child: _InvoiceCard(item: _filtered[i]),
+                                  )
+                                : _InvoiceCard(item: _filtered[i]),
+                          ),
+                          childCount: _filtered.length,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-          ],
+
+              // ── Fast scrollbar overlay ─────────────────────────────
+              if (!_isLoading && _filtered.length > 6)
+                Positioned(
+                  right: 4,
+                  top: MediaQuery.of(context).padding.top + 120,
+                  bottom: 80,
+                  child: _FastScrollbar(
+                    key: _fastScrollbarKey,
+                    controller: _scrollController,
+                    itemCount: _filtered.length,
+                  ),
+                ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -819,7 +820,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 class _FastScrollbar extends StatefulWidget {
   final ScrollController controller;
   final int itemCount;
-
 
   const _FastScrollbar({
     super.key,
@@ -865,8 +865,7 @@ class _FastScrollbarState extends State<_FastScrollbar>
       vsync: this,
       duration: const Duration(milliseconds: 180),
     );
-    _fadeAnim =
-        CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     widget.controller.addListener(_onScroll);
   }
 
@@ -884,10 +883,8 @@ class _FastScrollbarState extends State<_FastScrollbar>
     final maxScroll = widget.controller.position.maxScrollExtent;
     if (maxScroll <= 0) return;
 
-    final frac =
-    (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
-    final newIndex =
-    ((frac * (widget.itemCount - 1)).round())
+    final frac = (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
+    final newIndex = ((frac * (widget.itemCount - 1)).round())
         .clamp(0, widget.itemCount - 1);
 
     if ((_thumbFraction - frac).abs() > 0.002 || _currentIndex != newIndex) {
@@ -944,23 +941,21 @@ class _FastScrollbarState extends State<_FastScrollbar>
 
     if (velocity > 1.2) {
       acceleration = 3.0;
-    } else if (velocity > 0.6) acceleration = 2.0;
+    } else if (velocity > 0.6)
+      acceleration = 2.0;
     else if (velocity > 0.3) acceleration = 1.4;
 
-    final frac =
-    ((localY - thumbH / 2) / usableTrack).clamp(0.0, 1.0);
+    final frac = ((localY - thumbH / 2) / usableTrack).clamp(0.0, 1.0);
 
     final maxScroll = widget.controller.position.maxScrollExtent;
 
     widget.controller.animateTo(
-      (frac * maxScroll * acceleration)
-          .clamp(0.0, maxScroll),
+      (frac * maxScroll * acceleration).clamp(0.0, maxScroll),
       duration: const Duration(milliseconds: 10),
       curve: Curves.linear,
     );
 
-    final index =
-    ((frac * (widget.itemCount - 1)).round())
+    final index = ((frac * (widget.itemCount - 1)).round())
         .clamp(0, widget.itemCount - 1);
 
     if (index != _lastHapticIndex) {
@@ -1000,8 +995,7 @@ class _FastScrollbarState extends State<_FastScrollbar>
           builder: (context, constraints) {
             final trackHeight = constraints.maxHeight;
             final thumbH = _dragging ? _thumbHDrag : _thumbH;
-            final thumbTop =
-            (_thumbFraction * (trackHeight - thumbH))
+            final thumbTop = (_thumbFraction * (trackHeight - thumbH))
                 .clamp(0.0, trackHeight - thumbH);
 
             return GestureDetector(
@@ -1020,8 +1014,8 @@ class _FastScrollbarState extends State<_FastScrollbar>
                     child: Container(
                       width: 3,
                       decoration: BoxDecoration(
-                        color: colorScheme.outlineVariant
-                            .withValues(alpha: 0.35),
+                        color:
+                            colorScheme.outlineVariant.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(1),
                       ),
                     ),
@@ -1033,15 +1027,14 @@ class _FastScrollbarState extends State<_FastScrollbar>
                       right: 2,
                       top: thumbTop,
                       child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: _dragging ? 10 : 6,
-            height: _dragging ? 48 : 36,
-            decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: _dragging
-            ? primary
-                : primary.withValues(alpha: 0.7),
-
+                        duration: const Duration(milliseconds: 120),
+                        width: _dragging ? 10 : 6,
+                        height: _dragging ? 48 : 36,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: _dragging
+                              ? primary
+                              : primary.withValues(alpha: 0.7),
                           boxShadow: [
                             BoxShadow(
                               color: primary.withValues(alpha: 0.35),
@@ -1050,16 +1043,14 @@ class _FastScrollbarState extends State<_FastScrollbar>
                             )
                           ],
                         ),
-                      )
-                  ),
+                      )),
                   if (_dragging)
                     AnimatedPositioned(
                       duration: Duration.zero,
                       top: thumbTop + thumbH / 2 - 18,
                       right: _hitWidth + 6,
                       child: _LabelBubble(
-                        label:
-                        '${_currentIndex + 1} / ${widget.itemCount}',
+                        label: '${_currentIndex + 1} / ${widget.itemCount}',
                         color: primary,
                       ),
                     ),
@@ -1120,9 +1111,7 @@ class _FilterChip extends StatelessWidget {
   final Function(bool) onSelected;
 
   const _FilterChip(
-      {required this.label,
-        required this.selected,
-        required this.onSelected});
+      {required this.label, required this.selected, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -1131,8 +1120,7 @@ class _FilterChip extends StatelessWidget {
         selected: selected,
         onSelected: onSelected,
         showCheckmark: false,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12)));
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)));
   }
 }
 
@@ -1144,10 +1132,10 @@ class _RangeSection extends StatelessWidget {
 
   const _RangeSection(
       {required this.title,
-        required this.values,
-        required this.min,
-        required this.max,
-        required this.onChanged});
+      required this.values,
+      required this.min,
+      required this.max,
+      required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -1190,17 +1178,15 @@ class _InvoiceCard extends StatelessWidget {
     final daysColor = item.daysLeft <= 7
         ? AppColors.rose(context)
         : item.daysLeft <= 30
-        ? AppColors.amber(context)
-        : AppColors.primary(context);
+            ? AppColors.amber(context)
+            : AppColors.primary(context);
 
     return Pressable(
       onTap: () async {
         await AppHaptics.selection();
         if (context.mounted) {
-          Navigator.push(
-              context,
-              SmoothPageRoute(
-                  builder: (_) => InvoiceDetailScreen(item: item)));
+          Navigator.push(context,
+              SmoothPageRoute(builder: (_) => InvoiceDetailScreen(item: item)));
         }
       },
       child: Container(
@@ -1221,19 +1207,19 @@ class _InvoiceCard extends StatelessWidget {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.company,
-                              style: TextStyle(
-                                  color: AppColors.textPrimary(context),
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16)),
-                          Text(item.particular,
-                              style: TextStyle(
-                                  color: AppColors.textSecondary(context),
-                                  fontSize: 12))
-                        ])),
+                      Text(item.company,
+                          style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16)),
+                      Text(item.particular,
+                          style: TextStyle(
+                              color: AppColors.textSecondary(context),
+                              fontSize: 12))
+                    ])),
                 Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                         color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -1247,7 +1233,6 @@ class _InvoiceCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1265,8 +1250,16 @@ class _InvoiceCard extends StatelessWidget {
                     color: AppColors.textPrimary(context)),
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              '${item.fundingDisplay} funded',
+              style: TextStyle(
+                color: AppColors.textSecondary(context),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Icon(Icons.schedule_rounded, size: 13, color: daysColor),
@@ -1281,8 +1274,8 @@ class _InvoiceCard extends StatelessWidget {
                 if (item.debtor.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Text('·',
-                      style: TextStyle(
-                          color: AppColors.textSecondary(context))),
+                      style:
+                          TextStyle(color: AppColors.textSecondary(context))),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1297,30 +1290,20 @@ class _InvoiceCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-
-            LinearProgressIndicator(
-              value: item.fundingPct / 100,
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(4),
-              backgroundColor: AppColors.navyLight(context),
-              valueColor:
-              AlwaysStoppedAnimation(AppColors.primary(context)),
-            ),
+            _AnimatedFundingBar(percentage: item.fundingPct),
             const SizedBox(height: 8),
-            Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Funding Progress',
-                      style: TextStyle(
-                          color: AppColors.textSecondary(context),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500)),
-                  Text(item.fundingDisplay,
-                      style: TextStyle(
-                          color: AppColors.textPrimary(context),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800))
-                ]),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Funding Progress',
+                  style: TextStyle(
+                      color: AppColors.textSecondary(context),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500)),
+              Text(item.fundingDisplay,
+                  style: TextStyle(
+                      color: AppColors.textPrimary(context),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800))
+            ]),
           ],
         ),
       ),
@@ -1337,18 +1320,125 @@ class _StatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  color: AppColors.textSecondary(context), fontSize: 11)),
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  fontFeatures: const [FontFeature.tabularFigures()]))
-        ]);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style:
+              TextStyle(color: AppColors.textSecondary(context), fontSize: 11)),
+      Text(value,
+          style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()]))
+    ]);
+  }
+}
+class _AnimatedFundingBar extends StatefulWidget {
+  final double percentage;
+
+  const _AnimatedFundingBar({required this.percentage});
+
+  @override
+  State<_AnimatedFundingBar> createState() => _AnimatedFundingBarState();
+}
+
+class _AnimatedFundingBarState extends State<_AnimatedFundingBar>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _animation = Tween<double>(
+      begin: 0,
+      end: widget.percentage / 100,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedFundingBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.percentage != widget.percentage) {
+      _animation = Tween<double>(
+        begin: _animation.value,
+        end: widget.percentage / 100,
+      ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ));
+
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isHigh = widget.percentage >= 80;
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Stack(
+          children: [
+            // Background
+            Container(
+              height: 8,
+              decoration: BoxDecoration(
+                color: AppColors.navyLight(context),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+
+            // Animated Fill
+            FractionallySizedBox(
+              widthFactor: _animation.value.clamp(0.02, 1.0),
+              child: Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    colors: isHigh
+                        ? [
+                      AppColors.emerald(context),
+                      AppColors.primary(context),
+                    ]
+                        : [
+                      AppColors.primary(context),
+                      AppColors.primary(context).withValues(alpha: 0.6),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary(context).withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }

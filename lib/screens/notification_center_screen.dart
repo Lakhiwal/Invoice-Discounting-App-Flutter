@@ -1,12 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/notification_provider.dart';
 import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/smooth_page_route.dart';
 import '../widgets/pressable.dart';

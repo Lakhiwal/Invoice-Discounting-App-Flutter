@@ -14,7 +14,6 @@ import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
 import '../widgets/skeleton.dart';
-import '../widgets/stagger_list.dart';
 
 // ── Masked constant ──────────────────────────────────────────────────────────
 const String _kMaskedShort = '● ● ●';
@@ -546,7 +545,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: () async {
+          await AppHaptics.selection();
+          await _loadData();
+        },
         child: GestureDetector(
           onHorizontalDragEnd: (details) {
             final currentIndex = _timeOptions.indexOf(_timeFilter);
@@ -598,7 +600,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             // ── Filters ──────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 4, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
                 child: Column(children: [
                   // Time filter
                   SingleChildScrollView(
@@ -1409,10 +1411,10 @@ class _EarningsCard extends StatefulWidget {
   final bool hideBalance;
 
   const _EarningsCard({
-    Key? key,
+    super.key,
     required this.data,
     required this.hideBalance,
-  }) : super(key: key);
+  });
 
   @override
   State<_EarningsCard> createState() => _EarningsCardState();

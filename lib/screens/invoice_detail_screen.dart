@@ -137,6 +137,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     try {
       final invoiceId = int.tryParse(_item.id) ?? 0;
       final result = await ApiService.invest(invoiceId, amount);
+      print("INVEST RESPONSE: $result");
       PortfolioCache.invalidate();
       if (result['success'] == true) _cachedWalletBalance = null;
 
@@ -201,7 +202,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
             stretch: true,
             backgroundColor: AppColors.scaffold(context),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back_rounded,
+              icon: Icon(Icons.chevron_left,
                   color: AppColors.textPrimary(context)),
               onPressed: () => Navigator.pop(context),
             ),

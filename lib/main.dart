@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
@@ -61,6 +62,7 @@ void main() async {
   await NotificationService.initialize();
   final savedHz = await getSavedRefreshRate();
   await applyRefreshRate(savedHz);
+  await AppHaptics.loadPreference();
 
   bool rooted = await JailbreakRootDetection.instance.isJailBroken;
 
@@ -127,7 +129,7 @@ class InvoFinApp extends StatelessWidget {
                   displayColor: const Color(0xFF0B1220),
                 ),
               ),
-              darkTheme: buildDarkTheme(darkDynamic).copyWith(
+              darkTheme: themeProvider.darkThemeFor(darkDynamic).copyWith(
                 textTheme: textTheme.apply(
                   bodyColor: const Color(0xFFEFF4FF),
                   displayColor: const Color(0xFFEFF4FF),
