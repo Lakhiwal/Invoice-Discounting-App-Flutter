@@ -35,7 +35,7 @@ class _AppBarActionsState extends State<AppBarActions> {
 
   Future<void> _loadUser() async {
     try {
-      final user = await ApiService.getCachedUser();
+      final user = await ApiService.getProfile();
       if (mounted) setState(() => _user = user);
     } catch (_) {}
   }
@@ -47,110 +47,128 @@ class _AppBarActionsState extends State<AppBarActions> {
 
     final userName = _user?['name'] ?? 'U';
     final initial = userName.isNotEmpty ? userName[0] : 'U';
+    final profilePictureUrl = _user?['profile_picture_url']?.toString();
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ── Notification bell ──
-        Material(
-          color: Colors.transparent,
-          child: InkResponse(
-            onTap: () {
-              AppHaptics.selection();
-              Navigator.push(
-                context,
-                SmoothPageRoute(
-                  builder: (_) => const NotificationCenterScreen(),
-                ),
-              );
-            },
-            containedInkWell: false,
-            highlightShape: BoxShape.circle,
-            radius: 20,
-            splashFactory: InkRipple.splashFactory,
-            splashColor: colorScheme.onSurface.withValues(alpha: 0.10),
-            highlightColor: colorScheme.onSurface.withValues(alpha: 0.05),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Badge(
-                label: Text('$unread'),
-                isLabelVisible: unread > 0,
-                child: Icon(
-                  Icons.notifications_outlined,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-
-        // ── Profile avatar ──
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Center(
-            child: IconButton(
-              tooltip: 'Profile',
-              onPressed: () {
-                AppHaptics.selection();
-                Navigator.of(context, rootNavigator: true).push(
-                  HeroPageRoute(builder: (_) => const ProfileScreen()),
-                );
-              },
-              icon: Badge(
-                alignment: Alignment.topRight,
-                isLabelVisible: false,
-                smallSize: 8,
-                backgroundColor: colorScheme.primary,
-                child: Hero(
-                  tag: 'profile-avatar',
-                  placeholderBuilder: (context, heroSize, child) {
-                    return _AvatarCircle(
-                      initial: initial,
-                      colorScheme: colorScheme,
-                    );
-                  },
-                  child: _AvatarCircle(
-                    initial: initial,
-                    colorScheme: colorScheme,
+    return Center(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 40,
+            height: 40,
+            child: Material(
+              color: Colors.transparent,
+              child: InkResponse(
+                onTap: () {
+                  AppHaptics.selection();
+                  Navigator.push(
+                    context,
+                    SmoothPageRoute(
+                      builder: (_) => const NotificationCenterScreen(),
+                    ),
+                  );
+                },
+                containedInkWell: false,
+                highlightShape: BoxShape.circle,
+                radius: 20,
+                splashFactory: InkRipple.splashFactory,
+                splashColor: colorScheme.onSurface.withValues(alpha: 0.10),
+                highlightColor: colorScheme.onSurface.withValues(alpha: 0.05),
+                child: Center(
+                  child: Badge(
+                    label: Text('$unread'),
+                    isLabelVisible: unread > 0,
+                    child: Icon(
+                      Icons.notifications_outlined,
+                      size: 24,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 10),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                tooltip: 'Profile',
+                onPressed: () {
+                  AppHaptics.selection();
+                  Navigator.of(context, rootNavigator: true).push(
+                    HeroPageRoute(builder: (_) => const ProfileScreen()),
+                  );
+                },
+                icon: Badge(
+                  alignment: Alignment.topRight,
+                  isLabelVisible: false,
+                  smallSize: 8,
+                  backgroundColor: colorScheme.primary,
+                  child: _AvatarCircle(
+                    initial: initial,
+                    imageUrl: profilePictureUrl,
+                    colorScheme: colorScheme,
+                    size: 40,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _AvatarCircle extends StatelessWidget {
   final String initial;
+  final String? imageUrl;
   final ColorScheme colorScheme;
+  final double size;
 
   const _AvatarCircle({
     required this.initial,
     required this.colorScheme,
+    this.imageUrl,
+    this.size = 44,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: colorScheme.primaryContainer,
         border: Border.all(color: colorScheme.primary, width: 1.5),
       ),
-      child: Center(
-        child: Text(
-          initial,
-          style: TextStyle(
-            color: colorScheme.onPrimaryContainer,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
+      child: ClipOval(
+        child: imageUrl != null && imageUrl!.isNotEmpty
+            ? Image.network(
+          imageUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildInitial(),
+        )
+            : _buildInitial(),
+      ),
+    );
+  }
+
+  Widget _buildInitial() {
+    return Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          color: colorScheme.onPrimaryContainer,
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

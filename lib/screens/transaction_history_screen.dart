@@ -105,12 +105,14 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
           if (txDate == null) return false;
           if (_fromDate != null &&
               txDate.isBefore(
-                  DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day)))
+                  DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))) {
             return false;
+          }
           if (_toDate != null &&
               txDate.isAfter(DateTime(
-                  _toDate!.year, _toDate!.month, _toDate!.day, 23, 59)))
+                  _toDate!.year, _toDate!.month, _toDate!.day, 23, 59))) {
             return false;
+          }
         }
         return true;
       }).toList();
@@ -392,7 +394,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: RefreshIndicator(
-        onRefresh: _loadTransactions,
+        onRefresh: () async { await AppHaptics.selection(); await _loadTransactions(); },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
@@ -558,7 +560,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                         padding: const EdgeInsets.only(right: 8),
                         child: _FilterChip(
                           label: type == 'Failed' && _failedCount > 0
-                              ? 'Failed (${_failedCount})'
+                              ? 'Failed ($_failedCount)'
                               : type,
                           active: active,
                           isDestructive: type == 'Failed',
