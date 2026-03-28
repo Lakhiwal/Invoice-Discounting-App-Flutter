@@ -74,3 +74,4 @@ ios/Flutter/.last_build_id
 *.class
 *.pyc
 *.lock
+*.hprof*.hprof
