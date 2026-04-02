@@ -487,6 +487,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: isBlack ? colorScheme.surface : Colors.transparent,
         body: LiquidityRefreshIndicator(
           onRefresh: () async {
+            PortfolioCache.invalidate();
             await _loadData();
           },
           child: CustomScrollView(
