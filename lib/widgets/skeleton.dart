@@ -10,6 +10,19 @@ import '../theme/ui_constants.dart';
 
 // ─── Theme (shared shimmer controller) ───────────────────────────────────────
 
+// InheritedWidget carries the controller down the tree in O(1).
+class _SkeletonScope extends InheritedWidget {
+  final AnimationController ctrl;
+
+  const _SkeletonScope({required this.ctrl, required super.child});
+
+  static _SkeletonScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SkeletonScope>();
+
+  @override
+  bool updateShouldNotify(_SkeletonScope old) => old.ctrl != ctrl;
+}
+
 class SkeletonTheme extends StatefulWidget {
   final Widget child;
 
@@ -18,18 +31,9 @@ class SkeletonTheme extends StatefulWidget {
   @override
   State<SkeletonTheme> createState() => _SkeletonThemeState();
 
-  static _SkeletonThemeState? _of(BuildContext context) =>
-      context.findAncestorStateOfType<_SkeletonThemeState>();
-
-  static _SkeletonThemeState? ofRequired(BuildContext context) {
-    final state = _of(context);
-    assert(
-    state != null,
-    'SkeletonBox used outside a SkeletonTheme. '
-        'Wrap your skeleton widgets in a SkeletonTheme ancestor.',
-    );
-    return state;
-  }
+  /// O(1) lookup via InheritedWidget (replaces findAncestorStateOfType).
+  static AnimationController? ctrlOf(BuildContext context) =>
+      _SkeletonScope.maybeOf(context)?.ctrl;
 }
 
 class _SkeletonThemeState extends State<SkeletonTheme>
@@ -52,7 +56,8 @@ class _SkeletonThemeState extends State<SkeletonTheme>
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) =>
+      _SkeletonScope(ctrl: ctrl, child: widget.child);
 }
 
 // ─── Bone ────────────────────────────────────────────────────────────────────
@@ -74,9 +79,9 @@ class SkeletonBox extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final baseColor = cs.onSurface.withValues(alpha: 0.06);
     final highlight = cs.onSurface.withValues(alpha: 0.14);
-    final state = SkeletonTheme._of(context);
+    final ctrl = SkeletonTheme.ctrlOf(context);
 
-    if (state == null) {
+    if (ctrl == null) {
       return Container(
         width: width,
         height: height,
@@ -85,9 +90,9 @@ class SkeletonBox extends StatelessWidget {
     }
 
     return AnimatedBuilder(
-      animation: state.ctrl,
+      animation: ctrl,
       builder: (_, __) {
-        final t = state.ctrl.value;
+        final t = ctrl.value;
         final center = -0.3 + t * 1.6;
         const halfWidth = 0.25;
         return Container(
@@ -145,8 +150,8 @@ class _HeroBone extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = _HeroBoneTheme.of(context);
-    final state = SkeletonTheme._of(context);
-    if (state == null) {
+    final ctrl = SkeletonTheme.ctrlOf(context);
+    if (ctrl == null) {
       return Container(
           width: width,
           height: height,
@@ -154,9 +159,9 @@ class _HeroBone extends StatelessWidget {
               color: theme.boneColor, borderRadius: borderRadius));
     }
     return AnimatedBuilder(
-      animation: state.ctrl,
+      animation: ctrl,
       builder: (_, __) {
-        final t = state.ctrl.value;
+        final t = ctrl.value;
         final center = -0.3 + t * 1.6;
         const halfWidth = 0.25;
         return Container(

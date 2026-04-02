@@ -98,18 +98,13 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
-  void _changeTab(int index) async {
+  void _changeTab(int index) {
     if (_currentIndex == index) return;
 
     _lastBackPress = null;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     final previousIndex = _currentIndex;
-    
-    // Give a tiny bit of space for the tap animation to initiate
-    await Future.delayed(const Duration(milliseconds: 60));
-    
-    if (!mounted) return;
     setState(() => _currentIndex = index);
 
     _tabControllers[previousIndex].reverse();

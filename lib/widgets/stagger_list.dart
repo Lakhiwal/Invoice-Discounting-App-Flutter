@@ -154,7 +154,9 @@ class _StaggerItemState extends State<StaggerItem>
   // Item #28: track already-animated indices to skip re-animation on revisit
   // (e.g. when IndexedStack brings a tab back into view).
   // Uses a per-type key so different lists don't collide.
+  // Capped at 500 entries to prevent unbounded memory growth.
   static final Set<String> _animatedKeys = {};
+  static const int _maxAnimatedKeys = 500;
 
   String get _itemKey => '${widget.key ?? widget.hashCode}_${widget.index}';
 
@@ -180,6 +182,9 @@ class _StaggerItemState extends State<StaggerItem>
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (mounted && !_triggered) {
         _triggered = true;
+        if (_animatedKeys.length >= _maxAnimatedKeys) {
+          _animatedKeys.clear();
+        }
         _animatedKeys.add(_itemKey);
         _ctrl.forward();
       }
