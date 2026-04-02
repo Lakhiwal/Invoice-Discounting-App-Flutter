@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
-import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +19,7 @@ import 'services/notification_provider.dart';
 import 'services/notification_service.dart';
 import 'theme/theme_provider.dart';
 import 'utils/refresh_rate_controller.dart';
+import 'utils/smooth_page_route.dart';
 
 // ── Globals ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,19 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 final RouteObserver<ModalRoute<void>> routeObserver =
 RouteObserver<ModalRoute<void>>();
+
+// ── Predictive Back ───────────────────────────────────────────────────────────
+// Single instance shared by both light and dark themes.
+// On Android 14+ with enableOnBackInvokedCallback=true in manifest,
+// this enables the system predictive back gesture on all MaterialPageRoutes.
+// On older Android or other platforms, it falls back to FadeForwards.
+
+const _pageTransitionsTheme = PageTransitionsTheme(
+  builders: <TargetPlatform, PageTransitionsBuilder>{
+    TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+  },
+);
 
 // ── Refresh Rate ──────────────────────────────────────────────────────────────
 
@@ -70,7 +83,7 @@ void main() async {
     SystemNavigator.pop();
     return;
   }
-  
+
   runApp(
     MultiProvider(
       providers: [
@@ -91,31 +104,37 @@ class InvoFinApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return Consumer<ThemeProvider>(
-          builder: (context, themeProvider, _) {
+        return Selector<ThemeProvider, AppThemeMode>(
+          selector: (_, provider) => provider.mode,
+          builder: (context, appMode, _) {
+            final themeProvider = context.read<ThemeProvider>();
+            final mode = themeProvider.flutterThemeMode;
             final textTheme = GoogleFonts.dmSansTextTheme();
-            final isDark = themeProvider.flutterThemeMode == ThemeMode.dark || 
-                (themeProvider.flutterThemeMode == ThemeMode.system && 
-                 MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+            final isDark = mode == ThemeMode.dark ||
+                (mode == ThemeMode.system &&
+                    MediaQuery.platformBrightnessOf(context) ==
+                        Brightness.dark);
 
             return MaterialApp(
               navigatorKey: navigatorKey,
               title: 'Finworks360',
               debugShowCheckedModeBanner: false,
               navigatorObservers: [routeObserver],
-              themeAnimationDuration: const Duration(milliseconds: 200),
+              themeAnimationDuration: Duration.zero,
               scrollBehavior: const NoGlowScrollBehavior(),
               builder: (context, child) {
-                // FIX: Apply system overlay style here so it updates with theme
                 SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
                   statusBarColor: Colors.transparent,
-                  statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                  statusBarIconBrightness:
+                  isDark ? Brightness.light : Brightness.dark,
                   systemNavigationBarColor: Colors.transparent,
-                  systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+                  systemNavigationBarIconBrightness:
+                  isDark ? Brightness.light : Brightness.dark,
                 ));
 
                 final mediaData = MediaQuery.of(context);
-                final clampedScale = mediaData.textScaler.scale(1.0).clamp(0.85, 1.3);
+                final clampedScale =
+                mediaData.textScaler.scale(1.0).clamp(0.85, 1.3);
                 return MediaQuery(
                   data: mediaData.copyWith(
                     textScaler: TextScaler.linear(clampedScale),
@@ -124,24 +143,26 @@ class InvoFinApp extends StatelessWidget {
                 );
               },
               theme: buildLightTheme(lightDynamic).copyWith(
+                pageTransitionsTheme: _pageTransitionsTheme,
                 textTheme: textTheme.apply(
                   bodyColor: const Color(0xFF0B1220),
                   displayColor: const Color(0xFF0B1220),
                 ),
               ),
               darkTheme: themeProvider.darkThemeFor(darkDynamic).copyWith(
+                pageTransitionsTheme: _pageTransitionsTheme,
                 textTheme: textTheme.apply(
                   bodyColor: const Color(0xFFEFF4FF),
                   displayColor: const Color(0xFFEFF4FF),
                 ),
               ),
-              themeMode: themeProvider.flutterThemeMode,
-              home: const AppRoot(),
-            );
-          },
-        );
-      },
-    );
+                themeMode: mode,
+                home: const AppRoot(),
+              );
+            },
+          );
+        },
+      );
   }
 }
 
@@ -186,13 +207,19 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
+      CurvedAnimation(
+          parent: _animCtrl,
+          curve: const Interval(0.0, 0.5, curve: Curves.easeOut)),
     );
     _scaleUp = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
+      CurvedAnimation(
+          parent: _animCtrl,
+          curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
     );
     _loaderFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animCtrl, curve: const Interval(0.5, 1.0, curve: Curves.easeIn)),
+      CurvedAnimation(
+          parent: _animCtrl,
+          curve: const Interval(0.5, 1.0, curve: Curves.easeIn)),
     );
 
     _animCtrl.forward();
@@ -232,7 +259,8 @@ class _SplashScreenState extends State<SplashScreen>
           .authenticate(
         localizedReason: 'Authenticate to open Finworks360',
         biometricOnly: false,
-      ).timeout(const Duration(seconds: 10), onTimeout: () => false);
+      )
+          .timeout(const Duration(seconds: 10), onTimeout: () => false);
       if (!mounted) return;
       if (!success) {
         Navigator.of(context).pushReplacement(
@@ -293,13 +321,11 @@ class _SplashScreenState extends State<SplashScreen>
 
       Navigator.of(context).pushAndRemoveUntil(
         SmoothPageRoute(
-          builder: (_) => success
-              ? const MainScreen()
-              : const LoginScreen(),
+          builder: (_) =>
+          success ? const MainScreen() : const LoginScreen(),
         ),
             (route) => false,
       );
-
     } catch (e) {
       debugPrint('Biometric auth error: $e');
 
@@ -309,7 +335,6 @@ class _SplashScreenState extends State<SplashScreen>
               (route) => false,
         );
       }
-
     } finally {
       _authInProgress = false;
     }
@@ -340,76 +365,70 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
         child: Center(
-          child: AnimatedBuilder(
-            animation: _animCtrl,
-            builder: (context, _) => Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo with fade + scale
-                Opacity(
-                  opacity: _fadeIn.value,
-                  child: Transform.scale(
-                    scale: _scaleUp.value,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 18),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? cs.surfaceContainerHigh
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: cs.primary.withValues(alpha: 0.08),
-                            blurRadius: 30,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/images/logo-colored.png',
-                        height: 44,
-                        fit: BoxFit.contain,
-                      ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FadeTransition(
+                opacity: _fadeIn,
+                child: ScaleTransition(
+                  scale: _scaleUp,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 18),
+                    decoration: BoxDecoration(
+                      color:
+                      isDark ? cs.surfaceContainerHigh : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: cs.primary.withValues(alpha: 0.08),
+                          blurRadius: 30,
+                          spreadRadius: 2,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo-colored.png',
+                      height: 44,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
-                const SizedBox(height: 36),
-                // Loading indicator — fades in after logo settles
-                Opacity(
-                  opacity: _loaderFade.value,
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      color: cs.primary,
-                      strokeWidth: 2.5,
-                    ),
+              ),
+              const SizedBox(height: 36),
+              FadeTransition(
+                opacity: _loaderFade,
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: cs.primary,
+                    strokeWidth: 2.5,
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Tagline — fades in with loader
-                Opacity(
-                  opacity: _loaderFade.value,
-                  child: Text(
-                    'Smart Invoice Investing',
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                    ),
+              ),
+              const SizedBox(height: 16),
+              FadeTransition(
+                opacity: _loaderFade,
+                child: Text(
+                  'Smart Invoice Investing',
+                  style: TextStyle(
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
 
 // ── Refresh Rate Picker (used in ProfileScreen) ───────────────────────────────
 

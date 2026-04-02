@@ -10,8 +10,13 @@ import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart'; // FIX: use shared fmtAmount, removed duplicate _fmt
 import '../widgets/pressable.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
+import '../widgets/animated_empty_state.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/app_bar_action.dart';
 import 'invoice_detail_screen.dart';
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -558,87 +563,85 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
-      body: RefreshIndicator(
-        onRefresh: () async { await AppHaptics.selection(); await _loadInvoices(refresh: true); },
-        child: Listener(
-          onPointerDown: (_) {
-            _fastScrollbarKey.currentState?.show();
-          },
-          child: Stack(
-            children: [
-              CustomScrollView(
+      body: Listener(
+        onPointerDown: (_) {
+          _fastScrollbarKey.currentState?.show();
+        },
+        child: Stack(
+          children: [
+            LiquidityRefreshIndicator(
+              onRefresh: () => _loadInvoices(refresh: true),
+              child: CustomScrollView(
                 controller: _scrollController,
-                // Item #13: platform-adaptive scroll physics
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 cacheExtent: 180 * 8,
                 slivers: [
-                  SliverAppBar(
-                    expandedHeight: _searchVisible ? 180 : 120,
-                    pinned: true,
-                    stretch: true,
-                    backgroundColor: AppColors.scaffold(context),
-                    elevation: 0,
-                    flexibleSpace: FlexibleSpaceBar(
-                      title: Text('Marketplace',
-                          style: TextStyle(
-                              color: AppColors.textPrimary(context),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 20,
-                              letterSpacing: -0.5)),
-                      centerTitle: false,
-                      titlePadding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 16),
-                      background: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
+                  AppLogoHeader(
+                    title: 'Marketplace',
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          _searchVisible ? Icons.search_off_rounded : Icons.search_rounded,
+                          color: colorScheme.primary,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _searchVisible = !_searchVisible;
+                            if (!_searchVisible) {
+                              _searchCtrl.clear();
+                              _onSearchChanged('');
+                            }
+                          });
+                          AppHaptics.selection();
+                        },
+                      ),
+                      Stack(
                         children: [
-                          if (_searchVisible)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 60),
-                              child: TextField(
-                                controller: _searchCtrl,
-                                onChanged: _onSearchChanged,
-                                style: TextStyle(
-                                    color: AppColors.textPrimary(context)),
-                                decoration: InputDecoration(
-                                  hintText: 'Search companies...',
-                                  prefixIcon: const Icon(Icons.search_rounded),
-                                  filled: true,
-                                  fillColor: AppColors.navyCard(context),
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      borderSide: BorderSide.none),
+                          IconButton(
+                            icon: const Icon(Icons.tune_rounded),
+                            onPressed: _showFilterSheet,
+                          ),
+                          if (_activeFilterCount > 0)
+                            Positioned(
+                              right: 8,
+                              top: 8,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  shape: BoxShape.circle,
                                 ),
                               ),
                             ),
                         ],
                       ),
-                    ),
-                    actions: [
-                      IconButton(
-                          icon: Icon(_searchVisible
-                              ? Icons.search_off_rounded
-                              : Icons.search_rounded),
-                          onPressed: _toggleSearch),
-                      Stack(
-                        children: [
-                          IconButton(
-                              icon: const Icon(Icons.tune_rounded),
-                              onPressed: _showFilterSheet),
-                          if (_activeFilterCount > 0)
-                            Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                        color: colorScheme.primary,
-                                        shape: BoxShape.circle))),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
                     ],
                   ),
+                  if (_searchVisible)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: _onSearchChanged,
+                          style: TextStyle(color: AppColors.textPrimary(context)),
+                          decoration: InputDecoration(
+                            hintText: 'Search companies...',
+                            prefixIcon: const Icon(Icons.search_rounded),
+                            filled: true,
+                            fillColor: AppColors.navyCard(context),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          ),
+                        ),
+                      ),
+                    ),
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -754,25 +757,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     )
                   else if (_filtered.isEmpty)
                     SliverFillRemaining(
-                        child: Center(
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                          Icon(Icons.search_off_rounded,
-                              size: 64, color: colorScheme.outline),
-                          const SizedBox(height: 16),
-                          Text(_loadError ?? 'No invoices found',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary(context))),
-                          if (_loadError != null) ...[
-                            const SizedBox(height: 16),
-                            TextButton.icon(
-                              icon: const Icon(Icons.refresh_rounded, size: 16),
-                              label: const Text('Retry'),
-                              onPressed: () => _loadInvoices(refresh: true),
-                            ),
-                          ],
-                        ])))
+                      hasScrollBody: false,
+                      child: Center(
+                        child: AnimatedEmptyState(
+                          icon: _loadError != null ? Icons.error_outline_rounded : Icons.search_off_rounded,
+                          title: _loadError != null ? 'Connection Error' : 'No Invoices Found',
+                          subtitle: _loadError ?? 'No invoices match your search or filter criteria.',
+                          actionLabel: _loadError != null ? 'Retry' : null,
+                          onAction: _loadError != null ? () => _loadInvoices(refresh: true) : null,
+                        ),
+                      ),
+                    )
                   else
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -794,9 +789,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                 ],
               ),
+            ),
 
-              // ── Fast scrollbar overlay ─────────────────────────────
-              if (!_isLoading && _filtered.length > 6)
+            // ── Fast scrollbar overlay ─────────────────────────────
+            if (!_isLoading && _filtered.length > 6)
                 Positioned(
                   right: 4,
                   top: MediaQuery.of(context).padding.top + 120,
@@ -810,7 +806,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             ],
           ),
         ),
-      ),
     );
   }
 }

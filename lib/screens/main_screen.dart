@@ -26,7 +26,7 @@ class _MainScreenState extends State<MainScreen>
   DateTime? _lastBackPress;
   late final List<Widget> _tabs;
   DateTime? _backgroundTime;
-  static const _lockTimeout = Duration(seconds: 30);
+  static const _lockTimeout = Duration(seconds: 300);
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = List.generate(
     _tabCount,
@@ -98,13 +98,18 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
-  void _changeTab(int index) {
+  void _changeTab(int index) async {
     if (_currentIndex == index) return;
 
     _lastBackPress = null;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     final previousIndex = _currentIndex;
+    
+    // Give a tiny bit of space for the tap animation to initiate
+    await Future.delayed(const Duration(milliseconds: 60));
+    
+    if (!mounted) return;
     setState(() => _currentIndex = index);
 
     _tabControllers[previousIndex].reverse();
@@ -140,25 +145,25 @@ class _MainScreenState extends State<MainScreen>
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
 
+        // 1) If the current tab's navigator can pop, pop it (sub-screens)
         final currentNav = _navigatorKeys[_currentIndex].currentState;
-
         if (currentNav != null && currentNav.canPop()) {
           currentNav.pop();
           _lastBackPress = null;
           return;
         }
 
+        // 2) If we're not on the Home tab, switch to Home
         if (_currentIndex != 0) {
           _changeTab(0);
           return;
         }
 
+        // 3) We're on Home tab root — double-tap to exit
         final now = DateTime.now();
-
         if (_lastBackPress == null ||
             now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
           _lastBackPress = now;
-
           await AppHaptics.buttonPress();
 
           if (!context.mounted) return;
@@ -167,12 +172,11 @@ class _MainScreenState extends State<MainScreen>
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                content: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(Icons.exit_to_app_rounded,
                           color: Colors.white70, size: 18),
                       SizedBox(width: 10),
@@ -189,7 +193,7 @@ class _MainScreenState extends State<MainScreen>
                 duration: const Duration(seconds: 2),
                 elevation: 0,
                 margin: EdgeInsets.fromLTRB(
-                    16, 0, 16, MediaQuery.of(context).padding.bottom),
+                    16, 0, 16, MediaQuery.of(context).padding.bottom + 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
@@ -197,7 +201,6 @@ class _MainScreenState extends State<MainScreen>
                 ),
               ),
             );
-
           return;
         }
 
@@ -205,15 +208,21 @@ class _MainScreenState extends State<MainScreen>
         SystemNavigator.pop();
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
+        body: Stack(
           children: List.generate(_tabCount, (i) {
-            return RepaintBoundary(
-              child: FadeTransition(
-                opacity: _tabFades[i],
-                child: SlideTransition(
-                  position: _tabSlides[i],
-                  child: _tabs[i],
+            final active = i == _currentIndex;
+            return IgnorePointer(
+              ignoring: !active,
+              child: TickerMode(
+                enabled: active || _tabControllers[i].value > 0,
+                child: RepaintBoundary(
+                  child: FadeTransition(
+                    opacity: _tabFades[i],
+                    child: SlideTransition(
+                      position: _tabSlides[i],
+                      child: _tabs[i],
+                    ),
+                  ),
                 ),
               ),
             );
@@ -452,18 +461,16 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
             label: widget.label,
             button: true,
             selected: active,
-            child: InkResponse(
+            child: GestureDetector(
+              onTapDown: (_) {
+                _bounceCtrl.forward(from: 0.0);
+              },
               onTap: () async {
                 await AppHaptics.navTap();
                 widget.onTap(widget.index);
               },
               onLongPress: () => _showLabel(context),
-              containedInkWell: false,
-              highlightShape: BoxShape.circle,
-              radius: 64,
-              splashFactory: InkRipple.splashFactory,
-              splashColor: cs.onSecondaryContainer.withValues(alpha: 0.12),
-              highlightColor: cs.onSecondaryContainer.withValues(alpha: 0.06),
+              behavior: HitTestBehavior.opaque,
               child: SizedBox(
                 width: 64,
                 height: 64,

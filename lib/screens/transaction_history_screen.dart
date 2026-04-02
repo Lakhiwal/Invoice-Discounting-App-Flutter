@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
+import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
+import '../widgets/animated_empty_state.dart';
+import '../widgets/pressable.dart';
 import '../widgets/stagger_list.dart';
 
 // ── Masked amount constant ────────────────────────────────────────────────────
@@ -64,10 +67,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   // ── Data ───────────────────────────────────────────────────────────────────
 
   Future<void> _loadTransactions() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _hasError = false;
     });
+
+    // Defer heavy data assembly until route transition completes
+    await Future.delayed(const Duration(milliseconds: 250));
+
     try {
       final data = await ApiService.getWallet();
       if (mounted) {
@@ -388,8 +396,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance =
-        context.select<ThemeProvider, bool>((p) => p.hideBalance);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -446,7 +452,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                       credits: _totalCredits,
                       debits: _totalDebits,
                       failedCount: _failedCount,
-                      hideBalance: hideBalance,
                     ),
                   ),
                 ),
@@ -650,10 +655,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                       final tx = _filtered[i];
                       return StaggerItem(
                         index: i,
-                        child: _TxTile(
-                          tx: tx,
-                          hideBalance: hideBalance,
-                          onTap: () => _showTransactionDetail(tx),
+                        child: RepaintBoundary(
+                          child: _TxTile(
+                            tx: tx,
+                            onTap: () => _showTransactionDetail(tx),
+                          ),
                         ),
                       );
                     },
@@ -675,18 +681,17 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 class _SummaryCard extends StatelessWidget {
   final double credits, debits;
   final int failedCount;
-  final bool hideBalance;
 
   const _SummaryCard({
     required this.credits,
     required this.debits,
     required this.failedCount,
-    required this.hideBalance,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -827,12 +832,10 @@ class _FilterChip extends StatelessWidget {
 
 class _TxTile extends StatelessWidget {
   final Map<String, dynamic> tx;
-  final bool hideBalance;
   final VoidCallback? onTap;
 
   const _TxTile({
     required this.tx,
-    this.hideBalance = false,
     this.onTap,
   });
 
@@ -862,6 +865,7 @@ class _TxTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
     final isDebit = tx['type'] == 'debit';
     final desc = tx['description']?.toString() ?? 'Transaction';
     final txStatus = tx['status']?.toString() ?? 'completed';
@@ -876,7 +880,7 @@ class _TxTile extends StatelessWidget {
       accentColor = isDebit ? colorScheme.error : AppColors.success(context);
     }
 
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
