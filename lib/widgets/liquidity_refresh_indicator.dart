@@ -4,24 +4,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
 
-/// A premium pull-to-refresh with a frosted-glass reveal, spring-to-rest
-/// loading position, and a haptic chord on completion.
+/// Pull-to-refresh with a frosted-glass reveal, spring-to-rest loading dock,
+/// and a haptic chord on completion.
+///
+/// Behaviour
+/// ─────────
+///  1. Pull  →  rubber-band physics (live, no animation lag)
+///  2. Release at threshold  →  content springs back to [_kRestHeight] (72 px)
+///  3. While [onRefresh] is running  →  spinner stays at rest height
+///  4. Done  →  medium + light haptic chord, then smooth dismiss
 class LiquidityRefreshIndicator extends StatefulWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
   final Color? color;
-  final double displacement;
 
   const LiquidityRefreshIndicator({
     super.key,
     required this.child,
     required this.onRefresh,
     this.color,
-    this.displacement = 40.0,
   });
 
   @override
-  State<LiquidityRefreshIndicator> createState() => _LiquidityRefreshIndicatorState();
+  State<LiquidityRefreshIndicator> createState() =>
+      _LiquidityRefreshIndicatorState();
 }
 
 enum _RefreshState { idle, dragging, armed, refreshing, complete }
@@ -29,82 +35,113 @@ enum _RefreshState { idle, dragging, armed, refreshing, complete }
 class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
     with TickerProviderStateMixin {
 
-  late final AnimationController _waveController;
-  late final AnimationController _snapController;
+  // ── Controllers ─────────────────────────────────────────────────────────────
+
+  /// Drives the orb animation (repeating wave).
+  late final AnimationController _waveCtrl;
+
+  /// Drives the spring-to-rest and dismiss height transitions.
+  /// value 0→1 maps to [_snapTween.begin] → [_snapTween.end].
+  late final AnimationController _snapCtrl;
+
+  /// The tween applied to [_snapCtrl] — swapped each phase.
+  Tween<double> _snapTween = Tween<double>(begin: 0, end: 0);
+
+  // ── Drag state ───────────────────────────────────────────────────────────────
 
   double _pullDistance = 0.0;
   _RefreshState _state = _RefreshState.idle;
 
-  /// The offset that drives the content translation and indicator height.
-  /// During drag phases this is computed live; during refreshing/complete it
-  /// is driven by [_snapController] via [_snapAnim].
-  double _displayOffset = 0.0;
+  /// Locks [_triggerRefresh] so it can't be re-entered.
+  bool _refreshing = false;
 
-  /// Rebuilt each time we start a new snap/dismiss animation.
-  late Animation<double> _snapAnim;
+  // ── Constants ────────────────────────────────────────────────────────────────
 
   static const double _kTriggerThreshold = 120.0;
-  static const double _kMaxPull        = 200.0;
+  static const double _kMaxPull          = 200.0;
 
-  /// The height the indicator rests at while data is loading —
-  /// roughly "half-way back" from a full pull.
-  static const double _kRestHeight = 72.0;
+  /// Height the indicator rests at while data loads — roughly "half-way back".
+  static const double _kRestHeight       = 72.0;
 
-  double _rubberBand(double pull) {
-    if (pull <= 0) return 0;
-    return math.pow(pull.clamp(0.0, _kMaxPull), 0.8) * 3.0;
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  /// Logarithmic rubber-band: feels physical without going too far.
+  double _rubberBand(double pull) =>
+      math.pow(pull.clamp(0.0, _kMaxPull), 0.8) * 3.0;
+
+  /// The pixel offset that drives both the content translation and indicator
+  /// height.  Called from inside [AnimatedBuilder] every frame — no setState
+  /// needed for animation-driven changes.
+  double _computeOffset() {
+    switch (_state) {
+      case _RefreshState.idle:
+        return 0;
+      case _RefreshState.dragging:
+      case _RefreshState.armed:
+        return _rubberBand(_pullDistance);
+      case _RefreshState.refreshing:
+        final t = Curves.easeOutBack.transform(_snapCtrl.value.clamp(0.0, 1.0));
+        return _snapTween.lerp(t);
+      case _RefreshState.complete:
+        final t = Curves.easeInCubic.transform(_snapCtrl.value.clamp(0.0, 1.0));
+        return _snapTween.lerp(t);
+    }
   }
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
+    _waveCtrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-
-    _snapController = AnimationController(vsync: this);
-    _snapAnim = const AlwaysStoppedAnimation(0.0);
+    _snapCtrl = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
-    _waveController.dispose();
-    _snapController.dispose();
+    _waveCtrl.dispose();
+    _snapCtrl.dispose();
     super.dispose();
   }
 
-  // ── Scroll handling ─────────────────────────────────────────────────────────
+  // ── Scroll handling ──────────────────────────────────────────────────────────
 
-  void _handleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      if (_state == _RefreshState.refreshing || _state == _RefreshState.complete) return;
+  void _onScroll(ScrollNotification n) {
+    if (n is ScrollUpdateNotification) {
+      // Never interrupt an active refresh.
+      if (_state == _RefreshState.refreshing ||
+          _state == _RefreshState.complete) return;
 
-      final offset = notification.metrics.pixels;
-      if (offset < 0) {
-        setState(() {
-          _pullDistance = offset.abs();
-          if (_pullDistance >= _kTriggerThreshold) {
-            if (_state != _RefreshState.armed) {
-              HapticFeedback.mediumImpact();
-              _state = _RefreshState.armed;
-            }
-          } else {
-            _state = _RefreshState.dragging;
-          }
-        });
+      final pixels = n.metrics.pixels;
+      if (pixels < 0) {
+        final pull = pixels.abs();
+        if (pull >= _kTriggerThreshold && _state != _RefreshState.armed) {
+          HapticFeedback.mediumImpact();
+          setState(() {
+            _pullDistance = pull;
+            _state = _RefreshState.armed;
+          });
+        } else {
+          setState(() {
+            _pullDistance = pull;
+            if (_state != _RefreshState.armed) _state = _RefreshState.dragging;
+          });
+        }
       } else if (_pullDistance > 0) {
         setState(() {
-          _pullDistance = 0.0;
+          _pullDistance = 0;
           _state = _RefreshState.idle;
         });
       }
-    } else if (notification is ScrollEndNotification) {
+    } else if (n is ScrollEndNotification) {
       if (_state == _RefreshState.armed) {
         _triggerRefresh();
-      } else if (_state != _RefreshState.refreshing) {
+      } else if (_state == _RefreshState.dragging) {
         setState(() {
-          _pullDistance = 0.0;
+          _pullDistance = 0;
           _state = _RefreshState.idle;
         });
       }
@@ -114,207 +151,206 @@ class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
   // ── Refresh lifecycle ────────────────────────────────────────────────────────
 
   Future<void> _triggerRefresh() async {
-    // ① Spring from current rubber-band position → _kRestHeight
+    if (_refreshing) return;
+    _refreshing = true;
+
+    // ① Transition to refreshing — snapshot the current rubber-band height so
+    //    we can spring FROM it.
     final startOffset = _rubberBand(_pullDistance);
-    _snapController.duration = const Duration(milliseconds: 400);
-    _snapAnim = Tween<double>(begin: startOffset, end: _kRestHeight).animate(
-      CurvedAnimation(parent: _snapController, curve: Curves.easeOutBack),
-    )..addListener(_onSnapValue);
+    _snapTween = Tween<double>(begin: startOffset, end: _kRestHeight);
+    _snapCtrl.duration = const Duration(milliseconds: 420);
 
-    setState(() {
-      _state = _RefreshState.refreshing;
-      _displayOffset = startOffset;
-    });
-
+    setState(() => _state = _RefreshState.refreshing);
     HapticFeedback.heavyImpact();
-    await _snapController.forward(from: 0);
-    _snapAnim.removeListener(_onSnapValue);
 
-    // ② Hold at rest height while data loads
-    if (!mounted) return;
-    await widget.onRefresh();
-    if (!mounted) return;
+    // Animate 0→1 (spring to rest).  .orCancel ensures the await resolves
+    // even if the widget is disposed mid-animation.
+    try {
+      await _snapCtrl.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      _refreshing = false;
+      return;
+    }
 
-    // ③ Success haptic chord: medium → 80ms → light
+    if (!mounted) { _refreshing = false; return; }
+
+    // ② Hold at rest height while data is loading.
+    try {
+      await widget.onRefresh();
+    } catch (_) {
+      // Never let a refresh error crash the indicator.
+    }
+
+    if (!mounted) { _refreshing = false; return; }
+
+    // ③ Success haptic chord: medium → 80 ms → light.
     HapticFeedback.mediumImpact();
     await Future.delayed(const Duration(milliseconds: 80));
-    if (mounted) HapticFeedback.lightImpact();
+    if (!mounted) { _refreshing = false; return; }
+    HapticFeedback.lightImpact();
 
-    // ④ Smooth dismiss: _kRestHeight → 0
-    _snapController.reset();
-    _snapController.duration = const Duration(milliseconds: 320);
-    _snapAnim = Tween<double>(begin: _kRestHeight, end: 0).animate(
-      CurvedAnimation(parent: _snapController, curve: Curves.easeInCubic),
-    )..addListener(_onSnapValue);
-
+    // ④ Dismiss: animate _kRestHeight → 0.
+    _snapTween = Tween<double>(begin: _kRestHeight, end: 0);
+    _snapCtrl.duration = const Duration(milliseconds: 340);
     setState(() => _state = _RefreshState.complete);
-    await _snapController.forward(from: 0);
-    _snapAnim.removeListener(_onSnapValue);
 
+    try {
+      await _snapCtrl.forward(from: 0).orCancel;
+    } on TickerCanceled {
+      _refreshing = false;
+      return;
+    }
+
+    _refreshing = false;
     if (mounted) {
       setState(() {
         _state = _RefreshState.idle;
-        _pullDistance = 0.0;
-        _displayOffset = 0.0;
+        _pullDistance = 0;
       });
     }
-  }
-
-  void _onSnapValue() {
-    if (mounted) setState(() => _displayOffset = _snapAnim.value);
   }
 
   // ── Build ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    // Live rubber-band during drag; animation-driven during refresh/complete.
-    final offset = (_state == _RefreshState.dragging || _state == _RefreshState.armed)
-        ? _rubberBand(_pullDistance)
-        : _displayOffset;
-
-    final progress = (_pullDistance / _kTriggerThreshold).clamp(0.0, 1.0);
-    final blurSigma = (progress * 15.0).clamp(0.0, 15.0);
-    final indicatorOpacity = (offset / 40.0).clamp(0.0, 1.0);
-
-    final isActive = offset > 0;
+    final cs = Theme.of(context).colorScheme;
+    final color = widget.color ?? cs.primary;
 
     return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        _handleScrollNotification(notification);
+      onNotification: (n) {
+        _onScroll(n);
         return false;
       },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── Background orbs (behind the glass) ────────────────────────────
-          if (isActive)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: offset,
-              child: ClipRect(
-                child: AnimatedBuilder(
-                  animation: _waveController,
-                  builder: (context, _) {
-                    return Stack(
+      // AnimatedBuilder listens to both controllers and redraws every frame
+      // — no setState needed inside animation callbacks.
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_waveCtrl, _snapCtrl]),
+        builder: (context, _) {
+          final offset = _computeOffset();
+          final dragProgress =
+              (_pullDistance / _kTriggerThreshold).clamp(0.0, 1.0);
+          final showIndicator = offset > 0;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // ── Glowing orbs ─────────────────────────────────────────────
+              if (showIndicator)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: offset,
+                  child: ClipRect(
+                    child: Stack(
                       children: [
                         _GlowingOrb(
-                          color: (widget.color ?? colorScheme.primary)
-                              .withValues(alpha: 0.4),
-                          size: 150 * progress,
+                          color: color.withValues(alpha: 0.4),
+                          size: 150 * dragProgress,
                           offset: Offset(
-                            math.sin(_waveController.value * 2 * math.pi) * 30,
-                            math.cos(_waveController.value * 2 * math.pi) * 10,
+                            math.sin(_waveCtrl.value * 2 * math.pi) * 30,
+                            math.cos(_waveCtrl.value * 2 * math.pi) * 10,
                           ),
                         ),
                         _GlowingOrb(
-                          color: colorScheme.secondary.withValues(alpha: 0.3),
-                          size: 100 * progress,
+                          color: cs.secondary.withValues(alpha: 0.3),
+                          size: 100 * dragProgress,
                           offset: Offset(
-                            math.cos(_waveController.value * 2 * math.pi) * 50,
-                            math.sin(_waveController.value * 2 * math.pi) * 20,
+                            math.cos(_waveCtrl.value * 2 * math.pi) * 50,
+                            math.sin(_waveCtrl.value * 2 * math.pi) * 20,
                           ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
-            ),
-
-          // ── Content pushed down by current offset ─────────────────────────
-          Transform.translate(
-            offset: Offset(0, offset),
-            child: widget.child,
-          ),
-
-          // ── Frosted glass pane ─────────────────────────────────────────────
-          if (isActive)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: offset,
-              child: ClipRect(
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(
-                    sigmaX: blurSigma,
-                    sigmaY: blurSigma,
+                    ),
                   ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface.withValues(alpha: 0.15),
-                      border: Border(
-                        bottom: BorderSide(
-                          color: (widget.color ?? colorScheme.primary)
-                              .withValues(alpha: 0.2 * progress),
-                          width: 1,
+                ),
+
+              // ── Content ──────────────────────────────────────────────────
+              Transform.translate(
+                offset: Offset(0, offset),
+                child: widget.child,
+              ),
+
+              // ── Frosted glass + indicator ─────────────────────────────────
+              if (showIndicator)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: offset,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(
+                        sigmaX: (dragProgress * 15).clamp(0, 15),
+                        sigmaY: (dragProgress * 15).clamp(0, 15),
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cs.surface.withValues(alpha: 0.15),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: color.withValues(
+                                  alpha: 0.2 * dragProgress),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Opacity(
+                          opacity: (offset / 40.0).clamp(0.0, 1.0),
+                          child: _IndicatorContent(
+                              state: _state, color: color),
                         ),
                       ),
                     ),
-                    alignment: Alignment.center,
-                    child: Opacity(
-                      opacity: indicatorOpacity,
-                      child: _RefreshIndicatorContent(
-                        state: _state,
-                        color: widget.color ?? colorScheme.primary,
-                      ),
-                    ),
                   ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-// ── Indicator content widget ──────────────────────────────────────────────────
+// ── Indicator label / icon ────────────────────────────────────────────────────
 
-class _RefreshIndicatorContent extends StatelessWidget {
+class _IndicatorContent extends StatelessWidget {
   final _RefreshState state;
   final Color color;
 
-  const _RefreshIndicatorContent({required this.state, required this.color});
+  const _IndicatorContent({required this.state, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final IconData icon;
     final String label;
+    final Widget icon;
 
     switch (state) {
       case _RefreshState.refreshing:
-        icon = Icons.sync_rounded;
         label = 'SYNCING DATA...';
+        icon = SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+              color: color, strokeWidth: 2.0),
+        );
       case _RefreshState.complete:
-        icon = Icons.check_circle_rounded;
         label = 'ALL DONE';
+        icon = Icon(Icons.check_circle_rounded, color: color, size: 22);
       case _RefreshState.armed:
-        icon = Icons.unfold_less_rounded;
         label = 'RELEASE TO SYNC';
+        icon = Icon(Icons.unfold_less_rounded, color: color, size: 22);
       default:
-        icon = Icons.unfold_more_rounded;
         label = 'PULL TO REFRESH';
+        icon = Icon(Icons.unfold_more_rounded, color: color, size: 22);
     }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        state == _RefreshState.refreshing
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: color,
-                  strokeWidth: 2.0,
-                ),
-              )
-            : Icon(icon, color: color, size: 22),
+        icon,
         const SizedBox(height: 6),
         Text(
           label,
@@ -337,11 +373,8 @@ class _GlowingOrb extends StatelessWidget {
   final double size;
   final Offset offset;
 
-  const _GlowingOrb({
-    required this.color,
-    required this.size,
-    required this.offset,
-  });
+  const _GlowingOrb(
+      {required this.color, required this.size, required this.offset});
 
   @override
   Widget build(BuildContext context) {
