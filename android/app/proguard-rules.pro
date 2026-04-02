@@ -14,3 +14,8 @@
 # Prevent R8 from stripping reflection-based code
 -dontwarn com.google.**
 -dontwarn io.flutter.**
+
+# Apache Tika / javax.xml.stream — pulled in transitively,
+# not available on Android but never called at runtime.
+-dontwarn javax.xml.stream.**
+-dontwarn org.apache.tika.**
