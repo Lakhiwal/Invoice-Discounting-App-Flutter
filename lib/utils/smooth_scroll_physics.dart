@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-class SmoothScrollPhysics extends ClampingScrollPhysics {
+// Uses BouncingScrollPhysics as parent for the premium iOS-style overscroll
+// feel on all platforms, while preserving the tuned fling velocity range.
+class SmoothScrollPhysics extends BouncingScrollPhysics {
   const SmoothScrollPhysics({super.parent});
 
   @override
