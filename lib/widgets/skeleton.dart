@@ -377,15 +377,15 @@ class SkeletonDonutChart extends StatelessWidget {
     final base = cs.onSurface.withValues(alpha: 0.06);
     final hi = cs.onSurface.withValues(alpha: 0.14);
     final hole = cs.surface;
-    final state = SkeletonTheme._of(context);
+    final ctrl = SkeletonTheme.ctrlOf(context);
     return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
       SizedBox(
         width: size,
         height: size,
         child: AnimatedBuilder(
-          animation: state?.ctrl ?? const AlwaysStoppedAnimation(0.0),
+          animation: ctrl ?? const AlwaysStoppedAnimation(0.0),
           builder: (_, __) {
-            final t = state?.ctrl.value ?? 0.0;
+            final t = ctrl?.value ?? 0.0;
             final dist = ((-0.3 + t * 1.6) - 0.5).abs();
             final shimmer =
             Color.lerp(base, hi, (1.0 - (dist / 0.5)).clamp(0.0, 1.0))!;
