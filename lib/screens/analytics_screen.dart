@@ -14,6 +14,12 @@ import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
 import '../widgets/skeleton.dart';
+import '../widgets/animated_amount_text.dart';
+import '../widgets/animated_empty_state.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/app_bar_action.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
+import '../widgets/pressable.dart';
 
 // ── Masked constant ──────────────────────────────────────────────────────────
 const String _kMaskedShort = '● ● ●';
@@ -514,15 +520,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       return Scaffold(
         backgroundColor: cs.surface,
         body: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.wifi_off_rounded,
-                size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
-            const SizedBox(height: 16),
-            Text('Could not load analytics',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 15)),
-            const SizedBox(height: 12),
-            TextButton(onPressed: _loadData, child: const Text('Retry')),
-          ]),
+          child: AnimatedEmptyState(
+            icon: Icons.error_outline_rounded,
+            title: 'Connection Issue',
+            subtitle: 'We couldn\'t load your analytics data at this time.',
+            actionLabel: 'Try Again',
+            onAction: _loadData,
+          ),
         ),
       );
     }
@@ -531,260 +535,214 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       return Scaffold(
         backgroundColor: cs.surface,
         body: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.pie_chart_outline_rounded,
-                size: 48, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
-            const SizedBox(height: 16),
-            Text('No investments yet',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 15)),
-          ]),
+          child: AnimatedEmptyState(
+            icon: Icons.analytics_outlined,
+            title: 'No Data Yet',
+            subtitle: 'Start investing to see your portfolio analytics here.',
+          ),
         ),
       );
     }
 
     return Scaffold(
       backgroundColor: cs.surface,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await AppHaptics.selection();
-          await _loadData();
+      body: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          final currentIndex = _timeOptions.indexOf(_timeFilter);
+          if (details.primaryVelocity! < 0 &&
+              currentIndex < _timeOptions.length - 1) {
+            _setTimeFilter(_timeOptions[currentIndex + 1]);
+          } else if (details.primaryVelocity! > 0 &&
+              currentIndex > 0) {
+            _setTimeFilter(_timeOptions[currentIndex - 1]);
+          }
         },
-        child: GestureDetector(
-          onHorizontalDragEnd: (details) {
-            final currentIndex = _timeOptions.indexOf(_timeFilter);
-
-            if (details.primaryVelocity! < 0 &&
-                currentIndex < _timeOptions.length - 1) {
-              _setTimeFilter(_timeOptions[currentIndex + 1]);
-            } else if (details.primaryVelocity! > 0 &&
-                currentIndex > 0) {
-              _setTimeFilter(_timeOptions[currentIndex - 1]);
-            }
-          },
+        child: LiquidityRefreshIndicator(
+          onRefresh: () async => _loadData(),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
             slivers: [
-            // ── App bar ──────────────────────────────────────────
-            SliverAppBar(
-              expandedHeight: 120,
-              pinned: true,
-              stretch: true,
-              backgroundColor: cs.surface,
-              surfaceTintColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text('Analytics',
-                    style: TextStyle(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 20,
-                        letterSpacing: -0.5)),
-                centerTitle: false,
-                titlePadding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () {
-                    AppHaptics.selection();
-                    _generatePDF();
-                  },
-                  icon: Icon(Icons.download_rounded, color: cs.primary),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-
-            // ── Filters ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: Column(children: [
-                  // Time filter
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: ['All', '3M', '6M', '1Y'].map((f) {
-                        final active = _timeFilter == f;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _FilterChip(
-                            label: f == 'All' ? 'All Time' : f,
-                            active: active,
-                            onTap: () => _setTimeFilter(f),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Sector filter
-                  if (_availableSectors.length > 2)
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _availableSectors.map((s) {
-                          final active = _sectorFilter == s;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: _FilterChip(
-                              label: s,
-                              active: active,
-                              onTap: () => _setSectorFilter(s),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                ]),
-              ),
-            ),
-
-            // ── Health score ─────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: _HealthScoreCard(
-                  score: _healthScore,
-                  label: _healthLabel,
-                  color: _healthColor,
-                  factors: _healthFactors,
-                ),
-              ),
-            ),
-
-            // ── Summary metrics ──────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Row(children: [
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Invested',
-                      value: hide
-                          ? '₹$_kMaskedShort'
-                          : '₹${fmtAmount(_totalInvested)}',
-                      color: cs.primary,
-                    ),
+              // ── App bar ──────────────────────────────────────────
+              AppLogoHeader(
+                title: 'Analytics',
+                actions: [
+                  IconButton(
+                    onPressed: () {
+                      AppHaptics.selection();
+                      _generatePDF();
+                    },
+                    icon: Icon(Icons.download_rounded, color: cs.primary),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Returns',
-                      value: hide
-                          ? '₹$_kMaskedShort'
-                          : '₹${fmtAmount(_totalReturns)}',
-                      color: AppColors.success(context),
-                    ),
-                  ),
-                ]),
+                ],
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: Row(children: [
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Avg. yield',
-                      value: '${_avgYield.toStringAsFixed(1)}%',
-                      color: AppColors.warning(context),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _MetricCard(
-                      label: 'Active / Repaid',
-                      value:
-                      '${_filteredActive.length} / ${_filteredRepaid.length}',
-                      color: cs.onSurface,
-                    ),
-                  ),
-                ]),
-              ),
-            ),
 
-            // ── Maturity calendar ────────────────────────────────
-            if (_maturityData.isNotEmpty)
+              // ── Filters ──────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    children: _timeOptions.map((f) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _FilterChip(
+                          label: f,
+                          active: _timeFilter == f,
+                          onTap: () => _setTimeFilter(f),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+
+              // ── Health ───────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: _HealthScoreCard(
+                    score: _healthScore,
+                    label: _healthLabel,
+                    color: _healthColor,
+                    factors: _healthFactors,
+                  ),
+                ),
+              ),
+
+              // ── Metrics ──────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: _MaturityCalendar(
-                      data: _maturityData, hideBalance: hide),
+                  child: Row(children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Invested',
+                        numericValue: hide ? null : _totalInvested,
+                        value: hide ? '₹$_kMaskedShort' : null,
+                        prefix: '₹',
+                        color: cs.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Returns',
+                        numericValue: hide ? null : _totalReturns,
+                        value: hide ? '₹$_kMaskedShort' : null,
+                        prefix: '₹',
+                        color: AppColors.success(context),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: Row(children: [
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Avg. yield',
+                        numericValue: _avgYield,
+                        suffix: '%',
+                        color: AppColors.warning(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Active / Repaid',
+                        value:
+                            '${_filteredActive.length} / ${_filteredRepaid.length}',
+                        color: cs.onSurface,
+                      ),
+                    ),
+                  ]),
                 ),
               ),
 
-            // ── Risk distribution ────────────────────────────────
-            if (_totalInvested > 0)
+              // ── Maturity calendar ────────────────────────────────
+              if (_maturityData.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: _MaturityCalendar(
+                        data: _maturityData, hideBalance: hide),
+                  ),
+                ),
+
+              // ── Risk distribution ────────────────────────────────
+              if (_totalInvested > 0)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _RiskCard(
+                      buckets: _riskBuckets,
+                      total: _totalInvested,
+                      hideBalance: hide,
+                    ),
+                  ),
+                ),
+
+              // ── Sector breakdown ─────────────────────────────────
+              if (_sectorData.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _SectorCard(
+                      sectorData: _sectorData,
+                      totalInvested: _totalInvested,
+                    ),
+                  ),
+                ),
+
+              // ── Top holdings ─────────────────────────────────────
+              if (_topHoldings.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _TopHoldingsCard(
+                      holdings: _topHoldings,
+                      hideBalance: hide,
+                    ),
+                  ),
+                ),
+
+              // ── Monthly earnings ─────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: _RiskCard(
-                    buckets: _riskBuckets,
-                    total: _totalInvested,
-                    hideBalance: hide,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    child: _EarningsCard(
+                      key: ValueKey(_timeFilter),
+                      data: _monthlyEarnings,
+                      hideBalance: hide,
+                    ),
                   ),
                 ),
               ),
 
-            // ── Sector breakdown ─────────────────────────────────
-            if (_sectorData.isNotEmpty)
+              // ── Stats ────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: _SectorCard(
-                    sectorData: _sectorData,
-                    totalInvested: _totalInvested,
+                  child: _StatsCard(
+                    activeCount: _filteredActive.length,
+                    repaidCount: _filteredRepaid.length,
+                    avgTenure: _avgTenure,
+                    sectorCount: _sectorData.length,
                   ),
                 ),
               ),
 
-            // ── Top holdings ─────────────────────────────────────
-            if (_topHoldings.isNotEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                  child: _TopHoldingsCard(
-                    holdings: _topHoldings,
-                    hideBalance: hide,
-                  ),
-                ),
-              ),
-
-            // ── Monthly earnings ─────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  child: _EarningsCard(
-                    key: ValueKey(_timeFilter),
-                    data: _monthlyEarnings,
-                    hideBalance: hide,
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Stats ────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: _StatsCard(
-                  activeCount: _filteredActive.length,
-                  repaidCount: _filteredRepaid.length,
-                  avgTenure: _avgTenure,
-                  sectorCount: _sectorData.length,
-                ),
-              ),
-            ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 120)),
-          ],
+              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -852,71 +810,75 @@ class _HealthScoreCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final progress = score / 100;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-        border:
-        Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
-      ),
-      child: Column(children: [
-        Text('Portfolio health',
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: 100,
-          height: 100,
-          child: CustomPaint(
-            painter: _GaugePainter(
-              progress: progress,
-              color: color,
-              trackColor: cs.outlineVariant.withValues(alpha: 0.2),
+    return Pressable(
+      onTap: () async {
+        await AppHaptics.selection();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainer,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Text('Portfolio health',
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: 100,
+              height: 100,
+              child: CustomPaint(
+                painter: _GaugePainter(
+                  progress: progress,
+                  color: color,
+                  trackColor: cs.outlineVariant.withValues(alpha: 0.2),
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('$score',
+                          style: TextStyle(
+                              color: cs.onSurface,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800)),
+                      Text(label,
+                          style: TextStyle(color: color, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('$score',
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              alignment: WrapAlignment.center,
+              children: factors.map((f) {
+                final good = !f.contains('Low') &&
+                    !f.contains('below') &&
+                    !f.contains('overdue') &&
+                    !f.contains('urgent');
+                return Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                    good ? Icons.check_circle_rounded : Icons.warning_rounded,
+                    size: 14,
+                    color: good
+                        ? AppColors.success(context)
+                        : AppColors.warning(context),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(f,
                       style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800)),
-                  Text(label,
-                      style: TextStyle(color: color, fontSize: 11)),
-                ],
-              ),
+                          color: cs.onSurfaceVariant, fontSize: 11)),
+                ]);
+              }).toList(),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 4,
-          alignment: WrapAlignment.center,
-          children: factors.map((f) {
-            final good = !f.contains('Low') &&
-                !f.contains('below') &&
-                !f.contains('overdue') &&
-                !f.contains('urgent');
-            return Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(
-                good
-                    ? Icons.check_circle_rounded
-                    : Icons.warning_rounded,
-                size: 14,
-                color: good
-                    ? AppColors.success(context)
-                    : AppColors.warning(context),
-              ),
-              const SizedBox(width: 4),
-              Text(f,
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant, fontSize: 11)),
-            ]);
-          }).toList(),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -965,11 +927,21 @@ class _GaugePainter extends CustomPainter {
 // ── Metric card ─────────────────────────────────────────────────────────────
 
 class _MetricCard extends StatelessWidget {
-  final String label, value;
+  final String label;
+  final String? value;
+  final double? numericValue;
+  final String? prefix;
+  final String? suffix;
   final Color color;
 
-  const _MetricCard(
-      {required this.label, required this.value, required this.color});
+  const _MetricCard({
+    required this.label,
+    this.value,
+    this.numericValue,
+    this.prefix,
+    this.suffix,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -979,17 +951,30 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
-        border:
-        Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.15)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-        const SizedBox(height: 4),
-        Text(value,
-            style: TextStyle(
-                color: color, fontSize: 19, fontWeight: FontWeight.w800)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
+          const SizedBox(height: 4),
+          if (numericValue != null)
+            AnimatedAmountText(
+              value: numericValue!,
+              prefix: prefix ?? '',
+              suffix: suffix ?? '',
+              style: TextStyle(
+                  color: color, fontSize: 19, fontWeight: FontWeight.w800),
+            )
+          else
+            Text(
+              value ?? '',
+              style: TextStyle(
+                  color: color, fontSize: 19, fontWeight: FontWeight.w800),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1053,14 +1038,21 @@ class _MaturityCalendar extends StatelessWidget {
                       style: TextStyle(
                           color: cs.onSurfaceVariant, fontSize: 11)),
                   const SizedBox(height: 2),
-                  Text(
-                      hideBalance
-                          ? '₹$_kMasked'
-                          : '₹${fmtAmount(m['amount'])}',
+                  if (hideBalance)
+                    Text('₹$_kMasked',
+                        style: TextStyle(
+                            color: cs.onSurface,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800))
+                  else
+                    AnimatedAmountText(
+                      value: (m['amount'] as num).toDouble(),
+                      prefix: '₹',
                       style: TextStyle(
                           color: cs.onSurface,
                           fontSize: 16,
-                          fontWeight: FontWeight.w800)),
+                          fontWeight: FontWeight.w800),
+                    ),
                   const SizedBox(height: 2),
                   Text(
                     '${m['count']} invoice${(m['count'] as int) > 1 ? 's' : ''}',

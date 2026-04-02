@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../utils/app_haptics.dart';
+import '../../../widgets/pressable.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Profile menu widgets — divider-based, no card borders
@@ -89,64 +90,61 @@ class ProfileMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: iconColor, size: 15),
+    return Pressable(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(8),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: Icon(icon, color: iconColor, size: 15),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle!.isNotEmpty)
                     Text(
-                      label,
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: cs.onSurface,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                        color: subtitleColor ?? cs.onSurfaceVariant,
+                        fontSize: 11,
                       ),
                     ),
-                    if (subtitle != null && subtitle!.isNotEmpty)
-                      Text(
-                        subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: subtitleColor ?? cs.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 6),
-                trailing!,
-              ],
-              if (showChevron) ...[
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                  size: 18,
-                ),
-              ],
+            ),
+            if (trailing != null) ...[
+              const SizedBox(width: 6),
+              trailing!,
             ],
-          ),
+            if (showChevron) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                size: 18,
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -211,7 +209,7 @@ class ProfileSwitchItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return InkWell(
+    return Pressable(
       onTap: () async {
         await AppHaptics.selection();
         onChanged(!value);

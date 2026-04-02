@@ -16,9 +16,6 @@
         android:icon="@mipmap/ic_launcher"
         android:label="Finworks360">
 
-        <meta-data
-            android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="false" />
 
         <!-- Marketplace Widget -->
         <receiver

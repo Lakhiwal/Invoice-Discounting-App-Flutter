@@ -213,13 +213,13 @@ class _MemberRingAvatar extends StatelessWidget {
     required this.initials,
     required this.memberSince,
     this.imageUrl,
-    this.size = 72,
+    this.size = 100,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final outerSize = size + 40;
+    final outerSize = size + 28;
     final hasPicture = imageUrl != null && imageUrl!.isNotEmpty;
 
     return SizedBox(
@@ -230,15 +230,8 @@ class _MemberRingAvatar extends StatelessWidget {
           size: Size(outerSize, outerSize),
           painter: _CurvedTextPainter(
             text: 'MEMBER SINCE $memberSince',
-            color: cs.primary.withValues(alpha: 0.4),
-            radius: outerSize / 2 - 2,
-          ),
-        ),
-        CustomPaint(
-          size: Size(size + 12, size + 12),
-          painter: _DottedRingPainter(
-            color: cs.primary.withValues(alpha: 0.15),
-            radius: (size + 8) / 2,
+            color: cs.onSurfaceVariant,
+            radius: (size / 2) + 8,
           ),
         ),
         Container(
@@ -300,9 +293,9 @@ class _CurvedTextPainter extends CustomPainter {
             text: fullText[i],
             style: TextStyle(
                 color: color,
-                fontSize: 8,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.2)),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.5)),
         textDirection: TextDirection.ltr,
       )..layout();
       canvas.save();
@@ -319,30 +312,7 @@ class _CurvedTextPainter extends CustomPainter {
       old.text != text || old.color != color;
 }
 
-class _DottedRingPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-  _DottedRingPainter({required this.color, required this.radius});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    for (int i = 0; i < 64; i++) {
-      final angle = (i / 64) * 2 * math.pi;
-      canvas.drawCircle(
-          Offset(center.dx + radius * math.cos(angle),
-              center.dy + radius * math.sin(angle)),
-          0.8,
-          paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DottedRingPainter old) => old.color != color;
-}
+// Removed _DottedRingPainter as per layout redesign
 
 class ProfileTag extends StatelessWidget {
   final String label;
