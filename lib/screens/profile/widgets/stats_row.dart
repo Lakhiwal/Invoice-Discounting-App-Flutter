@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../theme/ui_constants.dart';
+import '../../../widgets/animated_amount_text.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Stats Row — Invested · Avg Return · Active Deals
@@ -10,28 +12,20 @@ class ProfileStatsRow extends StatelessWidget {
   final double totalInvested;
   final double avgReturn;
   final int activeCount;
-  final bool hideBalance;
 
   const ProfileStatsRow({
     super.key,
     required this.totalInvested,
     required this.avgReturn,
     required this.activeCount,
-    this.hideBalance = false,
   });
-
-  String _formatCompact(double value) {
-    if (value >= 10000000) return '₹${(value / 10000000).toStringAsFixed(1)}Cr';
-    if (value >= 100000) return '₹${(value / 100000).toStringAsFixed(1)}L';
-    if (value >= 1000) return '₹${(value / 1000).toStringAsFixed(1)}K';
-    return '₹${value.toStringAsFixed(0)}';
-  }
 
   static const String _masked = '● ● ●';
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -47,27 +41,31 @@ class ProfileStatsRow extends StatelessWidget {
         children: [
           Expanded(
             child: _StatCard(
-              value: hideBalance ? '₹$_masked' : _formatCompact(totalInvested),
+              value: totalInvested,
               label: 'Invested',
               valueColor: AppColors.success(context),
+              isAmount: true,
+              prefix: '₹',
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _StatCard(
-              value: hideBalance
-                  ? '$_masked%'
-                  : '${avgReturn.toStringAsFixed(1)}%',
+              value: avgReturn,
               label: 'Avg return',
               valueColor: colorScheme.primary,
+              isAmount: true,
+              suffix: '%',
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _StatCard(
-              value: hideBalance ? _masked : '$activeCount deals',
+              value: activeCount.toDouble(),
               label: 'Active',
               valueColor: AppColors.warning(context),
+              isAmount: false,
+              suffix: ' deals',
             ),
           ),
         ],
@@ -77,19 +75,27 @@ class ProfileStatsRow extends StatelessWidget {
 }
 
 class _StatCard extends StatelessWidget {
-  final String value;
+  final double value;
   final String label;
   final Color valueColor;
+  final bool isAmount;
+  final String prefix;
+  final String suffix;
 
   const _StatCard({
     required this.value,
     required this.label,
     required this.valueColor,
+    this.isAmount = false,
+    this.prefix = '',
+    this.suffix = '',
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
@@ -100,11 +106,14 @@ class _StatCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            value,
+          AnimatedAmountText(
+            value: value,
+            prefix: prefix,
+            suffix: suffix,
+            hideValue: hideBalance,
             style: TextStyle(
               color: valueColor,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),

@@ -66,3 +66,47 @@ class SmoothPageRoute<T> extends PageRouteBuilder<T> {
     },
   );
 }
+
+class ParallaxSlidePageRoute<T> extends PageRouteBuilder<T> {
+  final WidgetBuilder builder;
+
+  ParallaxSlidePageRoute({required this.builder, super.settings})
+      : super(
+    transitionDuration: const Duration(milliseconds: 350),
+    reverseTransitionDuration: const Duration(milliseconds: 280),
+    pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final slideIn = Tween<Offset>(
+        begin: const Offset(1.0, 0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+      ));
+
+      final slideOut = Tween<Offset>(
+        begin: Offset.zero,
+        end: const Offset(-0.35, 0),
+      ).animate(CurvedAnimation(
+        parent: secondaryAnimation,
+        curve: Curves.easeOutCubic,
+      ));
+
+      final fade = CurvedAnimation(
+        parent: animation,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      );
+
+      return SlideTransition(
+        position: slideOut,
+        child: SlideTransition(
+          position: slideIn,
+          child: FadeTransition(
+            opacity: fade,
+            child: child,
+          ),
+        ),
+      );
+    },
+  );
+}

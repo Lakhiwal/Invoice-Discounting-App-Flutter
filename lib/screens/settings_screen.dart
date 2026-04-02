@@ -209,7 +209,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final themeProvider = context.watch<ThemeProvider>();
+    final mode = context.select<ThemeProvider, AppThemeMode>((p) => p.mode);
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
 
     final String quietLabel;
     if (_quietStart != null && _quietEnd != null) {
@@ -248,10 +249,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SectionLabel(label: 'Appearance'),
           const SizedBox(height: 10),
           _AppearancePicker(
-            current: themeProvider.mode,
-            onChanged: (mode) async {
+            current: mode,
+            onChanged: (newMode) async {
               await AppHaptics.selection();
-              themeProvider.setMode(mode);
+              context.read<ThemeProvider>().setMode(newMode);
             },
           ),
           const SizedBox(height: 24),
@@ -288,13 +289,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SwitchRow(
               icon: Icons.visibility_off_outlined,
               label: 'Hide balances',
-              subtitle: themeProvider.hideBalance
+              subtitle: hideBalance
                   ? 'Amounts hidden everywhere'
                   : 'All amounts visible',
-              value: themeProvider.hideBalance,
+              value: hideBalance,
               onChanged: (v) async {
                 await AppHaptics.selection();
-                themeProvider.setHideBalance(v);
+                context.read<ThemeProvider>().setHideBalance(v);
               },
             ),
             _SwitchRow(

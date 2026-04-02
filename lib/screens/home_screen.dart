@@ -3,17 +3,20 @@ import 'package:flutter/services.dart';
 import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
 import 'package:provider/provider.dart';
 
+import '../main.dart';
 import '../services/api_service.dart';
+import '../widgets/animated_amount_text.dart';
 import '../services/cashfree_service.dart';
 import '../services/portfolio_cache.dart';
-import '../services/razorpay_service.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
 import '../utils/smooth_page_route.dart';
 import '../widgets/app_bar_action.dart';
+import '../widgets/app_logo_header.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/gradient_text.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
@@ -23,94 +26,6 @@ import 'transaction_history_screen.dart';
 
 const String _kMasked = '● ● ● ● ●';
 const String _kMaskedShort = '● ● ●';
-
-// ── Animated number counter ───────────────────────────────────────────────────
-
-class _AnimatedCounter extends StatefulWidget {
-  final double value;
-  final TextStyle style;
-  final String prefix;
-  final bool enableHaptics;
-  final bool hideValue;
-  final VoidCallback? onCompleted;
-
-  const _AnimatedCounter({
-    required this.value,
-    required this.style,
-    this.prefix = '',
-    this.enableHaptics = false,
-    this.hideValue = false,
-    this.onCompleted,
-  });
-
-  @override
-  State<_AnimatedCounter> createState() => _AnimatedCounterState();
-}
-
-class _AnimatedCounterState extends State<_AnimatedCounter>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 550),
-    );
-    _anim = Tween<double>(begin: 0, end: widget.value).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo),
-    );
-    _ctrl.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        if (widget.enableHaptics) AppHaptics.counterTick();
-        widget.onCompleted?.call();
-      }
-    });
-    _ctrl.forward();
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedCounter old) {
-    super.didUpdateWidget(old);
-    if (old.value != widget.value) {
-      _anim = Tween<double>(begin: old.value, end: widget.value).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo),
-      );
-      _ctrl
-        ..reset()
-        ..forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.hideValue) {
-      return Text(
-        '${widget.prefix}$_kMasked',
-        style: widget.style.copyWith(
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      );
-    }
-    return AnimatedBuilder(
-      animation: _anim,
-      builder: (_, __) => Text(
-        '${widget.prefix}${fmtAmount(_anim.value)}',
-        style: widget.style.copyWith(
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
-    );
-  }
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -126,8 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _user;
   bool _isLoading = true;
   bool _hasError = false;
-  late RazorpayService _razorpay;
   late CashfreeService _cashfree;
+  late final ScrollController _scrollController;
   double _cachedCurrentlyInvested = 0;
 
   double _computeCurrentlyInvested() {
@@ -154,15 +69,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // _razorpay = RazorpayService();
+    _scrollController = ScrollController();
     _cashfree = CashfreeService();
     _loadData();
   }
 
   @override
   void dispose() {
-    // _razorpay.dispose();
     _cashfree.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -552,9 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final summary = _portfolio?['summary'];
     final transactions = _wallet?['transactions'] as List? ?? [];
-    final themeProvider = context.watch<ThemeProvider>();
-    final hideBalance = themeProvider.hideBalance;
-    final isBlack = themeProvider.isBlackMode;
+    final isBlack = context.select<ThemeProvider, bool>((p) => p.isBlackMode);
 
     final dividerColor = colorScheme.outlineVariant.withValues(
       alpha: isBlack ? 0.12 : 0.15,
@@ -572,49 +485,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       child: Scaffold(
         backgroundColor: isBlack ? colorScheme.surface : Colors.transparent,
-        body: RefreshIndicator(
+        body: LiquidityRefreshIndicator(
           onRefresh: () async {
-            await AppHaptics.selection();
             await _loadData();
           },
           child: CustomScrollView(
+            controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(
                 parent: BouncingScrollPhysics()),
             slivers: [
-              SliverAppBar(
-                scrolledUnderElevation: 0,
-                toolbarHeight: 72,
-                pinned: true,
-                backgroundColor: colorScheme.surface,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-                titleSpacing: 20,
-                title: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      padding: const EdgeInsets.all(7),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Image.asset('assets/icon/app_icon.png'),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Home',
-                      style: TextStyle(
-                        color: colorScheme.onSurface,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
-                actions: const [
+              const AppLogoHeader(
+                title: 'Home',
+                actions: [
                   AppBarActions(),
                 ],
               ),
@@ -656,23 +538,36 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: Semantics(
-                      label:
-                          'Portfolio value: ${fmtAmount(_totalInvested)} rupees. ${fmtAmount(_totalReturns)} in returns. ${summary?['active_count'] ?? 0} active investments.',
-                      child: _PortfolioHero(
-                        totalInvested: _totalInvested,
-                        wallet: _walletBalance,
-                        returns: _totalReturns,
-                        activeCount: summary?['active_count'] ?? 0,
-                        repaidCount: summary?['repaid_count'] ?? 0,
-                        hideBalance: hideBalance,
-                        isBlackMode: isBlack,
-                        onAdd: _showAddFundsSheet,
-                        onWithdraw: _showWithdrawSheet,
-                        onToggleHide: () {
-                          AppHaptics.selection();
-                          themeProvider.setHideBalance(!hideBalance);
-                        },
+                    child: AnimatedBuilder(
+                      animation: _scrollController,
+                      builder: (context, child) {
+                        final double offset = _scrollController.hasClients
+                            ? _scrollController.positions.first.pixels
+                            : 0;
+                        return Transform.translate(
+                          offset: Offset(0, offset * 0.45),
+                          child: Opacity(
+                            opacity: (1 - (offset / 300)).clamp(0.0, 1.0),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: RepaintBoundary(
+                        child: _PortfolioHero(
+                          totalInvested: _totalInvested,
+                          wallet: _walletBalance,
+                          returns: _totalReturns,
+                          activeCount: summary?['active_count'] ?? 0,
+                          repaidCount: summary?['repaid_count'] ?? 0,
+                          isBlackMode: isBlack,
+                          onAdd: _showAddFundsSheet,
+                          onWithdraw: _showWithdrawSheet,
+                          onToggleHide: () {
+                            AppHaptics.selection();
+                            final p = context.read<ThemeProvider>();
+                            p.setHideBalance(!p.hideBalance);
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -729,11 +624,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: _activeInvestments.length,
-                          itemBuilder: (ctx, i) => _ActiveInvestmentCard(
-                              investment: _activeInvestments[i],
-                              index: i,
-                              hideBalance: hideBalance,
-                              isBlackMode: isBlack),
+                          itemBuilder: (ctx, i) => RepaintBoundary(
+                            child: _ActiveInvestmentCard(
+                                investment: _activeInvestments[i],
+                                index: i,
+                                isBlackMode: isBlack),
+                          ),
                         ))),
                   ),
                 ],
@@ -794,8 +690,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: StaggerItem(
                                 index: txIndex,
                                 child: _TransactionTile(
-                                    tx: transactions[txIndex],
-                                    hideBalance: hideBalance)));
+                                    tx: transactions[txIndex])));
                       },
                       childCount: transactions.length * 2 - 1,
                     )),
@@ -826,7 +721,6 @@ class _HomeScreenState extends State<HomeScreen> {
 class _PortfolioHero extends StatefulWidget {
   final double totalInvested, wallet, returns;
   final dynamic activeCount, repaidCount;
-  final bool hideBalance;
   final bool isBlackMode;
   final VoidCallback onAdd, onWithdraw, onToggleHide;
 
@@ -836,7 +730,6 @@ class _PortfolioHero extends StatefulWidget {
     required this.returns,
     required this.activeCount,
     required this.repaidCount,
-    required this.hideBalance,
     required this.isBlackMode,
     required this.onAdd,
     required this.onWithdraw,
@@ -876,7 +769,7 @@ class _PortfolioHeroState extends State<_PortfolioHero>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hide = widget.hideBalance;
+    final hide = context.select<ThemeProvider, bool>((p) => p.hideBalance);
     final isBlack = widget.isBlackMode;
 
     return AnimatedBuilder(
@@ -929,10 +822,9 @@ class _PortfolioHeroState extends State<_PortfolioHero>
             ),
           ]),
           const SizedBox(height: 8),
-          _AnimatedCounter(
-            value: widget.totalInvested,
+          AnimatedAmountText(
+            value: widget.totalInvested.toDouble(),
             prefix: '₹',
-            enableHaptics: true,
             hideValue: hide,
             onCompleted: pulse,
             style: const TextStyle(
@@ -982,8 +874,8 @@ class _PortfolioHeroState extends State<_PortfolioHero>
                         style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.3),
                             fontSize: 11)),
-                    _AnimatedCounter(
-                        value: widget.wallet,
+                    AnimatedAmountText(
+                        value: widget.wallet.toDouble(),
                         prefix: '₹',
                         hideValue: hide,
                         style: const TextStyle(
@@ -1067,10 +959,9 @@ class _PortfolioHeroState extends State<_PortfolioHero>
               blendMode: BlendMode.srcIn,
               shaderCallback: (bounds) => GradientText.blue.createShader(
                   Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-              child: _AnimatedCounter(
-                value: widget.totalInvested,
+              child: AnimatedAmountText(
+                value: widget.totalInvested.toDouble(),
                 prefix: '₹',
-                enableHaptics: true,
                 hideValue: hide,
                 onCompleted: pulse,
                 style: const TextStyle(
@@ -1123,8 +1014,8 @@ class _PortfolioHeroState extends State<_PortfolioHero>
                       const Text('Wallet Balance',
                           style:
                               TextStyle(color: Colors.white60, fontSize: 11)),
-                      _AnimatedCounter(
-                          value: widget.wallet,
+                      AnimatedAmountText(
+                          value: widget.wallet.toDouble(),
                           prefix: '₹',
                           hideValue: hide,
                           style: const TextStyle(
@@ -1294,19 +1185,18 @@ class _ActionButton extends StatelessWidget {
 class _ActiveInvestmentCard extends StatelessWidget {
   final Map<String, dynamic> investment;
   final int index;
-  final bool hideBalance;
   final bool isBlackMode;
 
   const _ActiveInvestmentCard({
     required this.investment,
     required this.index,
-    this.hideBalance = false,
     this.isBlackMode = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
     final company = (investment['company'] ?? 'Invoice') as String;
     final amount =
         double.tryParse(investment['amount']?.toString() ?? '0') ?? 0;
@@ -1451,11 +1341,9 @@ class _ActiveInvestmentCard extends StatelessWidget {
 
 class _TransactionTile extends StatelessWidget {
   final Map<String, dynamic> tx;
-  final bool hideBalance;
 
   const _TransactionTile({
     required this.tx,
-    this.hideBalance = false,
   });
 
   static const _iconMap = {
@@ -1508,6 +1396,7 @@ class _TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
     final colorScheme = Theme.of(context).colorScheme;
     final isDebit = tx['type'] == 'debit';
     final desc = tx['description']?.toString() ?? 'Transaction';

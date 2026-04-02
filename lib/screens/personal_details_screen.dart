@@ -613,24 +613,46 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
               const SizedBox(height: 24),
 
               // ── Info fields ────────────────────────────────────────
-              _InfoField(label: 'Full name (as on PAN card)', value: name),
+              _InfoField(
+                icon: Icons.person_outline_rounded,
+                label: 'Full name (as on PAN card)',
+                value: name,
+              ),
 
-              if (dob != null && dob.isNotEmpty) ...[
-                _InfoField(label: 'Date of Birth', value: _maskDob(dob)),
-              ],
-              if (mobile.isNotEmpty) ...[
-                _InfoField(label: 'Mobile Number', value: _maskMobile(mobile)),
-              ],
-              if (email.isNotEmpty) ...[
-                _InfoField(label: 'Email', value: _maskEmail(email)),
-              ],
-              if (pan.isNotEmpty) ...[
-                _InfoField(label: 'PAN number', value: _maskPan(pan)),
-              ],
+              if (dob != null && dob.isNotEmpty)
+                _InfoField(
+                  icon: Icons.calendar_today_outlined,
+                  label: 'Date of Birth',
+                  value: _maskDob(dob),
+                ),
+
+              if (mobile.isNotEmpty)
+                _InfoField(
+                  icon: Icons.phone_iphone_rounded,
+                  label: 'Mobile Number',
+                  value: _maskMobile(mobile),
+                ),
+
+              if (email.isNotEmpty)
+                _InfoField(
+                  icon: Icons.mail_outline_rounded,
+                  label: 'Email',
+                  value: _maskEmail(email),
+                ),
+
+              if (pan.isNotEmpty)
+                _InfoField(
+                  icon: Icons.credit_card_outlined,
+                  label: 'PAN number',
+                  value: _maskPan(pan),
+                ),
+
               if (gender != null && gender.isNotEmpty)
                 _InfoField(
-                    label: 'Gender',
-                    value: gender[0].toUpperCase() + gender.substring(1)),
+                  icon: Icons.person_pin_outlined,
+                  label: 'Gender',
+                  value: gender[0].toUpperCase() + gender.substring(1),
+                ),
               const SizedBox(height: 60),
             ]),
       ),
@@ -649,44 +671,71 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
 class _InfoField extends StatelessWidget {
   final String label, value;
+  final IconData icon;
 
-  const _InfoField({required this.label, required this.value});
+  const _InfoField({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: cs.primary, size: 20),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: cs.onSurface,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        color: cs.onSurface,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        Padding(
+          padding: const EdgeInsets.only(left: 84), // Align with text
+          child: Divider(
+            height: 1,
+            color: cs.outlineVariant.withValues(alpha: 0.15),
+          ),
+        ),
+      ],
     );
   }
 }

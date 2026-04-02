@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,7 +7,6 @@ import '../screens/profile/profile_screen.dart';
 import '../services/api_service.dart';
 import '../services/notification_provider.dart';
 import '../utils/app_haptics.dart';
-import '../utils/hero_page_route.dart';
 import '../utils/smooth_page_route.dart';
 
 /// Shared app-bar actions — notification bell + profile avatar.
@@ -102,7 +102,7 @@ class _AppBarActionsState extends State<AppBarActions> {
                 onPressed: () {
                   AppHaptics.selection();
                   Navigator.of(context, rootNavigator: true).push(
-                    HeroPageRoute(builder: (_) => const ProfileScreen()),
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
                   );
                 },
                 icon: Badge(
@@ -151,11 +151,11 @@ class _AvatarCircle extends StatelessWidget {
       ),
       child: ClipOval(
         child: imageUrl != null && imageUrl!.isNotEmpty
-            ? Image.network(
-          imageUrl!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _buildInitial(),
-        )
+            ? CachedNetworkImage(
+                imageUrl: imageUrl!,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) => _buildInitial(),
+              )
             : _buildInitial(),
       ),
     );

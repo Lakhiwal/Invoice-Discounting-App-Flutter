@@ -12,6 +12,7 @@ import '../../services/portfolio_cache.dart';
 import '../../theme/theme_provider.dart';
 import '../../theme/ui_constants.dart';
 import '../../utils/app_haptics.dart';
+import '../../widgets/liquidity_refresh_indicator.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/stagger_list.dart';
 import '../bank_accounts_screen.dart';
@@ -21,6 +22,7 @@ import '../nominee_screen.dart';
 import '../personal_details_screen.dart';
 import '../profile_webview_screen.dart';
 import '../settings_screen.dart';
+import '../../widgets/pressable.dart';
 
 import 'widgets/hero_section.dart';
 import 'widgets/stats_row.dart';
@@ -118,6 +120,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
 
     _crossfadeCtrl.reset();
+
+    // Let the route transition finish smoothly before parsing
+    await Future.delayed(const Duration(milliseconds: 250));
 
     try {
       final results = await Future.wait([
@@ -318,19 +323,16 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: AnimatedBuilder(
-        animation: _crossfadeCtrl,
-        builder: (context, _) {
-          return Stack(
-            children: [
-              if (!_isLoading)
-                RefreshIndicator(
-                  onRefresh: _loadAll,
-                  color: colorScheme.primary,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                        parent: BouncingScrollPhysics()),
-                    slivers: [
+      body: Stack(
+        children: [
+          if (!_isLoading)
+            LiquidityRefreshIndicator(
+              onRefresh: _loadAll,
+              color: colorScheme.primary,
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics()),
+                slivers: [
                       _buildAppBar(colorScheme),
                       SliverToBoxAdapter(
                         child: StaggerItem(
@@ -347,12 +349,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                       SliverToBoxAdapter(
                         child: StaggerItem(
                           index: 1,
-                          child: ProfileStatsRow(
-                            totalInvested: _totalInvested,
-                            avgReturn: _avgReturn,
-                            activeCount: _activeCount,
-                            hideBalance:
-                            Provider.of<ThemeProvider>(context).hideBalance,
+                          child: RepaintBoundary(
+                            child: ProfileStatsRow(
+                              totalInvested: _totalInvested,
+                              avgReturn: _avgReturn,
+                              activeCount: _activeCount,
+                            ),
                           ),
                         ),
                       ),
@@ -365,7 +367,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 .entries
                                 .map((e) => StaggerItem(
                               index: e.key + 2,
-                              child: e.value,
+                              child: RepaintBoundary(child: e.value),
                             ))
                                 .toList(),
                           ),
@@ -374,26 +376,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ],
                   ),
                 ),
-              if (_isLoading || _crossfadeCtrl.isAnimating)
-                IgnorePointer(
-                  ignoring: !_isLoading,
-                  child: Opacity(
-                    opacity: _isLoading ? 1.0 : _skeletonOpacity.value,
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        _buildAppBar(colorScheme),
-                        SliverToBoxAdapter(
-                          child: SkeletonProfileContent(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
+            if (_isLoading || _crossfadeCtrl.isAnimating)
+              IgnorePointer(
+                ignoring: !_isLoading,
+                child: _isLoading 
+                    ? _buildSkeletonUi(colorScheme) 
+                    : FadeTransition(
+                        opacity: _skeletonOpacity,
+                        child: _buildSkeletonUi(colorScheme),
+                      ),
+              ),
+          ],
+        ),
+      );
+  }
+
+  Widget _buildSkeletonUi(ColorScheme colorScheme) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        _buildAppBar(colorScheme),
+        SliverToBoxAdapter(
+          child: RepaintBoundary(
+            child: SkeletonProfileContent(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -656,9 +664,8 @@ class _FooterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Expanded(
-      child: InkWell(
+      child: Pressable(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
