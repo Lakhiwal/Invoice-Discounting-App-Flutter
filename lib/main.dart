@@ -123,23 +123,24 @@ class InvoFinApp extends StatelessWidget {
               themeAnimationDuration: Duration.zero,
               scrollBehavior: const NoGlowScrollBehavior(),
               builder: (context, child) {
-                SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-                  statusBarColor: Colors.transparent,
-                  statusBarIconBrightness:
-                  isDark ? Brightness.light : Brightness.dark,
-                  systemNavigationBarColor: Colors.transparent,
-                  systemNavigationBarIconBrightness:
-                  isDark ? Brightness.light : Brightness.dark,
-                ));
-
                 final mediaData = MediaQuery.of(context);
                 final clampedScale =
                 mediaData.textScaler.scale(1.0).clamp(0.85, 1.3);
-                return MediaQuery(
-                  data: mediaData.copyWith(
-                    textScaler: TextScaler.linear(clampedScale),
+                return AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness:
+                    isDark ? Brightness.light : Brightness.dark,
+                    systemNavigationBarColor: Colors.transparent,
+                    systemNavigationBarIconBrightness:
+                    isDark ? Brightness.light : Brightness.dark,
                   ),
-                  child: child!,
+                  child: MediaQuery(
+                    data: mediaData.copyWith(
+                      textScaler: TextScaler.linear(clampedScale),
+                    ),
+                    child: child!,
+                  ),
                 );
               },
               theme: buildLightTheme(lightDynamic).copyWith(

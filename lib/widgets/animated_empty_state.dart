@@ -51,7 +51,8 @@ class _AnimatedEmptyStateState extends State<AnimatedEmptyState>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          AnimatedBuilder(
+          RepaintBoundary(
+            child: AnimatedBuilder(
             animation: _ctrl,
             builder: (context, child) {
               final y = math.sin(_ctrl.value * 2 * math.pi) * 8.0;
@@ -81,6 +82,7 @@ class _AnimatedEmptyStateState extends State<AnimatedEmptyState>
                 Icon(widget.icon, size: 64, color: color),
               ],
             ),
+          ),
           ),
           const SizedBox(height: 24),
           Text(
