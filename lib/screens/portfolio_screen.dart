@@ -14,7 +14,6 @@ import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
 import '../widgets/animated_amount_text.dart';
 import '../widgets/app_logo_header.dart';
-import '../widgets/app_bar_action.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,19 +53,34 @@ class PortfolioScreen extends StatefulWidget {
 class _PortfolioScreenState extends State<PortfolioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late ScrollController _scrollController;
+  bool _isLoading = false;
   Map<String, dynamic>? _portfolio;
-  bool _isLoading = true;
+  final ValueNotifier<bool> _showFloatingSummary = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
     _loadPortfolio();
+  }
+
+  void _onScroll() {
+    if (!mounted) return;
+    // Show summary bar after scrolling 160 pixels (past the header)
+    final show = _scrollController.offset > 160;
+    if (show != _showFloatingSummary.value) {
+      _showFloatingSummary.value = show;
+    }
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
+    _showFloatingSummary.dispose();
     super.dispose();
   }
 
@@ -98,22 +112,25 @@ class _PortfolioScreenState extends State<PortfolioScreen>
     return Scaffold(
       body: LiquidityRefreshIndicator(
         onRefresh: () => _loadPortfolio(forceRefresh: true),
-        child: NestedScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            AppLogoHeader(
-              title: 'Portfolio',
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: () => _loadPortfolio(forceRefresh: true),
+        child: Stack(
+          children: [
+            NestedScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                AppLogoHeader(
+                  title: 'Portfolio',
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded),
+                      onPressed: () => _loadPortfolio(forceRefresh: true),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-                const SizedBox(width: 8),
-              ],
-            ),
-            SliverToBoxAdapter(
+                SliverToBoxAdapter(
               child: _isLoading
                   ? const SkeletonPortfolioHeader()
                   : Padding(
@@ -176,8 +193,125 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                 isLoading: _isLoading,
                 isBlackMode: isBlack),
           ]),
+            ),
+            _buildFloatingSummary(context, summary),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFloatingSummary(
+      BuildContext context, Map<String, dynamic>? summary) {
+    if (summary == null) return const SizedBox.shrink();
+
+    final value = summary['total_invested'] ?? 0;
+    final returns = summary['total_returns'] ?? 0;
+
+    return ValueListenableBuilder<bool>(
+      valueListenable: _showFloatingSummary,
+      builder: (context, show, child) {
+        return AnimatedPositioned(
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
+          bottom: show ? 24 : -100,
+          left: 24,
+          right: 24,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 300),
+            opacity: show ? 1 : 0,
+            child: child,
+          ),
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ColorFilter.mode(
+            Colors.black.withValues(alpha: 0.1),
+            BlendMode.darken,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                _SummaryMetric(
+                  label: 'Value',
+                  value: double.tryParse(value.toString()) ?? 0.0,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                Container(
+                  width: 1,
+                  height: 24,
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                ),
+                _SummaryMetric(
+                  label: 'Returns',
+                  value: double.tryParse(returns.toString()) ?? 0.0,
+                  color: AppColors.emerald(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color color;
+
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        AnimatedAmountText(
+          value: value,
+          prefix: '₹',
+          style: TextStyle(
+            color: color,
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ],
     );
   }
 }

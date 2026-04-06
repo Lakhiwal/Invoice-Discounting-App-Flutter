@@ -94,14 +94,14 @@ class SkeletonBox extends StatelessWidget {
       builder: (_, __) {
         final t = ctrl.value;
         final center = -0.3 + t * 1.6;
-        const halfWidth = 0.25;
+        const halfWidth = 0.35; // slightly wider for a softer feel
         return Container(
           width: width,
           height: height,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+              begin: const Alignment(-1.0, -0.3), // tilted
+              end: const Alignment(1.0, 0.3),
               colors: [baseColor, baseColor, highlight, baseColor, baseColor],
               stops: [
                 0.0,
@@ -163,14 +163,14 @@ class _HeroBone extends StatelessWidget {
       builder: (_, __) {
         final t = ctrl.value;
         final center = -0.3 + t * 1.6;
-        const halfWidth = 0.25;
+        const halfWidth = 0.35;
         return Container(
           width: width,
           height: height,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+              begin: const Alignment(-1.0, -0.2), // tilted
+              end: const Alignment(1.0, 0.2),
               colors: [
                 theme.boneColor,
                 theme.boneColor,

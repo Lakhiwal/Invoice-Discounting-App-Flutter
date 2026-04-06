@@ -8,6 +8,8 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PersonalDetailsScreen — Personal details page with crop & preview
@@ -37,6 +39,18 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     _profile = widget.profile != null
         ? Map<String, dynamic>.from(widget.profile!)
         : null;
+  }
+
+  Future<void> _load() async {
+    try {
+      final p = await ApiService.getProfile();
+      if (p != null && mounted) {
+        setState(() {
+          _profile = Map<String, dynamic>.from(p);
+        });
+        widget.onProfileUpdated();
+      }
+    } catch (_) {}
   }
 
   String get _initials {
@@ -505,85 +519,80 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                color: cs.onSurface, size: 18),
-            onPressed: () => Navigator.pop(context)),
-        title: Text('Personal details',
-            style: TextStyle(
-                color: cs.onSurface,
-                fontSize: 18,
-                fontWeight: FontWeight.w700)),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
+      body: LiquidityRefreshIndicator(
+        onRefresh: _load,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
+          slivers: [
+            // ── App bar ──────────────────────────────────────────
+            AppLogoHeader(
+              title: 'Personal details',
+            ),
 
-              // ── Avatar with edit badge ─────────────────────────────
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── CENTERED AVATAR ──
-                    Center(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(100),
-                        onTap: _hasPicture ? _viewFullImage : _showPictureSheet,
-                        child: Stack(
-                          children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeOut,
-                              width: 110,
-                              height: 110,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    cs.primary.withValues(alpha: 0.9),
-                                    cs.primaryContainer,
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.15),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
+            // ── Avatar Section ──────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(100),
+                    onTap: _hasPicture ? _viewFullImage : _showPictureSheet,
+                    child: Hero(
+                      tag: 'profile-avatar',
+                      child: Stack(
+                        children: [
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [
+                                  cs.primary.withValues(alpha: 0.9),
+                                  cs.primaryContainer,
                                 ],
                               ),
-                              clipBehavior: Clip.antiAlias,
-                              child: _uploading
-                                  ? Center(
-                                child: SizedBox(
-                                  width: 32,
-                                  height: 32,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 3,
-                                    color: cs.onPrimary,
-                                  ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
-                              )
-                                  : _hasPicture
-                                  ? CachedNetworkImage(
-                                imageUrl: _pictureUrl!,
-                                fit: BoxFit.cover,
-                                width: 110,
-                                height: 110,
-                              )
-                                  : _initialsWidget(cs),
+                              ],
                             ),
-                            if (!_uploading)
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
+                            clipBehavior: Clip.antiAlias,
+                            child: _uploading
+                                ? Center(
+                                    child: SizedBox(
+                                      width: 32,
+                                      height: 32,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 3,
+                                        color: cs.onPrimary,
+                                      ),
+                                    ),
+                                  )
+                                : _hasPicture
+                                    ? CachedNetworkImage(
+                                        imageUrl: _pictureUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 110,
+                                        height: 110,
+                                        placeholder: (_, __) => _initialsWidget(cs),
+                                        errorWidget: (_, __, ___) =>
+                                            _initialsWidget(cs),
+                                      )
+                                    : _initialsWidget(cs),
+                          ),
+                          if (!_uploading)
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Material(
+                                type: MaterialType.transparency,
                                 child: GestureDetector(
                                   onTap: _showPictureSheet,
                                   child: Container(
@@ -601,60 +610,58 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // ── Info fields ────────────────────────────────────────
-              _InfoField(
-                icon: Icons.person_outline_rounded,
-                label: 'Full name (as on PAN card)',
-                value: name,
-              ),
-
-              if (dob != null && dob.isNotEmpty)
+            // ── Info fields ──
+            SliverList(
+              delegate: SliverChildListDelegate([
                 _InfoField(
-                  icon: Icons.calendar_today_outlined,
-                  label: 'Date of Birth',
-                  value: _maskDob(dob),
+                  icon: Icons.person_outline_rounded,
+                  label: 'Full name (as on PAN card)',
+                  value: name,
                 ),
-
-              if (mobile.isNotEmpty)
-                _InfoField(
-                  icon: Icons.phone_iphone_rounded,
-                  label: 'Mobile Number',
-                  value: _maskMobile(mobile),
-                ),
-
-              if (email.isNotEmpty)
-                _InfoField(
-                  icon: Icons.mail_outline_rounded,
-                  label: 'Email',
-                  value: _maskEmail(email),
-                ),
-
-              if (pan.isNotEmpty)
-                _InfoField(
-                  icon: Icons.credit_card_outlined,
-                  label: 'PAN number',
-                  value: _maskPan(pan),
-                ),
-
-              if (gender != null && gender.isNotEmpty)
-                _InfoField(
-                  icon: Icons.person_pin_outlined,
-                  label: 'Gender',
-                  value: gender[0].toUpperCase() + gender.substring(1),
-                ),
-              const SizedBox(height: 60),
-            ]),
+                if (dob != null && dob.isNotEmpty)
+                  _InfoField(
+                    icon: Icons.calendar_today_outlined,
+                    label: 'Date of Birth',
+                    value: _maskDob(dob),
+                  ),
+                if (mobile.isNotEmpty)
+                  _InfoField(
+                    icon: Icons.phone_iphone_rounded,
+                    label: 'Mobile Number',
+                    value: _maskMobile(mobile),
+                  ),
+                if (email.isNotEmpty)
+                  _InfoField(
+                    icon: Icons.mail_outline_rounded,
+                    label: 'Email',
+                    value: _maskEmail(email),
+                  ),
+                if (pan.isNotEmpty)
+                  _InfoField(
+                    icon: Icons.credit_card_outlined,
+                    label: 'PAN number',
+                    value: _maskPan(pan),
+                  ),
+                if (gender != null && gender.isNotEmpty)
+                  _InfoField(
+                    icon: Icons.person_pin_outlined,
+                    label: 'Gender',
+                    value: gender[0].toUpperCase() + gender.substring(1),
+                  ),
+                const SizedBox(height: 60),
+              ]),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_bar_action.dart';
 
 class AppLogoHeader extends StatelessWidget {
   final String title;
@@ -18,41 +17,56 @@ class AppLogoHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SliverAppBar(
-      scrolledUnderElevation: 0,
+      scrolledUnderElevation: 0.5,
       toolbarHeight: toolbarHeight,
       pinned: pinned,
       backgroundColor: colorScheme.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
+      centerTitle: false,
       titleSpacing: 20,
       title: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             padding: const EdgeInsets.all(7),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withValues(alpha: 0.95) : Colors.white,
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: Image.asset('assets/icon/app_icon.png'),
+            child: Image.asset(
+              'assets/icon/app_icon.png',
+              filterQuality: FilterQuality.high,
+            ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Text(
             title,
             style: TextStyle(
               color: colorScheme.onSurface,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.7,
             ),
           ),
         ],
       ),
-      actions: actions ?? const [],
+      actions: [
+        if (actions != null) ...actions!,
+        const SizedBox(width: 8),
+      ],
     );
   }
 }

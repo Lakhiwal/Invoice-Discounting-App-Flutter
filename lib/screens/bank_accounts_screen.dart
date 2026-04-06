@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 
 // ── Model ────────────────────────────────────────────────────────────────────
 
@@ -204,29 +206,15 @@ class _BankAccountsScreenState extends State<BankAccountsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      body: RefreshIndicator(
+      body: LiquidityRefreshIndicator(
         onRefresh: () async { await AppHaptics.selection(); await _load(); },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
           slivers: [
             // App bar
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: cs.surface,
-              surfaceTintColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: Icon(Icons.chevron_left,
-                    color: cs.onSurface, size: 18),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text('Bank Accounts',
-                  style: TextStyle(
-                      color: cs.onSurface,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3)),
+            AppLogoHeader(
+              title: 'Bank Accounts',
             ),
 
             if (_isLoading)

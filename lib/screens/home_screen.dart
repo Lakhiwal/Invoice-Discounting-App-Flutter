@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
 import 'package:provider/provider.dart';
 
-import '../main.dart';
 import '../services/api_service.dart';
 import '../widgets/animated_amount_text.dart';
 import '../services/cashfree_service.dart';
@@ -24,7 +23,6 @@ import 'invoice_detail_screen.dart';
 import 'marketplace_screen.dart';
 import 'transaction_history_screen.dart';
 
-const String _kMasked = '● ● ● ● ●';
 const String _kMaskedShort = '● ● ●';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -38,12 +36,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _portfolio;
   Map<String, dynamic>? _wallet;
-  Map<String, dynamic>? _user;
   bool _isLoading = true;
   bool _hasError = false;
   late CashfreeService _cashfree;
   late final ScrollController _scrollController;
-  double _cachedCurrentlyInvested = 0;
 
   double _computeCurrentlyInvested() {
     final active = _portfolio?['active'] as List? ?? [];
@@ -113,8 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _portfolio = results[0];
           _wallet = results[1];
-          _user = (results[3] ?? results[2]);
-          _cachedCurrentlyInvested = _computeCurrentlyInvested();
           _isLoading = false;
         });
         AppHaptics.numberReveal();
@@ -236,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           final result = await ApiService.createCashfreeOrder(amt);
 
                           if (result['error'] != null && result['success'] == false) {
+                            if (!mounted) return;
                             setModal(() => isLoading = false);
                             ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text(result['error'])));
@@ -838,22 +833,28 @@ class _PortfolioHeroState extends State<_PortfolioHero>
           const SizedBox(height: 20),
           Row(children: [
             Expanded(
-                child: _BlackStatCard(
-                    label: 'Returns',
-                    value: hide
-                        ? '₹$_kMaskedShort'
-                        : '₹${fmtAmount(widget.returns)}',
-                    valueColor: const Color(0xFF10B981))),
+              child: _BlackStatCard(
+                label: 'Returns',
+                amountValue: widget.returns.toDouble(),
+                prefix: '₹',
+                hideValue: hide,
+                valueColor: const Color(0xFF10B981),
+              ),
+            ),
             const SizedBox(width: 6),
             Expanded(
-                child: _BlackStatCard(
-                    label: 'Active',
-                    value: '${(widget.activeCount as num).toInt()}')),
+              child: _BlackStatCard(
+                label: 'Active',
+                amountValue: (widget.activeCount as num).toDouble(),
+              ),
+            ),
             const SizedBox(width: 6),
             Expanded(
-                child: _BlackStatCard(
-                    label: 'Repaid',
-                    value: '${(widget.repaidCount as num).toInt()}')),
+              child: _BlackStatCard(
+                label: 'Repaid',
+                amountValue: (widget.repaidCount as num).toDouble(),
+              ),
+            ),
           ]),
           const SizedBox(height: 20),
           Container(
@@ -976,13 +977,25 @@ class _PortfolioHeroState extends State<_PortfolioHero>
             const SizedBox(height: 20),
             Row(children: [
               Expanded(
-                  child: GlassStatCard(
-                      label: 'Returns',
-                      value: hide
-                          ? '₹$_kMaskedShort'
-                          : '₹${fmtAmount(widget.returns)}',
-                      valueColor: const Color(0xFF22C55E),
-                      icon: Icons.trending_up_rounded)),
+                child: GlassStatCard(
+                  label: 'Returns',
+                  value: hide
+                      ? '₹$_kMaskedShort'
+                      : '₹${fmtAmount(widget.returns)}',
+                  customValue: AnimatedAmountText(
+                    value: widget.returns.toDouble(),
+                    prefix: '₹',
+                    hideValue: hide,
+                    style: const TextStyle(
+                      color: Color(0xFF22C55E),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  valueColor: const Color(0xFF22C55E),
+                  icon: Icons.trending_up_rounded,
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(
                   child: GlassStatCard(
@@ -1035,10 +1048,20 @@ class _PortfolioHeroState extends State<_PortfolioHero>
 
 class _BlackStatCard extends StatelessWidget {
   final String label;
-  final String value;
+  final double? amountValue;
+  final String? value;
+  final String prefix;
+  final bool hideValue;
   final Color? valueColor;
-  const _BlackStatCard(
-      {required this.label, required this.value, this.valueColor});
+
+  const _BlackStatCard({
+    required this.label,
+    this.amountValue,
+    this.value,
+    this.prefix = '',
+    this.hideValue = false,
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1050,15 +1073,36 @@ class _BlackStatCard extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(children: [
-        Text(value,
+        if (amountValue != null)
+          AnimatedAmountText(
+            value: amountValue!,
+            prefix: prefix,
+            hideValue: hideValue,
             style: TextStyle(
-                color: valueColor ?? Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w700)),
+              color: valueColor ?? Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          )
+        else
+          Text(
+            value ?? '',
+            style: TextStyle(
+              color: valueColor ?? Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         const SizedBox(height: 2),
-        Text(label,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.3), fontSize: 10)),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.3),
+            fontSize: 8,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
       ]),
     );
   }
@@ -1312,8 +1356,10 @@ class _ActiveInvestmentCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              Text(
-                hideBalance ? '₹$_kMasked' : '₹${fmtAmount(amount)}',
+              AnimatedAmountText(
+                value: amount,
+                prefix: '₹',
+                hideValue: hideBalance,
                 style: TextStyle(
                   color: fg,
                   fontSize: 18,

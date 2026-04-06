@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 
 class Nominee {
   final int id;
@@ -144,7 +145,7 @@ class _NomineeScreenState extends State<NomineeScreen> {
                 )
               : _isEditing
           ? _NomineeForm(nominee: _nominee, onSaved: _load)
-          : _NomineeView(nominee: _nominee!),
+          : _NomineeView(nominee: _nominee!, onRefresh: _load),
     );
   }
 }
@@ -155,12 +156,20 @@ class _NomineeScreenState extends State<NomineeScreen> {
 
 class _NomineeView extends StatelessWidget {
   final Nominee nominee;
-  const _NomineeView({required this.nominee});
+  final Future<void> Function() onRefresh;
+  const _NomineeView({required this.nominee, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return SingleChildScrollView(
+    return LiquidityRefreshIndicator(
+      onRefresh: () async {
+        await AppHaptics.selection();
+        await onRefresh();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics()),
       padding: const EdgeInsets.all(20),
       child: Column(children: [
         Container(
@@ -241,8 +250,9 @@ class _NomineeView extends StatelessWidget {
           ]),
         ),
       ]),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _DetailRow extends StatelessWidget {

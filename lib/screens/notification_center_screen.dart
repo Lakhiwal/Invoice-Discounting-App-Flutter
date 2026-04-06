@@ -5,6 +5,7 @@ import '../services/notification_provider.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/smooth_page_route.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
 import '../widgets/stagger_list.dart';
 import 'invoice_detail_screen.dart';
@@ -81,8 +82,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      body: LiquidityRefreshIndicator(
+        onRefresh: () async {
+          await AppHaptics.selection();
+          await provider.loadNotifications();
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics()),
         slivers: [
           // ── App bar ──────────────────────────────────────────────────
           SliverAppBar(
@@ -238,8 +245,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ── Group notifications by date ────────────────────────────────────────────
 

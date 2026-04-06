@@ -113,7 +113,9 @@ class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
     if (n is ScrollUpdateNotification) {
       // Never interrupt an active refresh.
       if (_state == _RefreshState.refreshing ||
-          _state == _RefreshState.complete) return;
+          _state == _RefreshState.complete) {
+        return;
+      }
 
       final pixels = n.metrics.pixels;
       if (pixels < 0) {
@@ -347,21 +349,27 @@ class _IndicatorContent extends StatelessWidget {
         icon = Icon(Icons.unfold_more_rounded, color: color, size: 22);
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        icon,
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
-            color: color.withValues(alpha: 0.8),
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 8), // Provide consistent padding for indicator elements
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: color.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

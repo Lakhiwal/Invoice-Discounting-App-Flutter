@@ -34,6 +34,9 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isLoading = false;
   bool _isBiometricLoading = false;
   bool _biometricAvailable = false;
+  bool _is2FARequired = false;
+  String? _userEmailFor2FA;
+  final _otpController = TextEditingController();
   String? _errorMessage;
 
   late final TapGestureRecognizer _signUpRecognizer;
@@ -80,6 +83,7 @@ class _LoginScreenState extends State<LoginScreen>
     _animController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _otpController.dispose();
     _emailFocusNode.dispose();
     _passwordFocusNode.dispose();
     _signUpRecognizer.dispose();
@@ -227,6 +231,12 @@ class _LoginScreenState extends State<LoginScreen>
         );
         _saveCredentialsInBackground(email, result['refresh'] as String? ?? '');
         _registerFcmInBackground();
+      } else if (result['2fa_required'] == true) {
+        await AppHaptics.buttonPress();
+        setState(() {
+          _is2FARequired = true;
+          _userEmailFor2FA = result['email'];
+        });
       } else {
         await AppHaptics.error();
         setState(() => _errorMessage = result['error'] as String?);
@@ -238,6 +248,41 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() => _errorMessage =
             'Cannot connect to server. Please check your network.');
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handle2FAVerify() async {
+    final token = _otpController.text.trim();
+    if (token.length != 6) {
+      setState(() => _errorMessage = 'Enter a valid 6-digit code');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await ApiService.verify2FALogin(_userEmailFor2FA!, token);
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        await AppHaptics.success();
+        navigatorKey.currentState!.pushAndRemoveUntil(
+          SmoothPageRoute(builder: (_) => const MainScreen()),
+          (route) => false,
+        );
+        _saveCredentialsInBackground(_userEmailFor2FA!, result['refresh'] as String? ?? '');
+        _registerFcmInBackground();
+      } else {
+        await AppHaptics.error();
+        setState(() => _errorMessage = result['error'] as String?);
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'Connection error');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -401,76 +446,116 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 36),
 
-                        // ── Email field ──────────────────────────────
-                        TextField(
-                          controller: _emailController,
-                          focusNode: _emailFocusNode,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          style:
-                              TextStyle(color: AppColors.textPrimary(context)),
-                          onChanged: (_) {
-                            if (_errorMessage != null) _dismissError();
-                          },
-                          onSubmitted: (_) {
-                            FocusScope.of(context)
-                                .requestFocus(_passwordFocusNode);
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Email address',
-                            labelStyle: TextStyle(
-                                color: AppColors.textSecondary(context)),
-                            prefixIcon: Icon(
-                              Icons.mail_outline_rounded,
-                              color: AppColors.textSecondary(context),
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // ── Password field ───────────────────────────
-                        TextField(
-                          controller: _passwordController,
-                          focusNode: _passwordFocusNode,
-                          keyboardType: TextInputType.visiblePassword,
-                          obscureText: _obscurePassword,
-                          enableSuggestions: false,
-                          autocorrect: false,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          style:
-                              TextStyle(color: AppColors.textPrimary(context)),
-                          onChanged: (_) {
-                            if (_errorMessage != null) _dismissError();
-                          },
-                          onSubmitted: (_) => _handleLogin(),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            labelStyle: TextStyle(
-                                color: AppColors.textSecondary(context)),
-                            prefixIcon: Icon(
-                              Icons.lock_outline_rounded,
-                              color: AppColors.textSecondary(context),
-                              size: 20,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
+                        if (!_is2FARequired) ...[
+                          // ── Email field ──────────────────────────────
+                          TextField(
+                            controller: _emailController,
+                            focusNode: _emailFocusNode,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autofillHints: const [AutofillHints.email],
+                            style:
+                                TextStyle(color: AppColors.textPrimary(context)),
+                            onChanged: (_) {
+                              if (_errorMessage != null) _dismissError();
+                            },
+                            onSubmitted: (_) {
+                              FocusScope.of(context)
+                                  .requestFocus(_passwordFocusNode);
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Email address',
+                              labelStyle: TextStyle(
+                                  color: AppColors.textSecondary(context)),
+                              prefixIcon: Icon(
+                                Icons.mail_outline_rounded,
                                 color: AppColors.textSecondary(context),
                                 size: 20,
                               ),
-                              onPressed: () async {
-                                await AppHaptics.selection();
-                                setState(
-                                    () => _obscurePassword = !_obscurePassword);
-                              },
                             ),
                           ),
-                        ),
+                          const SizedBox(height: 14),
+
+                          // ── Password field ───────────────────────────
+                          TextField(
+                            controller: _passwordController,
+                            focusNode: _passwordFocusNode,
+                            keyboardType: TextInputType.visiblePassword,
+                            obscureText: _obscurePassword,
+                            enableSuggestions: false,
+                            autocorrect: false,
+                            textInputAction: TextInputAction.done,
+                            autofillHints: const [AutofillHints.password],
+                            style:
+                                TextStyle(color: AppColors.textPrimary(context)),
+                            onChanged: (_) {
+                              if (_errorMessage != null) _dismissError();
+                            },
+                            onSubmitted: (_) => _handleLogin(),
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: TextStyle(
+                                  color: AppColors.textSecondary(context)),
+                              prefixIcon: Icon(
+                                Icons.lock_outline_rounded,
+                                color: AppColors.textSecondary(context),
+                                size: 20,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: AppColors.textSecondary(context),
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  await AppHaptics.selection();
+                                  setState(
+                                      () => _obscurePassword = !_obscurePassword);
+                                },
+                              ),
+                            ),
+                          ),
+                        ] else ...[
+                          // ── 2FA field ───────────────────────────────
+                          Text(
+                            'Institutional Shield is active. Enter the 6-digit code from your authenticator app.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary(context),
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _otpController,
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 12,
+                            ),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText: '000000',
+                              hintStyle: TextStyle(
+                                  color: AppColors.textPrimary(context).withValues(alpha: 0.1)),
+                              prefixIcon: Icon(
+                                Icons.shield_outlined,
+                                color: AppColors.success(context),
+                              ),
+                            ),
+                            onSubmitted: (_) => _handle2FAVerify(),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => setState(() => _is2FARequired = false),
+                            child: const Text('Back to login'),
+                          ),
+                        ],
 
                         // ── Forgot password ──────────────────────────
                         Align(
@@ -567,34 +652,40 @@ class _LoginScreenState extends State<LoginScreen>
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleLogin,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary(context),
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor:
-                                  AppColors.primary(context)
-                                      .withValues(alpha: 0.6),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                              elevation: 0,
+                              onPressed: _isLoading
+                                  ? null
+                                  : (_is2FARequired ? _handle2FAVerify : _handleLogin),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _is2FARequired
+                                    ? AppColors.success(context)
+                                    : AppColors.primary(context),
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    (_is2FARequired
+                                            ? AppColors.success(context)
+                                            : AppColors.primary(context))
+                                        .withValues(alpha: 0.6),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      _is2FARequired ? 'Verify Shield' : 'Sign In',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Sign In',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                          ),
                         ),
 
                         // ── Biometric section ────────────────────────

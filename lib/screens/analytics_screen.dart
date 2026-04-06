@@ -17,7 +17,6 @@ import '../widgets/skeleton.dart';
 import '../widgets/animated_amount_text.dart';
 import '../widgets/animated_empty_state.dart';
 import '../widgets/app_logo_header.dart';
-import '../widgets/app_bar_action.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
 
@@ -44,7 +43,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _timeFilter = 'All';
   final List<String> _timeOptions = ['All', '3M', '6M', '1Y'];
   String _sectorFilter = 'All';
-  List<String> _availableSectors = ['All'];
 
   // Computed (recomputed when filters change)
   List<Map<String, dynamic>> _filteredActive = [];
@@ -93,13 +91,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
 
-    // Collect sectors
-    final sectors = <String>{'All'};
-    for (final inv in [..._allActive, ..._allRepaid]) {
-      final s = inv['particular']?.toString() ?? 'Other';
-      sectors.add(s);
-    }
-    _availableSectors = sectors.toList();
   }
 
   void _recompute() {
@@ -352,7 +343,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final pd = DateTime.tryParse(inv['payment_date']?.toString() ?? '');
       if (pd == null) continue;
       final key = '${pd.year}-${pd.month}';
-      final label = months[pd.month - 1];
 
       final profit = _dbl(inv['actual_returns']) > 0
           ? _dbl(inv['actual_returns'])
@@ -366,7 +356,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       final pd = DateTime.tryParse(inv['payment_date']?.toString() ?? '');
       if (pd == null) continue;
       final key = '${pd.year}-${pd.month}';
-      final label = months[pd.month - 1];
 
       projected[key] =
           (projected[key] ?? 0) + _dbl(inv['expected_profit']);
@@ -494,14 +483,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _setTimeFilter(String f) {
     setState(() {
       _timeFilter = f;
-      _recompute();
-    });
-    AppHaptics.selection();
-  }
-
-  void _setSectorFilter(String f) {
-    setState(() {
-      _sectorFilter = f;
       _recompute();
     });
     AppHaptics.selection();

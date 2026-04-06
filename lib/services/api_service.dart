@@ -727,6 +727,86 @@ class ApiService {
   }
 
 // ============================================================
+// SECURITY SHIELD (2FA)
+// ============================================================
+
+  static Future<Map<String, dynamic>> get2FAStatus() async {
+    try {
+      final response = await _get('$baseUrl/auth/2fa/status/');
+      if (response.statusCode == 200) {
+        return {'success': true, ...jsonDecode(response.body)};
+      }
+      return {'success': false, 'error': 'Failed to fetch status'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> setup2FA() async {
+    try {
+      final response = await _get('$baseUrl/auth/2fa/setup/');
+      if (response.statusCode == 200) {
+        return {'success': true, ...jsonDecode(response.body)};
+      }
+      return {'success': false, 'error': 'Failed to setup shield'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> activate2FA(String token) async {
+    try {
+      final response = await _post('$baseUrl/auth/2fa/activate/', {'token': token});
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message']};
+      }
+      return {'success': false, 'error': data['error'] ?? 'Activation failed'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> disable2FA(String token) async {
+    try {
+      final response = await _post('$baseUrl/auth/2fa/disable/', {'token': token});
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message']};
+      }
+      return {'success': false, 'error': data['error'] ?? 'Deactivation failed'};
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verify2FALogin(
+      String email, String token) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/auth/login/verify-2fa/'),
+            headers: _publicHeaders,
+            body: jsonEncode({'email': email, 'token': token}),
+          )
+          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        await _saveTokens(data['access'], data['refresh']);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_data', jsonEncode(data['user']));
+        return {'success': true, 'user': data['user']};
+      } else {
+        return {'success': false, 'error': data['error'] ?? 'Verification failed'};
+      }
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error'};
+    }
+  }
+
+// ============================================================
 // PROFILE
 // ============================================================
 
@@ -1158,6 +1238,33 @@ class ApiService {
       return {
         'success': false,
         'error': data['error'] ?? 'Failed to save nominee'
+      };
+    } on UnauthorizedException {
+      return {
+        'success': false,
+        'error': 'Session expired. Please log in again.'
+      };
+    } catch (e) {
+      return {'success': false, 'error': 'Connection error: $e'};
+    }
+  }
+
+  // ============================================================
+  // WALLET HISTORY
+  // ============================================================
+
+  static Future<Map<String, dynamic>> getWalletHistory() async {
+    try {
+      final response = await _get('$baseUrl/wallet/history/');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+
+      final data = jsonDecode(response.body);
+      return {
+        'success': false,
+        'error': data['error'] ?? 'Failed to load history'
       };
     } on UnauthorizedException {
       return {

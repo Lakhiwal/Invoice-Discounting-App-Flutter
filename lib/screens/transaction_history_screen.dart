@@ -3,11 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/animated_amount_text.dart';
 import '../widgets/animated_empty_state.dart';
+import '../widgets/glass_card.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
+import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
 
 // ── Masked amount constant ────────────────────────────────────────────────────
@@ -77,10 +81,10 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     await Future.delayed(const Duration(milliseconds: 250));
 
     try {
-      final data = await ApiService.getWallet();
+      final data = await ApiService.getWalletHistory();
       if (mounted) {
         setState(() {
-          _all = (data?['transactions'] as List?) ?? [];
+          _all = (data['transactions'] as List?) ?? [];
           _isLoading = false;
           _applyFilters();
         });
@@ -399,29 +403,15 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: RefreshIndicator(
+      body: LiquidityRefreshIndicator(
         onRefresh: () async { await AppHaptics.selection(); await _loadTransactions(); },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
           slivers: [
             // ── App bar ─────────────────────────────────────────────────
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: colorScheme.surface,
-              surfaceTintColor: Colors.transparent,
-              scrolledUnderElevation: 0,
-              leading: IconButton(
-                icon: Icon(Icons.arrow_back_ios_new_rounded,
-                    color: colorScheme.onSurface, size: 18),
-                onPressed: () => Navigator.pop(context),
-              ),
-              title: Text('Transactions',
-                  style: TextStyle(
-                      color: colorScheme.onSurface,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3)),
+            AppLogoHeader(
+              title: 'Transactions',
               actions: [
                 if (_hasAnyFilter)
                   IconButton(
@@ -447,8 +437,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                 child: FadeTransition(
                   opacity: _summaryFade,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                    child: _SummaryCard(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _PremiumSummary(
                       credits: _totalCredits,
                       debits: _totalDebits,
                       failedCount: _failedCount,
@@ -581,29 +571,37 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
               ),
             ),
 
-            // ── Content ─────────────────────────────────────────────────
+            // ── Content area with smooth loading ───────────────────
             if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              ),
-
-            if (_hasError && !_isLoading)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                sliver: SkeletonTheme(
+                  child: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) =>
+                          const SkeletonListTile(margin: EdgeInsets.only(bottom: 10)),
+                      childCount: 8,
+                    ),
+                  ),
+                ),
+              )
+            else if (_hasError)
               SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.wifi_off_rounded,
                           size: 48,
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.4)),
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
                       const SizedBox(height: 16),
                       Text('Couldn\'t load transactions',
                           style: TextStyle(
                               color: colorScheme.onSurface,
                               fontSize: 16,
                               fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                       TextButton.icon(
                         onPressed: _loadTransactions,
                         icon: const Icon(Icons.refresh_rounded, size: 16),
@@ -612,41 +610,39 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                     ],
                   ),
                 ),
-              ),
-
-            if (!_isLoading && !_hasError && _filtered.isEmpty)
+              )
+            else if (_filtered.isEmpty)
               SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.receipt_long_outlined,
-                          size: 56,
-                          color: colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.3)),
+                          size: 48,
+                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2)),
                       const SizedBox(height: 16),
                       Text(
                         _all.isEmpty
                             ? 'No transactions yet'
-                            : 'No transactions match your filters',
+                            : 'No transactions match filters',
                         style: TextStyle(
-                            color: colorScheme.onSurfaceVariant, fontSize: 14),
+                            color: colorScheme.onSurfaceVariant,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500),
                       ),
                       if (_hasAnyFilter) ...[
-                        const SizedBox(height: 16),
-                        TextButton.icon(
-                          icon: const Icon(Icons.filter_alt_off_rounded,
-                              size: 16),
-                          label: const Text('Clear filters'),
+                        const SizedBox(height: 12),
+                        TextButton(
                           onPressed: _clearAllFilters,
+                          child: const Text('Clear all filters'),
                         ),
                       ],
                     ],
                   ),
                 ),
-              ),
-
-            if (!_isLoading && !_hasError && _filtered.isNotEmpty)
+              )
+            else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
                 sliver: SliverList(
@@ -678,11 +674,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 // WIDGETS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SummaryCard extends StatelessWidget {
+class _PremiumSummary extends StatelessWidget {
   final double credits, debits;
   final int failedCount;
 
-  const _SummaryCard({
+  const _PremiumSummary({
     required this.credits,
     required this.debits,
     required this.failedCount,
@@ -692,49 +688,65 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
-      child: Row(
+    return GlassCard(
+      blur: 20,
+      opacity: isDark ? 0.08 : 0.85,
+      padding: const EdgeInsets.all(20),
+      borderRadius: 24,
+      child: Column(
         children: [
-          Expanded(
-              child: _SumColumn(
-            label: 'Money In',
-            value: hideBalance ? '₹$_kMaskedShort' : '₹${fmtAmount(credits)}',
-            color: AppColors.success(context),
-            icon: Icons.south_west_rounded,
-          )),
-          Container(
-            width: 1,
-            height: 40,
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+          Row(
+            children: [
+              Expanded(
+                child: _SumItem(
+                  label: 'Total Inflow',
+                  value: credits,
+                  color: AppColors.success(context),
+                  icon: Icons.add_circle_outline_rounded,
+                ),
+              ),
+              Container(
+                width: 1,
+                height: 48,
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+              ),
+              Expanded(
+                child: _SumItem(
+                  label: 'Total Outflow',
+                  value: debits,
+                  color: colorScheme.error,
+                  icon: Icons.remove_circle_outline_rounded,
+                ),
+              ),
+            ],
           ),
-          Expanded(
-              child: _SumColumn(
-            label: 'Money Out',
-            value: hideBalance ? '₹$_kMaskedShort' : '₹${fmtAmount(debits)}',
-            color: colorScheme.error,
-            icon: Icons.north_east_rounded,
-          )),
           if (failedCount > 0) ...[
+            const SizedBox(height: 16),
             Container(
-              width: 1,
-              height: 40,
-              color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: colorScheme.errorContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.report_problem_rounded, color: colorScheme.error, size: 14),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$failedCount failed transaction${failedCount > 1 ? 's' : ''}',
+                    style: TextStyle(
+                      color: colorScheme.error,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            Expanded(
-                child: _SumColumn(
-              label: 'Failed',
-              value: '$failedCount',
-              color: colorScheme.error.withValues(alpha: 0.6),
-              icon: Icons.error_outline_rounded,
-            )),
           ],
         ],
       ),
@@ -742,12 +754,13 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _SumColumn extends StatelessWidget {
-  final String label, value;
+class _SumItem extends StatelessWidget {
+  final String label;
+  final double value;
   final Color color;
   final IconData icon;
 
-  const _SumColumn({
+  const _SumItem({
     required this.label,
     required this.value,
     required this.color,
@@ -757,19 +770,47 @@ class _SumColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: color, size: 16),
+        Row(
+          children: [
+            Icon(icon, color: color, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Text(value,
-            style: TextStyle(
-                color: colorScheme.onSurface,
-                fontSize: 15,
-                fontWeight: FontWeight.w800)),
-        const SizedBox(height: 2),
-        Text(label,
-            style:
-                TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11)),
+        hideBalance
+            ? Text(
+                '₹$_kMaskedShort',
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              )
+            : AnimatedAmountText(
+                value: value,
+                prefix: '₹',
+                style: TextStyle(
+                  color: colorScheme.onSurface,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
       ],
     );
   }

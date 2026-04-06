@@ -111,6 +111,7 @@ class GlassCard extends StatelessWidget {
 class GlassStatCard extends StatelessWidget {
   final String label;
   final String value;
+  final Widget? customValue;
   final Color? valueColor;
   final IconData? icon;
 
@@ -118,6 +119,7 @@ class GlassStatCard extends StatelessWidget {
     super.key,
     required this.label,
     required this.value,
+    this.customValue,
     this.valueColor,
     this.icon,
   });
@@ -149,17 +151,20 @@ class GlassStatCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
           ],
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              fontFeatures: const [FontFeature.tabularFigures()],
+          if (customValue != null)
+            customValue!
+          else
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: valueColor ?? Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
           const SizedBox(height: 2),
           Text(
             label,

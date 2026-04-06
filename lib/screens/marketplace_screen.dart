@@ -10,13 +10,12 @@ import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart'; // FIX: use shared fmtAmount, removed duplicate _fmt
 import '../widgets/pressable.dart';
-import '../widgets/glass_card.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/stagger_list.dart';
-import '../widgets/animated_empty_state.dart';
 import '../widgets/app_logo_header.dart';
-import '../widgets/app_bar_action.dart';
+import '../widgets/animated_amount_text.dart';
+import '../widgets/animated_empty_state.dart';
 import 'invoice_detail_screen.dart';
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -91,15 +90,28 @@ class InvoiceItem {
     final approved =
         double.tryParse((m['approved_amount'] ?? '0').toString()) ?? 0;
 
-    final funded =
-        double.tryParse((m['funded_amount_cached'] ?? '0').toString()) ?? 0;
+    final funded = double.tryParse((m['funded_amount'] ??
+                m['total_funded'] ??
+                m['amount_funded'] ??
+                m['funded_total'] ??
+                m['funded_amount_cached'] ??
+                '0')
+            .toString()) ??
+        0;
 
     final remaining = approved > funded ? (approved - funded) : 0.0;
-
     final safeFunded = funded > approved ? approved : funded;
 
-    final rawFunding =
+    final double calcFunding =
         approved > 0 ? ((safeFunded / approved) * 100).clamp(0.0, 100.0) : 0.0;
+    final double apiFunding = m['funding_percentage'] != null
+        ? (double.tryParse(m['funding_percentage'].toString()) ?? 0.0)
+            .clamp(0.0, 100.0)
+        : 0.0;
+
+    final rawFunding = (calcFunding > 0 && apiFunding == 0)
+        ? calcFunding
+        : (m['funding_percentage'] != null ? apiFunding : calcFunding);
 
     return InvoiceItem(
       id: (m['id'] ?? '').toString(),
@@ -753,7 +765,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ),
                   if (_isLoading)
                     SliverToBoxAdapter(
-                      child: const SkeletonMarketplaceContent(cardCount: 3),
+                      child: SkeletonTheme(
+                        child: const SkeletonMarketplaceContent(cardCount: 3),
+                      ),
                     )
                   else if (_filtered.isEmpty)
                     SliverFillRemaining(
@@ -936,9 +950,11 @@ class _FastScrollbarState extends State<_FastScrollbar>
 
     if (velocity > 1.2) {
       acceleration = 3.0;
-    } else if (velocity > 0.6)
+    } else if (velocity > 0.6) {
       acceleration = 2.0;
-    else if (velocity > 0.3) acceleration = 1.4;
+    } else if (velocity > 0.3) {
+      acceleration = 1.4;
+    }
 
     final frac = ((localY - thumbH / 2) / usableTrack).clamp(0.0, 1.0);
 
@@ -1184,17 +1200,19 @@ class _InvoiceCard extends StatelessWidget {
               SmoothPageRoute(builder: (_) => InvoiceDetailScreen(item: item)));
         }
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.navyCard(context),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.divider(context)),
-          boxShadow: AppColors.cardShadow(context),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Hero(
+        tag: 'invoice-${item.id}',
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.navyCard(context),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.divider(context)),
+            boxShadow: AppColors.cardShadow(context),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -1232,17 +1250,44 @@ class _InvoiceCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _StatCell(
-                    label: 'ROI',
-                    value: item.roiDisplay,
-                    color: AppColors.emerald(context)),
+                  label: 'ROI',
+                  color: AppColors.emerald(context),
+                  value: AnimatedAmountText(
+                    value: item.roi,
+                    suffix: '%',
+                    style: TextStyle(
+                      color: AppColors.emerald(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
                 _StatCell(
-                    label: 'Tenure',
-                    value: item.tenureDisplay,
-                    color: AppColors.primary(context)),
+                  label: 'Tenure',
+                  color: AppColors.primary(context),
+                  value: AnimatedAmountText(
+                    value: item.tenureDays.toDouble(),
+                    suffix: 'D',
+                    style: TextStyle(
+                      color: AppColors.primary(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
                 _StatCell(
-                    label: 'Remaining',
-                    value: item.remainingDisplay,
-                    color: AppColors.textPrimary(context)),
+                  label: 'Remaining',
+                  color: AppColors.textPrimary(context),
+                  value: AnimatedAmountText(
+                    value: item.remainingAmount,
+                    prefix: '₹',
+                    style: TextStyle(
+                      color: AppColors.textPrimary(context),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -1302,12 +1347,14 @@ class _InvoiceCard extends StatelessWidget {
           ],
         ),
       ),
+      ),
     );
   }
 }
 
 class _StatCell extends StatelessWidget {
-  final String label, value;
+  final String label;
+  final Widget value;
   final Color color;
 
   const _StatCell(
@@ -1319,12 +1366,7 @@ class _StatCell extends StatelessWidget {
       Text(label,
           style:
               TextStyle(color: AppColors.textSecondary(context), fontSize: 11)),
-      Text(value,
-          style: TextStyle(
-              color: color,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              fontFeatures: const [FontFeature.tabularFigures()]))
+      value,
     ]);
   }
 }

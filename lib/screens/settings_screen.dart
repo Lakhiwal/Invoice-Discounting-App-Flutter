@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/notification_service.dart';
+import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
+import 'profile/sheets/shield_management_sheet.dart';
 import 'profile/sheets/time_tile.dart';
 import 'profile/widgets/status_widgets.dart';
 
@@ -21,10 +23,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TimeOfDay? _quietEnd;
   bool _hapticsEnabled = true;
 
+  bool _is2FAEnabled = false;
+  bool _isLoading2FA = false;
+
   @override
   void initState() {
     super.initState();
+    _load2FAStatus();
     _loadPrefs();
+  }
+
+  Future<void> _load2FAStatus() async {
+    setState(() => _isLoading2FA = true);
+    final res = await ApiService.get2FAStatus();
+    if (mounted) {
+      setState(() {
+        _is2FAEnabled = res['is_2fa_enabled'] ?? false;
+        _isLoading2FA = false;
+      });
+    }
+  }
+
+  Future<void> _handle2FAToggle(bool value) async {
+    await AppHaptics.buttonPress();
+    _showShieldManagement();
+  }
+
+  void _showShieldManagement() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ShieldManagementSheet(
+        isEnabled: _is2FAEnabled,
+        onChanged: (v) {
+          setState(() => _is2FAEnabled = v);
+        },
+      ),
+    );
   }
 
   Future<void> _loadPrefs() async {

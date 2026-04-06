@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../screens/investment_calculator.dart';
 import '../services/api_service.dart';
 import '../services/portfolio_cache.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
+import '../widgets/app_logo_header.dart';
+import '../widgets/animated_amount_text.dart';
 import '../widgets/pressable.dart';
-import 'investment_calculator.dart';
 import 'marketplace_screen.dart' show InvoiceItem;
 
 class InvoiceDetailScreen extends StatefulWidget {
@@ -137,7 +139,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     try {
       final invoiceId = int.tryParse(_item.id) ?? 0;
       final result = await ApiService.invest(invoiceId, amount);
-      print("INVEST RESPONSE: $result");
       PortfolioCache.invalidate();
       if (result['success'] == true) _cachedWalletBalance = null;
 
@@ -172,7 +173,6 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final statusColor =
     _item.isAvailable ? AppColors.emerald(context) : AppColors.amber(context);
     final urgencyColor = _item.daysLeft <= 7
@@ -196,38 +196,20 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
       body: CustomScrollView(
         slivers: [
           // ── App bar ─────────────────────────────────────────────────────
-          SliverAppBar(
-            expandedHeight: 100,
-            pinned: true,
-            stretch: true,
-            backgroundColor: AppColors.scaffold(context),
-            leading: IconButton(
-              icon: Icon(Icons.chevron_left,
-                  color: AppColors.textPrimary(context)),
-              onPressed: () => Navigator.pop(context),
-            ),
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                _item.company,
-                style: TextStyle(
-                    color: AppColors.textPrimary(context),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              centerTitle: false,
-              titlePadding:
-              const EdgeInsets.symmetric(horizontal: 56, vertical: 16),
-            ),
+          AppLogoHeader(
+            title: _item.company,
           ),
 
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Hero(
+              tag: 'invoice-${_item.id}',
+              child: Material(
+                type: MaterialType.transparency,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
 
                   // ── Status + days urgency row ──────────────────────────
                   Row(
@@ -301,21 +283,36 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
                   const SizedBox(height: UI.lg),
 
-                  // ── Key metrics row ────────────────────────────────────
                   Row(
                     children: [
                       _DetailMetric(
                         label: 'Investor ROI',
-                        value: _item.roiDisplay,
                         color: AppColors.emerald(context),
                         icon: Icons.trending_up_rounded,
+                        value: AnimatedAmountText(
+                          value: _item.roi,
+                          suffix: '%',
+                          style: TextStyle(
+                            color: AppColors.emerald(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       _DetailMetric(
                         label: 'Tenure',
-                        value: _item.tenureDisplay,
                         color: AppColors.primary(context),
                         icon: Icons.calendar_today_outlined,
+                        value: AnimatedAmountText(
+                          value: _item.tenureDays.toDouble(),
+                          suffix: 'D',
+                          style: TextStyle(
+                            color: AppColors.primary(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -334,12 +331,30 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                     child: Column(
                       children: [
                         _RowInfo(
-                            label: 'Remaining Amount',
-                            value: _item.remainingDisplay),
+                          label: 'Remaining Amount',
+                          value: AnimatedAmountText(
+                            value: _item.remainingAmount,
+                            prefix: '₹',
+                            style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         _RowInfo(
-                            label: 'Funding Progress',
-                            value: _item.fundingDisplay),
+                          label: 'Funding Progress',
+                          value: AnimatedAmountText(
+                            value: _item.fundingPct,
+                            suffix: '%',
+                            style: TextStyle(
+                              color: AppColors.textPrimary(context),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         // FIX (UX): animated progress bar — value animates
                         // from 0 to fundingPct on first build so the bar
@@ -402,12 +417,24 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                               size: 14,
                               color: AppColors.textSecondary(context)),
                           const SizedBox(width: 8),
-                          Text(
-                            'Available wallet: ₹${fmtAmount(_walletBalance!)}',
-                            style: TextStyle(
-                                color: AppColors.textSecondary(context),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              Text(
+                                'Available wallet: ',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary(context),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              AnimatedAmountText(
+                                value: _walletBalance ?? 0,
+                                prefix: '₹',
+                                style: TextStyle(
+                                    color: AppColors.textSecondary(context),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                            ],
                           ),
                           const Spacer(),
                           // FIX (UX): show a warning if wallet is below
@@ -436,7 +463,9 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
                   // ── How it works — quick edu block ─────────────────────
                   _HowItWorks(roi: _item.roi, days: _item.daysLeft),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -719,7 +748,8 @@ class _HowItWorksStep extends StatelessWidget {
 // ── Detail metric tile ────────────────────────────────────────────────────────
 
 class _DetailMetric extends StatelessWidget {
-  final String label, value;
+  final String label;
+  final Widget value;
   final Color color;
   final IconData icon;
 
@@ -736,29 +766,24 @@ class _DetailMetric extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withValues(alpha: 0.15))),
+          color: AppColors.navyCard(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider(context)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 13, color: color.withValues(alpha: 0.7)),
-                const SizedBox(width: 5),
+                Icon(icon, color: color, size: 14),
+                const SizedBox(width: 6),
                 Text(label,
                     style: TextStyle(
-                        color: AppColors.textSecondary(context),
-                        fontSize: 11)),
+                        color: AppColors.textSecondary(context), fontSize: 11)),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(value,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5)),
+            const SizedBox(height: 8),
+            value,
           ],
         ),
       ),
@@ -767,7 +792,8 @@ class _DetailMetric extends StatelessWidget {
 }
 
 class _RowInfo extends StatelessWidget {
-  final String label, value;
+  final String label;
+  final Widget value;
 
   const _RowInfo({required this.label, required this.value});
 
@@ -779,11 +805,7 @@ class _RowInfo extends StatelessWidget {
         Text(label,
             style: TextStyle(
                 color: AppColors.textSecondary(context), fontSize: 13)),
-        Text(value,
-            style: TextStyle(
-                color: AppColors.textPrimary(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w600)),
+        value,
       ],
     );
   }
