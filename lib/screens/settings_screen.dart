@@ -318,6 +318,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           const SizedBox(height: 24),
 
+          // ── Security ───────────────────────────────────────────
+          _SectionLabel(label: 'Security'),
+          const SizedBox(height: 10),
+          _SettingsGroup(children: [
+            _isLoading2FA
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: Center(child: SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )),
+                  )
+                : _SwitchRow(
+                    icon: Icons.shield_outlined,
+                    label: 'Two-Factor Authentication',
+                    subtitle: _is2FAEnabled
+                        ? 'Authenticator app active'
+                        : 'Protect your account with 2FA',
+                    value: _is2FAEnabled,
+                    onChanged: _handle2FAToggle,
+                  ),
+          ]),
+          const SizedBox(height: 24),
+
           // ── Display ─────────────────────────────────────────────
           _SectionLabel(label: 'Display'),
           const SizedBox(height: 10),

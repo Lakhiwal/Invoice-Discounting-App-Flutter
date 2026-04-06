@@ -457,10 +457,19 @@ class ApiService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
+        // 2FA required — return pre_auth_token for second step
+        if (data['requires_2fa'] == true) {
+          return {
+            'success': false,
+            '2fa_required': true,
+            'pre_auth_token': data['pre_auth_token'],
+          };
+        }
+
         await _saveTokens(data['access'], data['refresh']);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_data', jsonEncode(data['user']));
-        return {'success': true, 'user': data['user']};
+        return {'success': true, 'user': data['user'], 'refresh': data['refresh']};
       } else {
         return {'success': false, 'error': data['error'] ?? 'Login failed'};
       }
@@ -744,7 +753,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> setup2FA() async {
     try {
-      final response = await _get('$baseUrl/auth/2fa/setup/');
+      final response = await _post('$baseUrl/auth/2fa/setup/', {});
       if (response.statusCode == 200) {
         return {'success': true, ...jsonDecode(response.body)};
       }
@@ -781,23 +790,26 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> verify2FALogin(
-      String email, String token) async {
+      String preAuthToken, String token) async {
     try {
       final response = await http
           .post(
-            Uri.parse('$baseUrl/auth/login/verify-2fa/'),
+            Uri.parse('$baseUrl/auth/2fa/verify/'),
             headers: _publicHeaders,
-            body: jsonEncode({'email': email, 'token': token}),
+            body: jsonEncode({
+              'pre_auth_token': preAuthToken,
+              'token': token,
+            }),
           )
           .timeout(_timeout, onTimeout: () => _timeoutResponse());
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && data['access'] != null) {
         await _saveTokens(data['access'], data['refresh']);
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_data', jsonEncode(data['user']));
-        return {'success': true, 'user': data['user']};
+        return {'success': true, 'user': data['user'], 'refresh': data['refresh']};
       } else {
         return {'success': false, 'error': data['error'] ?? 'Verification failed'};
       }

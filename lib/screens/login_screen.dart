@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isBiometricLoading = false;
   bool _biometricAvailable = false;
   bool _is2FARequired = false;
-  String? _userEmailFor2FA;
+  String? _preAuthTokenFor2FA;
   final _otpController = TextEditingController();
   String? _errorMessage;
 
@@ -235,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen>
         await AppHaptics.buttonPress();
         setState(() {
           _is2FARequired = true;
-          _userEmailFor2FA = result['email'];
+          _preAuthTokenFor2FA = result['pre_auth_token'];
         });
       } else {
         await AppHaptics.error();
@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      final result = await ApiService.verify2FALogin(_userEmailFor2FA!, token);
+      final result = await ApiService.verify2FALogin(_preAuthTokenFor2FA!, token);
       if (!mounted) return;
 
       if (result['success'] == true) {
@@ -275,7 +275,7 @@ class _LoginScreenState extends State<LoginScreen>
           SmoothPageRoute(builder: (_) => const MainScreen()),
           (route) => false,
         );
-        _saveCredentialsInBackground(_userEmailFor2FA!, result['refresh'] as String? ?? '');
+        _saveCredentialsInBackground(_emailController.text.trim(), result['refresh'] as String? ?? '');
         _registerFcmInBackground();
       } else {
         await AppHaptics.error();
