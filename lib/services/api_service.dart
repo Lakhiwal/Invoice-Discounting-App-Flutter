@@ -745,9 +745,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, ...jsonDecode(response.body)};
       }
-      return {'success': false, 'error': 'Failed to fetch status'};
+      return {'success': false, 'error': 'Failed to fetch status (${response.statusCode})'};
     } catch (e) {
-      return {'success': false, 'error': 'Connection error'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
@@ -757,9 +757,14 @@ class ApiService {
       if (response.statusCode == 200) {
         return {'success': true, ...jsonDecode(response.body)};
       }
-      return {'success': false, 'error': 'Failed to setup shield'};
+      try {
+        final data = jsonDecode(response.body);
+        return {'success': false, 'error': data['error'] ?? data['detail'] ?? 'Setup failed (${response.statusCode})'};
+      } catch (_) {
+        return {'success': false, 'error': 'Setup failed (${response.statusCode})'};
+      }
     } catch (e) {
-      return {'success': false, 'error': 'Connection error'};
+      return {'success': false, 'error': e.toString()};
     }
   }
 
