@@ -74,4 +74,17 @@ ios/Flutter/.last_build_id
 *.class
 *.pyc
 *.lock
-*.hprof*.hprof
+*.hprof
+
+# ---- Repo Hygiene ----
+*.jar
+*.woff
+*.woff2
+*.ttf
+
+# ---- Antigravity Research/Temporary ----
+analyze_report*.txt
+final_analyze_report.txt
+*.py
+*.log
+*.sh
