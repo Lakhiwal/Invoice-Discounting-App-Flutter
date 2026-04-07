@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AnimatedEmptyState extends StatefulWidget {
+class AnimatedEmptyState extends ConsumerStatefulWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
@@ -20,10 +21,10 @@ class AnimatedEmptyState extends StatefulWidget {
   });
 
   @override
-  State<AnimatedEmptyState> createState() => _AnimatedEmptyStateState();
+  ConsumerState<AnimatedEmptyState> createState() => _AnimatedEmptyStateState();
 }
 
-class _AnimatedEmptyStateState extends State<AnimatedEmptyState>
+class _AnimatedEmptyStateState extends ConsumerState<AnimatedEmptyState>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 

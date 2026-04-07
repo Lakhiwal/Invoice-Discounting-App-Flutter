@@ -5,6 +5,7 @@ import '../../../theme/theme_provider.dart';
 import '../../../theme/ui_constants.dart';
 import '../../../utils/smooth_page_route.dart';
 import '../../personal_details_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Hero Section — ring avatar · name · email · tags · investor journey bar
@@ -12,7 +13,7 @@ import '../../personal_details_screen.dart';
 // Drop-in replacement for: lib/screens/profile/widgets/hero_section.dart
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class ProfileHeroSection extends StatelessWidget {
+class ProfileHeroSection extends ConsumerWidget {
   final Map<String, dynamic>? profile;
   final bool isKycVerified;
   final List<(String label, bool done)> journeySteps;
@@ -29,7 +30,7 @@ class ProfileHeroSection extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
 
     final name = profile?['name'] ?? '';
@@ -85,8 +86,8 @@ class ProfileHeroSection extends StatelessWidget {
           Text(email,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: colorScheme.onSurfaceVariant, fontSize: 13)),
+              style:
+                  TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13)),
           const SizedBox(height: 12),
 
           Row(
@@ -94,8 +95,7 @@ class ProfileHeroSection extends StatelessWidget {
             children: [
               if (isKycVerified)
                 ProfileTag(
-                    label: '✓ KYC Verified',
-                    color: AppColors.success(context)),
+                    label: '✓ KYC Verified', color: AppColors.success(context)),
               if (isKycVerified) const SizedBox(width: 6),
               ProfileTag(label: '● Active', color: colorScheme.primary),
             ],
@@ -112,37 +112,34 @@ class ProfileHeroSection extends StatelessWidget {
                   color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
             ),
             child: Column(children: [
-              Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('INVESTOR JOURNEY',
-                        style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.4)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: allDone
-                            ? AppColors.success(context)
-                            .withValues(alpha: 0.12)
-                            : colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                          allDone
-                              ? 'All steps done'
-                              : '$doneCount/${journeySteps.length} done',
-                          style: TextStyle(
-                              color: allDone
-                                  ? AppColors.success(context)
-                                  : colorScheme.onSurfaceVariant,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                  ]),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('INVESTOR JOURNEY',
+                    style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.4)),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: allDone
+                        ? AppColors.success(context).withValues(alpha: 0.12)
+                        : colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                      allDone
+                          ? 'All steps done'
+                          : '$doneCount/${journeySteps.length} done',
+                      style: TextStyle(
+                          color: allDone
+                              ? AppColors.success(context)
+                              : colorScheme.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ),
+              ]),
               const SizedBox(height: 10),
               TweenAnimationBuilder<double>(
                 tween: Tween(begin: 0, end: journeyProgress),
@@ -154,7 +151,7 @@ class ProfileHeroSection extends StatelessWidget {
                     value: value,
                     minHeight: 4,
                     backgroundColor:
-                    colorScheme.outlineVariant.withValues(alpha: 0.3),
+                        colorScheme.outlineVariant.withValues(alpha: 0.3),
                     valueColor: AlwaysStoppedAnimation<Color>(
                         AppColors.success(context)),
                   ),
@@ -165,15 +162,14 @@ class ProfileHeroSection extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: journeySteps
                       .map((step) => Text(step.$1,
-                      style: TextStyle(
-                          color: step.$2
-                              ? AppColors.success(context)
-                              : colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.5),
-                          fontSize: 10,
-                          fontWeight: step.$2
-                              ? FontWeight.w600
-                              : FontWeight.w400)))
+                          style: TextStyle(
+                              color: step.$2
+                                  ? AppColors.success(context)
+                                  : colorScheme.onSurfaceVariant
+                                      .withValues(alpha: 0.5),
+                              fontSize: 10,
+                              fontWeight:
+                                  step.$2 ? FontWeight.w600 : FontWeight.w400)))
                       .toList()),
             ]),
           ),
@@ -189,8 +185,18 @@ class ProfileHeroSection extends StatelessWidget {
       final dt = DateTime.tryParse(raw);
       if (dt != null) {
         const months = [
-          'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec'
         ];
         return "${months[dt.month - 1]}'${dt.year.toString().substring(2)}";
       }
@@ -203,7 +209,7 @@ class ProfileHeroSection extends StatelessWidget {
 // MEMBER RING AVATAR
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _MemberRingAvatar extends StatelessWidget {
+class _MemberRingAvatar extends ConsumerWidget {
   final String initials;
   final String memberSince;
   final String? imageUrl;
@@ -217,7 +223,7 @@ class _MemberRingAvatar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     final outerSize = size + 28;
     final hasPicture = imageUrl != null && imageUrl!.isNotEmpty;
@@ -241,32 +247,33 @@ class _MemberRingAvatar extends StatelessWidget {
             shape: BoxShape.circle,
             color: cs.primaryContainer,
             border:
-            Border.all(color: cs.primary.withValues(alpha: 0.3), width: 2),
+                Border.all(color: cs.primary.withValues(alpha: 0.3), width: 2),
           ),
           clipBehavior: Clip.antiAlias,
           child: hasPicture
               ? CachedNetworkImage(
-            imageUrl: imageUrl!,
-            fit: BoxFit.cover,
-            width: size,
-            height: size,
-            placeholder: (_, __) => _Initials(initials, size, cs),
-            errorWidget: (_, __, ___) => _Initials(initials, size, cs),
-          )
-              : _Initials(initials, size, cs),
+                  imageUrl: imageUrl!,
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  placeholder: (_, __) => _initialsWidget(initials, size, cs),
+                  errorWidget: (_, __, ___) =>
+                      _initialsWidget(initials, size, cs),
+                )
+              : _initialsWidget(initials, size, cs),
         ),
       ]),
     );
   }
 }
 
-Widget _Initials(String initials, double size, ColorScheme cs) => Center(
-  child: Text(initials,
-      style: TextStyle(
-          color: cs.onPrimaryContainer,
-          fontSize: size * 0.3,
-          fontWeight: FontWeight.w700)),
-);
+Widget _initialsWidget(String initials, double size, ColorScheme cs) => Center(
+      child: Text(initials,
+          style: TextStyle(
+              color: cs.onPrimaryContainer,
+              fontSize: size * 0.3,
+              fontWeight: FontWeight.w700)),
+    );
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAINTERS
@@ -293,7 +300,7 @@ class _CurvedTextPainter extends CustomPainter {
             text: fullText[i],
             style: TextStyle(
                 color: color,
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.5)),
         textDirection: TextDirection.ltr,
@@ -314,20 +321,20 @@ class _CurvedTextPainter extends CustomPainter {
 
 // Removed _DottedRingPainter as per layout redesign
 
-class ProfileTag extends StatelessWidget {
+class ProfileTag extends ConsumerWidget {
   final String label;
   final Color color;
   const ProfileTag({super.key, required this.label, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25))),
-    child: Text(label,
-        style: TextStyle(
-            color: color, fontSize: 10, fontWeight: FontWeight.w600)),
-  );
+  Widget build(BuildContext context, WidgetRef ref) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.25))),
+        child: Text(label,
+            style: TextStyle(
+                color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+      );
 }

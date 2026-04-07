@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AppLogoHeader extends StatelessWidget {
+class AppLogoHeader extends ConsumerWidget {
   final String title;
   final List<Widget>? actions;
   final double toolbarHeight;
@@ -15,7 +16,7 @@ class AppLogoHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 

@@ -12,6 +12,7 @@ class AppHaptics {
   AppHaptics._();
 
   static const _kKey = 'haptics_enabled';
+  static const _platform = MethodChannel('app/haptics');
   static bool _enabled = true;
   static bool _loaded = false;
 
@@ -65,17 +66,44 @@ class AppHaptics {
 
   // ── Outcome feedback ──────────────────────────────────────────────────────
 
-  /// Double-tap chord: heavy → 100ms → medium.
+  /// Multi-pulse chord on Android, fallback to heavy+medium on other.
   static Future<void> success() async {
     if (!_loaded) await loadPreference();
     if (!_enabled) return;
-    await _heavy();
-    await Future.delayed(const Duration(milliseconds: 100));
-    await _medium();
+
+    try {
+      await _platform.invokeMethod('success');
+    } catch (_) {
+      // Fallback
+      await _heavy();
+      await Future.delayed(const Duration(milliseconds: 100));
+      await _medium();
+    }
   }
 
-  /// Single firm bump.
-  static Future<void> error() => _heavy();
+  /// Firm bump.
+  static Future<void> error() async {
+    if (!_loaded) await loadPreference();
+    if (!_enabled) return;
+
+    try {
+      await _platform.invokeMethod('error');
+    } catch (_) {
+      await _heavy();
+    }
+  }
+
+  /// Warning pulse.
+  static Future<void> warning() async {
+    if (!_loaded) await loadPreference();
+    if (!_enabled) return;
+
+    try {
+      await _platform.invokeMethod('warning');
+    } catch (_) {
+      await _medium();
+    }
+  }
 
   // ── High-intent confirmation ──────────────────────────────────────────────
 

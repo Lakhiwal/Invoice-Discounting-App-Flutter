@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../theme/ui_constants.dart';
+import '../../../utils/app_haptics.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Selection tile (used in bottom sheet pickers) ───────────────────────────
 
-class ProfileSelectionTile extends StatelessWidget {
+class ProfileSelectionTile extends ConsumerWidget {
   final IconData icon;
   final String label;
   final String subtitle;
@@ -20,10 +22,13 @@ class ProfileSelectionTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        AppHaptics.selection();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: UI.md, vertical: 14),

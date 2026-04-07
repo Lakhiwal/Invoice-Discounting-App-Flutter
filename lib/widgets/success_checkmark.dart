@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── SuccessCheckmark ──────────────────────────────────────────────────────────
 //
@@ -9,7 +10,7 @@ import 'package:flutter/material.dart';
 // Usage:
 //   if (_isSuccess) SuccessCheckmark(color: AppColors.emerald, size: 64)
 
-class SuccessCheckmark extends StatefulWidget {
+class SuccessCheckmark extends ConsumerStatefulWidget {
   final Color color;
   final double size;
 
@@ -20,10 +21,10 @@ class SuccessCheckmark extends StatefulWidget {
   });
 
   @override
-  State<SuccessCheckmark> createState() => _SuccessCheckmarkState();
+  ConsumerState<SuccessCheckmark> createState() => _SuccessCheckmarkState();
 }
 
-class _SuccessCheckmarkState extends State<SuccessCheckmark>
+class _SuccessCheckmarkState extends ConsumerState<SuccessCheckmark>
     with TickerProviderStateMixin {
   late final AnimationController _scaleCtrl;
   late final AnimationController _drawCtrl;

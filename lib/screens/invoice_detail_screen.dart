@@ -11,39 +11,48 @@ import '../utils/formatters.dart';
 import '../widgets/app_logo_header.dart';
 import '../widgets/animated_amount_text.dart';
 import '../widgets/pressable.dart';
-import 'marketplace_screen.dart' show InvoiceItem;
+import '../models/invoice_item.dart';
+import '../widgets/skeleton.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class InvoiceDetailScreen extends StatefulWidget {
-  final InvoiceItem item;
+class InvoiceDetailScreen extends ConsumerStatefulWidget {
+  final InvoiceItem? item;
+  final int? invoiceId;
 
-  const InvoiceDetailScreen({super.key, required this.item});
+  const InvoiceDetailScreen({super.key, this.item, this.invoiceId});
 
   factory InvoiceDetailScreen.fromMap(Map<String, dynamic> invoice) =>
       InvoiceDetailScreen(item: InvoiceItem.fromMap(invoice));
 
   @override
-  State<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
+  ConsumerState<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
 }
 
-class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
+class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     with SingleTickerProviderStateMixin {
   bool _isInvesting = false;
   bool _isSuccess = false;
   String? _message;
   double? _walletBalance;
   static double? _cachedWalletBalance;
+  
+  InvoiceItem? _loadedItem;
 
   // FIX (UX): success state uses a dedicated animation so the CTA
   // morphs into a checkmark rather than just disabling with grey text.
   late final AnimationController _successCtrl;
   late final Animation<double> _successScale;
 
-  InvoiceItem get _item => widget.item;
+  InvoiceItem? get _item => widget.item ?? _loadedItem;
 
   @override
   void initState() {
     super.initState();
     _loadWallet();
+
+    if (widget.item == null && widget.invoiceId != null) {
+      _fetchItem(widget.invoiceId!);
+    }
 
     _successCtrl = AnimationController(
       vsync: this,
@@ -72,11 +81,11 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
       useSafeArea: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => InvestmentCalculator(
-        invoiceId: int.tryParse(_item.id) ?? 0,
-        maxAmount: _item.remainingAmount,
+        invoiceId: int.tryParse(_item!.id) ?? 0,
+        maxAmount: _item!.remainingAmount,
         walletBalance: _walletBalance,
-        roi: _item.roi,
-        days: _item.daysLeft,
+        roi: _item!.roi,
+        days: _item!.daysLeft,
         onInvest: _investWithBiometric,
       ),
     );
@@ -97,8 +106,29 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     } catch (_) {}
   }
 
+  Future<void> _fetchItem(int id) async {
+    try {
+      final data = await ApiService.getInvoiceDetail(id);
+      if (data != null && mounted) {
+        setState(() {
+          _loadedItem = InvoiceItem.fromMap(data);
+        });
+      } else if (mounted) {
+        setState(() {
+          _message = 'Failed to load invoice details';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _message = 'Connection error';
+        });
+      }
+    }
+  }
+
   Future<void> _investWithBiometric(double amount) async {
-    if (_isInvesting) return;
+    if (_isInvesting || _item == null) return;
     if (amount <= 0) return;
 
     // Close the calculator sheet first so the biometric prompt appears
@@ -137,7 +167,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
     });
 
     try {
-      final invoiceId = int.tryParse(_item.id) ?? 0;
+      final invoiceId = int.tryParse(_item!.id) ?? 0;
+      await AppHaptics.investmentConfirm();
       final result = await ApiService.invest(invoiceId, amount);
       PortfolioCache.invalidate();
       if (result['success'] == true) _cachedWalletBalance = null;
@@ -173,13 +204,43 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (_item == null) {
+      if (_message != null) {
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 48, color: Theme.of(context).colorScheme.error),
+                const SizedBox(height: 16),
+                Text(_message!, style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () { 
+                    setState(() { _message = null; });
+                    if (widget.invoiceId != null) _fetchItem(widget.invoiceId!);
+                  },
+                  child: const Text('Try Again'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return const Scaffold(body: SkeletonInvoiceDetail());
+    }
+
     final statusColor =
-    _item.isAvailable ? AppColors.emerald(context) : AppColors.amber(context);
-    final urgencyColor = _item.daysLeft <= 7
+        _item!.isAvailable ? AppColors.emerald(context) : AppColors.amber(context);
+    final urgencyColor = _item!.daysLeft <= 7
         ? AppColors.rose(context)
-        : _item.daysLeft <= 30
-        ? AppColors.amber(context)
-        : AppColors.textSecondary(context);
+        : _item!.daysLeft <= 30
+            ? AppColors.amber(context)
+            : AppColors.textSecondary(context);
 
     return Scaffold(
       backgroundColor: AppColors.scaffold(context),
@@ -197,12 +258,12 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
         slivers: [
           // ── App bar ─────────────────────────────────────────────────────
           AppLogoHeader(
-            title: _item.company,
+            title: _item!.company,
           ),
 
           SliverToBoxAdapter(
             child: Hero(
-              tag: 'invoice-${_item.id}',
+              tag: 'invoice-${_item!.id}',
               child: Material(
                 type: MaterialType.transparency,
                 child: Padding(
@@ -223,7 +284,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                           border: Border.all(
                               color: statusColor.withValues(alpha: 0.25)),
                         ),
-                        child: Text(_item.statusDisplay,
+                        child: Text(_item!.statusDisplay,
                             style: TextStyle(
                                 color: statusColor,
                                 fontSize: 12,
@@ -245,7 +306,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                             Icon(Icons.schedule_rounded,
                                 size: 12, color: urgencyColor),
                             const SizedBox(width: 4),
-                            Text(_item.daysLeftDisplay,
+                            Text(_item!.daysLeftDisplay,
                                 style: TextStyle(
                                     color: urgencyColor,
                                     fontSize: 12,
@@ -259,13 +320,13 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                   const SizedBox(height: UI.md),
 
                   // ── Description ────────────────────────────────────────
-                  if (_item.particular.isNotEmpty)
-                    Text(_item.particular,
+                  if (_item!.particular.isNotEmpty)
+                    Text(_item!.particular,
                         style: TextStyle(
                             color: AppColors.textSecondary(context),
                             fontSize: 13)),
 
-                  if (_item.debtor.isNotEmpty) ...[
+                  if (_item!.debtor.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
@@ -273,7 +334,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                             size: 13,
                             color: AppColors.textSecondary(context)),
                         const SizedBox(width: 5),
-                        Text('Debtor: ${_item.debtor}',
+                        Text('Debtor: ${_item!.debtor}',
                             style: TextStyle(
                                 color: AppColors.textSecondary(context),
                                 fontSize: 12)),
@@ -290,7 +351,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         color: AppColors.emerald(context),
                         icon: Icons.trending_up_rounded,
                         value: AnimatedAmountText(
-                          value: _item.roi,
+                          value: _item!.roi,
                           suffix: '%',
                           style: TextStyle(
                             color: AppColors.emerald(context),
@@ -305,7 +366,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         color: AppColors.primary(context),
                         icon: Icons.calendar_today_outlined,
                         value: AnimatedAmountText(
-                          value: _item.tenureDays.toDouble(),
+                          value: _item!.tenureDays.toDouble(),
                           suffix: 'D',
                           style: TextStyle(
                             color: AppColors.primary(context),
@@ -333,7 +394,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         _RowInfo(
                           label: 'Remaining Amount',
                           value: AnimatedAmountText(
-                            value: _item.remainingAmount,
+                            value: _item!.remainingAmount,
                             prefix: '₹',
                             style: TextStyle(
                               color: AppColors.textPrimary(context),
@@ -346,7 +407,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         _RowInfo(
                           label: 'Funding Progress',
                           value: AnimatedAmountText(
-                            value: _item.fundingPct,
+                            value: _item!.fundingPct,
                             suffix: '%',
                             style: TextStyle(
                               color: AppColors.textPrimary(context),
@@ -360,7 +421,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         // from 0 to fundingPct on first build so the bar
                         // "fills up" as the screen loads. Feels alive.
                         TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: _item.fundingPct / 100),
+                          tween: Tween(begin: 0, end: _item!.fundingPct / 100),
                           duration: const Duration(milliseconds: 900),
                           curve: Curves.easeOutCubic,
                           builder: (_, v, __) => ClipRRect(
@@ -376,7 +437,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                         ),
 
                         // Urgency message when almost fully funded
-                        if (_item.fundingPct >= 80) ...[
+                        if (_item!.fundingPct >= 80) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -385,7 +446,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                                   color: AppColors.amber(context)),
                               const SizedBox(width: 4),
                               Text(
-                                _item.fundingPct >= 95
+                                _item!.fundingPct >= 95
                                     ? 'Almost gone — invest now!'
                                     : 'Filling up fast',
                                 style: TextStyle(
@@ -462,7 +523,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
                   const SizedBox(height: UI.lg),
 
                   // ── How it works — quick edu block ─────────────────────
-                  _HowItWorks(roi: _item.roi, days: _item.daysLeft),
+                  _HowItWorks(roi: _item!.roi, days: _item!.daysLeft),
                     ],
                   ),
                 ),
@@ -477,7 +538,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
 
 // ── Sticky bottom CTA ─────────────────────────────────────────────────────────
 
-class _BottomCTA extends StatelessWidget {
+class _BottomCTA extends ConsumerWidget {
   final bool isInvesting;
   final bool isSuccess;
   final AnimationController successCtrl;
@@ -495,7 +556,7 @@ class _BottomCTA extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -647,14 +708,14 @@ class _BottomCTA extends StatelessWidget {
 
 // ── How It Works mini block ───────────────────────────────────────────────────
 
-class _HowItWorks extends StatelessWidget {
+class _HowItWorks extends ConsumerWidget {
   final double roi;
   final int days;
 
   const _HowItWorks({required this.roi, required this.days});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Compute example return on ₹10,000
     final examplePrincipal = 10000.0;
     final profit = examplePrincipal * (roi / 100) * (days / 365);
@@ -706,14 +767,14 @@ class _HowItWorks extends StatelessWidget {
   }
 }
 
-class _HowItWorksStep extends StatelessWidget {
+class _HowItWorksStep extends ConsumerWidget {
   final String number;
   final String text;
 
   const _HowItWorksStep({required this.number, required this.text});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -747,7 +808,7 @@ class _HowItWorksStep extends StatelessWidget {
 
 // ── Detail metric tile ────────────────────────────────────────────────────────
 
-class _DetailMetric extends StatelessWidget {
+class _DetailMetric extends ConsumerWidget {
   final String label;
   final Widget value;
   final Color color;
@@ -761,7 +822,7 @@ class _DetailMetric extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -791,14 +852,14 @@ class _DetailMetric extends StatelessWidget {
   }
 }
 
-class _RowInfo extends StatelessWidget {
+class _RowInfo extends ConsumerWidget {
   final String label;
   final Widget value;
 
   const _RowInfo({required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

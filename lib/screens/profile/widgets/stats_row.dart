@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../theme/ui_constants.dart';
 import '../../../widgets/animated_amount_text.dart';
@@ -8,7 +8,7 @@ import '../../../widgets/animated_amount_text.dart';
 // Stats Row — Invested · Avg Return · Active Deals
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class ProfileStatsRow extends StatelessWidget {
+class ProfileStatsRow extends ConsumerWidget {
   final double totalInvested;
   final double avgReturn;
   final int activeCount;
@@ -23,9 +23,9 @@ class ProfileStatsRow extends StatelessWidget {
   static const String _masked = '● ● ●';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -74,7 +74,7 @@ class ProfileStatsRow extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
+class _StatCard extends ConsumerWidget {
   final double value;
   final String label;
   final Color valueColor;
@@ -92,9 +92,9 @@ class _StatCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),

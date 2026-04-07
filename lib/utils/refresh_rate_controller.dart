@@ -1,18 +1,11 @@
 import 'package:flutter/services.dart';
 
 class RefreshRateController {
-
   static const _channel = MethodChannel("app/display");
 
+  /// Frame rate is now handled automatically at the native level
+  /// for a consistent 120Hz premium experience.
   static Future<void> setMax() async {
-    try {
-      await _channel.invokeMethod("setRefreshMode", {"mode": "max"});
-    } catch (_) {}
-  }
-
-  static Future<void> set60Hz() async {
-    try {
-      await _channel.invokeMethod("setRefreshMode", {"mode": "60"});
-    } catch (_) {}
+    // No-op: Native MainActivity.java now handles this on launch
   }
 }

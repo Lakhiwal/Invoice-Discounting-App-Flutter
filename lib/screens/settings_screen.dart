@@ -1,23 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/notification_service.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
-import 'profile/sheets/shield_management_sheet.dart';
+import '../utils/smooth_page_route.dart';
+import 'profile/shield_screen.dart';
 import 'profile/sheets/time_tile.dart';
 import 'profile/widgets/status_widgets.dart';
+import '../utils/deep_link_test_util.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushEnabled = false;
   TimeOfDay? _quietStart;
   TimeOfDay? _quietEnd;
@@ -50,15 +52,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showShieldManagement() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ShieldManagementSheet(
-        isEnabled: _is2FAEnabled,
-        onChanged: (v) {
-          setState(() => _is2FAEnabled = v);
-        },
+    AppHaptics.selection();
+    Navigator.push(
+      context,
+      SmoothPageRoute(
+        builder: (_) => ShieldScreen(
+          isEnabled: _is2FAEnabled,
+          onChanged: (v) {
+            setState(() => _is2FAEnabled = v);
+          },
+        ),
       ),
     );
   }
@@ -144,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     time: _quietStart,
                     onTap: () async {
                       await AppHaptics.selection();
+                      if (!mounted) return;
                       final t = await showTimePicker(
                           context: context,
                           initialTime: _quietStart ??
@@ -159,6 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     time: _quietEnd,
                     onTap: () async {
                       await AppHaptics.selection();
+                      if (!mounted) return;
                       final t = await showTimePicker(
                           context: context,
                           initialTime: _quietEnd ??
@@ -245,8 +250,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final mode = context.select<ThemeProvider, AppThemeMode>((p) => p.mode);
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final mode = ref.watch(themeProvider.select((p) => p.mode));
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
 
     final String quietLabel;
     if (_quietStart != null && _quietEnd != null) {
@@ -288,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             current: mode,
             onChanged: (newMode) async {
               await AppHaptics.selection();
-              context.read<ThemeProvider>().setMode(newMode);
+              ref.read(themeProvider).setMode(newMode);
             },
           ),
           const SizedBox(height: 24),
@@ -355,7 +360,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: hideBalance,
               onChanged: (v) async {
                 await AppHaptics.selection();
-                context.read<ThemeProvider>().setHideBalance(v);
+                ref.read(themeProvider).setHideBalance(v);
               },
             ),
             _SwitchRow(
@@ -369,6 +374,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           ]),
+          const SizedBox(height: 24),
+
+          // ── Debug & Testing ─────────────────────────────────────
+          _SectionLabel(label: 'Debug & Testing'),
+          const SizedBox(height: 10),
+          _SettingsGroup(children: [
+            _MenuRow(
+              icon: Icons.bug_report_outlined,
+              label: 'Simulate Deep Link',
+              subtitle: 'Tests Skeleton Transition for Invoice',
+              onTap: () async {
+                await AppHaptics.navTap();
+                // We use a sample invoice ID (e.g. 1)
+                DeepLinkTestUtil.simulateNewInvoice(1);
+              },
+            ),
+          ]),
           const SizedBox(height: 60),
         ],
       ),
@@ -378,12 +400,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 // ── Section label ───────────────────────────────────────────────────────────
 
-class _SectionLabel extends StatelessWidget {
+class _SectionLabel extends ConsumerWidget {
   final String label;
   const _SectionLabel({required this.label});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(left: 4),
       child: Text(
@@ -401,24 +423,15 @@ class _SectionLabel extends StatelessWidget {
 
 // ── Appearance picker — 3 visual cards + system toggle ──────────────────────
 
-class _AppearancePicker extends StatelessWidget {
+class _AppearancePicker extends ConsumerWidget {
   final AppThemeMode current;
   final ValueChanged<AppThemeMode> onChanged;
 
   const _AppearancePicker({required this.current, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  Widget build(BuildContext context, WidgetRef ref) {
     final isSystem = current == AppThemeMode.system;
-
-    // Which visual mode the system toggle would affect
-    final activeVisual = switch (current) {
-      AppThemeMode.system => AppThemeMode.system,
-      AppThemeMode.light => AppThemeMode.light,
-      AppThemeMode.dark => AppThemeMode.dark,
-      AppThemeMode.black => AppThemeMode.black,
-    };
 
     return Column(
       children: [
@@ -481,7 +494,7 @@ class _AppearancePicker extends StatelessWidget {
   }
 }
 
-class _ThemeCard extends StatelessWidget {
+class _ThemeCard extends ConsumerWidget {
   final String label;
   final Color preview;
   final IconData icon;
@@ -501,7 +514,7 @@ class _ThemeCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
@@ -549,12 +562,12 @@ class _ThemeCard extends StatelessWidget {
 
 // ── Settings group (divider-based, no card border) ──────────────────────────
 
-class _SettingsGroup extends StatelessWidget {
+class _SettingsGroup extends ConsumerWidget {
   final List<Widget> children;
   const _SettingsGroup({required this.children});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: children.asMap().entries.map((entry) {
@@ -579,7 +592,7 @@ class _SettingsGroup extends StatelessWidget {
 
 // ── Switch row ──────────────────────────────────────────────────────────────
 
-class _SwitchRow extends StatelessWidget {
+class _SwitchRow extends ConsumerWidget {
   final IconData icon;
   final String label;
   final String subtitle;
@@ -595,7 +608,7 @@ class _SwitchRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => onChanged(!value),
@@ -643,7 +656,7 @@ class _SwitchRow extends StatelessWidget {
 
 // ── Menu row (tappable, shows chevron) ──────────────────────────────────────
 
-class _MenuRow extends StatelessWidget {
+class _MenuRow extends ConsumerWidget {
   final IconData icon;
   final String label;
   final String subtitle;
@@ -659,7 +672,7 @@ class _MenuRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,

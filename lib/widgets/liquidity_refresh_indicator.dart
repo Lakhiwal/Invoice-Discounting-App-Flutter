@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui' as ui;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Pull-to-refresh with a frosted-glass reveal, spring-to-rest loading dock,
 /// and a haptic chord on completion.
@@ -13,7 +14,7 @@ import 'dart:ui' as ui;
 ///  2. Release at threshold  →  content springs back to [_kRestHeight] (72 px)
 ///  3. While [onRefresh] is running  →  spinner stays at rest height
 ///  4. Done  →  medium + light haptic chord, then smooth dismiss
-class LiquidityRefreshIndicator extends StatefulWidget {
+class LiquidityRefreshIndicator extends ConsumerStatefulWidget {
   final Widget child;
   final Future<void> Function() onRefresh;
   final Color? color;
@@ -26,13 +27,13 @@ class LiquidityRefreshIndicator extends StatefulWidget {
   });
 
   @override
-  State<LiquidityRefreshIndicator> createState() =>
+  ConsumerState<LiquidityRefreshIndicator> createState() =>
       _LiquidityRefreshIndicatorState();
 }
 
 enum _RefreshState { idle, dragging, armed, refreshing, complete }
 
-class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
+class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndicator>
     with TickerProviderStateMixin {
 
   // ── Controllers ─────────────────────────────────────────────────────────────
@@ -81,10 +82,10 @@ class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
         return _rubberBand(_pullDistance);
       case _RefreshState.refreshing:
         final t = Curves.easeOutBack.transform(_snapCtrl.value.clamp(0.0, 1.0));
-        return _snapTween.lerp(t);
+        return _snapTween.transform(t);
       case _RefreshState.complete:
         final t = Curves.easeInCubic.transform(_snapCtrl.value.clamp(0.0, 1.0));
-        return _snapTween.lerp(t);
+        return _snapTween.transform(t);
     }
   }
 
@@ -318,14 +319,14 @@ class _LiquidityRefreshIndicatorState extends State<LiquidityRefreshIndicator>
 
 // ── Indicator label / icon ────────────────────────────────────────────────────
 
-class _IndicatorContent extends StatelessWidget {
+class _IndicatorContent extends ConsumerWidget {
   final _RefreshState state;
   final Color color;
 
   const _IndicatorContent({required this.state, required this.color});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final String label;
     final Widget icon;
 
@@ -376,7 +377,7 @@ class _IndicatorContent extends StatelessWidget {
 
 // ── Glowing orb ───────────────────────────────────────────────────────────────
 
-class _GlowingOrb extends StatelessWidget {
+class _GlowingOrb extends ConsumerWidget {
   final Color color;
   final double size;
   final Offset offset;
@@ -385,7 +386,7 @@ class _GlowingOrb extends StatelessWidget {
       {required this.color, required this.size, required this.offset});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Transform.translate(
         offset: offset,

@@ -1,29 +1,29 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widget_previews.dart';
 import 'package:invoice_discounting_app/screens/unlock_screen.dart';
-import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
-
 import '../utils/app_haptics.dart';
+
+import '../utils/smooth_page_route.dart';
 import 'analytics_screen.dart';
 import 'home_screen.dart';
 import 'marketplace_screen.dart';
 import 'portfolio_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen>
+class _MainScreenState extends ConsumerState<MainScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const platform = MethodChannel('widget_navigation');
 
   static const int _tabCount = 4;
   int _currentIndex = 0;
-  DateTime? _lastBackPress;
   late final List<Widget> _tabs;
   DateTime? _backgroundTime;
   static const _lockTimeout = Duration(seconds: 300);
@@ -37,9 +37,18 @@ class _MainScreenState extends State<MainScreen>
   final List<Animation<double>> _tabFades = [];
   final List<Animation<Offset>> _tabSlides = [];
 
+  // Tab observers to trigger rebuilds for Predictive Back canPop state
+  late final List<NavigatorObserver> _observers;
+
   @override
   void initState() {
     super.initState();
+    _currentIndex = 0;
+    _observers = List.generate(
+        _tabCount,
+        (_) => _TabNavigatorObserver(() {
+              if (mounted) setState(() {});
+            }));
     WidgetsBinding.instance.addObserver(this);
     _tabs = List.generate(_tabCount, _buildTabNavigator);
 
@@ -101,7 +110,6 @@ class _MainScreenState extends State<MainScreen>
   void _changeTab(int index) {
     if (_currentIndex == index) return;
 
-    _lastBackPress = null;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     final previousIndex = _currentIndex;
@@ -124,6 +132,7 @@ class _MainScreenState extends State<MainScreen>
 
     return Navigator(
       key: _navigatorKeys[index],
+      observers: [_observers[index]],
       onGenerateRoute: (settings) => SmoothPageRoute(
         builder: (_) => screens[index],
         settings: settings,
@@ -135,74 +144,24 @@ class _MainScreenState extends State<MainScreen>
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
+    final currentNav = _navigatorKeys[_currentIndex].currentState;
+    final bool canPopNested = currentNav?.canPop() ?? false;
+    final bool isHome = _currentIndex == 0;
+    final bool canExit = !canPopNested && isHome;
+
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
+      canPop: canExit,
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
-        // 1) If the current tab's navigator can pop, pop it (sub-screens)
-        final currentNav = _navigatorKeys[_currentIndex].currentState;
-        if (currentNav != null && currentNav.canPop()) {
-          currentNav.pop();
-          _lastBackPress = null;
-          return;
-        }
-
-        // 2) If we're not on the Home tab, switch to Home
-        if (_currentIndex != 0) {
+        if (canPopNested) {
+          currentNav?.pop();
+        } else if (!isHome) {
           _changeTab(0);
-          return;
         }
-
-        // 3) We're on Home tab root — double-tap to exit
-        final now = DateTime.now();
-        if (_lastBackPress == null ||
-            now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
-          _lastBackPress = now;
-          await AppHaptics.buttonPress();
-
-          if (!context.mounted) return;
-
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.exit_to_app_rounded,
-                          color: Colors.white70, size: 18),
-                      SizedBox(width: 10),
-                      Text('Tap again to exit',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white)),
-                    ],
-                  ),
-                ),
-                behavior: SnackBarBehavior.floating,
-                backgroundColor: const Color(0xFF26292F),
-                duration: const Duration(seconds: 2),
-                elevation: 0,
-                margin: EdgeInsets.fromLTRB(
-                    16, 0, 16, MediaQuery.of(context).padding.bottom + 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.08), width: 1),
-                ),
-              ),
-            );
-          return;
-        }
-
-        await AppHaptics.error();
-        SystemNavigator.pop();
       },
       child: Scaffold(
+        extendBody: true,
         body: Stack(
           children: List.generate(_tabCount, (i) {
             final active = i == _currentIndex;
@@ -223,66 +182,69 @@ class _MainScreenState extends State<MainScreen>
             );
           }),
         ),
-        bottomNavigationBar: Material(
-          // M3: surfaceContainer gives a tone-based lift that's visually
-          // distinct from the scaffold's cs.surface background.
-          color: cs.surfaceContainer,
-          elevation: 0,
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.4),
+        bottomNavigationBar: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Material(
+              color: cs.surfaceContainer.withValues(alpha: 0.8),
+              elevation: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: cs.outlineVariant.withValues(alpha: 0.2),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                0,
-                2,
-                0,
-                MediaQuery.of(context).padding.bottom,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Expanded(
-                    child: _NavItem(
-                        icon: Icons.home_outlined,
-                        activeIcon: Icons.home_rounded,
-                        label: 'Home',
-                        index: 0,
-                        current: _currentIndex,
-                        onTap: _changeTab),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    0,
+                    2,
+                    0,
+                    MediaQuery.of(context).padding.bottom,
                   ),
-                  Expanded(
-                    child: _NavItem(
-                        icon: Icons.storefront_outlined,
-                        activeIcon: Icons.storefront_rounded,
-                        label: 'Market',
-                        index: 1,
-                        current: _currentIndex,
-                        onTap: _changeTab),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: _NavItem(
+                            icon: Icons.home_outlined,
+                            activeIcon: Icons.home_rounded,
+                            label: 'Home',
+                            index: 0,
+                            current: _currentIndex,
+                            onTap: _changeTab),
+                      ),
+                      Expanded(
+                        child: _NavItem(
+                            icon: Icons.storefront_outlined,
+                            activeIcon: Icons.storefront_rounded,
+                            label: 'Market',
+                            index: 1,
+                            current: _currentIndex,
+                            onTap: _changeTab),
+                      ),
+                      Expanded(
+                        child: _NavItem(
+                            icon: Icons.pie_chart_outline_rounded,
+                            activeIcon: Icons.pie_chart_rounded,
+                            label: 'Portfolio',
+                            index: 2,
+                            current: _currentIndex,
+                            onTap: _changeTab),
+                      ),
+                      Expanded(
+                        child: _NavItem(
+                            icon: Icons.bar_chart_outlined,
+                            activeIcon: Icons.bar_chart_rounded,
+                            label: 'Analytics',
+                            index: 3,
+                            current: _currentIndex,
+                            onTap: _changeTab),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: _NavItem(
-                        icon: Icons.pie_chart_outline_rounded,
-                        activeIcon: Icons.pie_chart_rounded,
-                        label: 'Portfolio',
-                        index: 2,
-                        current: _currentIndex,
-                        onTap: _changeTab),
-                  ),
-                  Expanded(
-                    child: _NavItem(
-                        icon: Icons.bar_chart_outlined,
-                        activeIcon: Icons.bar_chart_rounded,
-                        label: 'Analytics',
-                        index: 3,
-                        current: _currentIndex,
-                        onTap: _changeTab),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -297,7 +259,7 @@ class _MainScreenState extends State<MainScreen>
 // Animations: bounce/scale pop, outlined↔filled crossfade, pill width expand
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _NavItem extends StatefulWidget {
+class _NavItem extends ConsumerStatefulWidget {
   final IconData icon;
   final IconData activeIcon;
   final String label;
@@ -315,10 +277,10 @@ class _NavItem extends StatefulWidget {
   });
 
   @override
-  State<_NavItem> createState() => _NavItemState();
+  ConsumerState<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
+class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixin {
   // ── Main activation controller (pill + crossfade) ──
   late final AnimationController _ctrl;
   late final CurvedAnimation _curve;
@@ -554,16 +516,19 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
   }
 }
 
-@Preview(name: 'Nav Bar Only')
-Widget navBarPreview() => const NavBarPreview();
-
-class NavBarPreview extends StatelessWidget {
-  const NavBarPreview({super.key});
+class _TabNavigatorObserver extends NavigatorObserver {
+  final VoidCallback onStateChange;
+  _TabNavigatorObserver(this.onStateChange);
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: MainScreen(),
-    );
-  }
+  void didPush(Route route, Route? previousRoute) => onStateChange();
+
+  @override
+  void didPop(Route route, Route? previousRoute) => onStateChange();
+
+  @override
+  void didRemove(Route route, Route? previousRoute) => onStateChange();
+
+  @override
+  void didReplace({Route? newRoute, Route? oldRoute}) => onStateChange();
 }

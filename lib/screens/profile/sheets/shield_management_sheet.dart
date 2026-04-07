@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../services/api_service.dart';
 import '../../../theme/theme_provider.dart';
-import '../../../theme/ui_constants.dart';
 import '../../../utils/app_haptics.dart';
+import '../../../widgets/skeleton.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ShieldManagementSheet extends StatefulWidget {
+class ShieldManagementSheet extends ConsumerStatefulWidget {
   final bool isEnabled;
   final ValueChanged<bool> onChanged;
 
@@ -17,25 +18,34 @@ class ShieldManagementSheet extends StatefulWidget {
   });
 
   @override
-  State<ShieldManagementSheet> createState() => _ShieldManagementSheetState();
+  ConsumerState<ShieldManagementSheet> createState() => _ShieldManagementSheetState();
 }
 
-class _ShieldManagementSheetState extends State<ShieldManagementSheet> {
+class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
   bool _loading = true;
   String? _error;
   String? _qrCodeBase64;
   String? _secret;
   final TextEditingController _otpController = TextEditingController();
   bool _submitting = false;
+  static const _security = MethodChannel('app/security');
 
   @override
   void initState() {
     super.initState();
+    _security.invokeMethod('setSecure', {'isSecure': true});
     if (!widget.isEnabled) {
       _loadSetupData();
     } else {
       setState(() => _loading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _otpController.dispose();
+    _security.invokeMethod('setSecure', {'isSecure': false});
+    super.dispose();
   }
 
   Future<void> _loadSetupData() async {
@@ -105,20 +115,24 @@ class _ShieldManagementSheetState extends State<ShieldManagementSheet> {
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 32,
+        top: 12,
         bottom: 24 + bottomInset,
       ),
       decoration: BoxDecoration(
-        color: cs.surface,
+        color: cs.surface.withValues(alpha: 0.9),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(cs),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           if (_loading)
-            const Center(child: CircularProgressIndicator())
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: SkeletonShieldContent(),
+            )
           else if (_error != null && _qrCodeBase64 == null && !widget.isEnabled)
             _buildErrorView(cs)
           else if (!widget.isEnabled)
@@ -175,29 +189,42 @@ class _ShieldManagementSheetState extends State<ShieldManagementSheet> {
     return Column(
       children: [
         if (_qrCodeBase64 != null)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Image.memory(
-              base64Decode(_qrCodeBase64!),
-              width: 180,
-              height: 180,
-            ),
-          ),
+           _StaggeredEntrance(
+             staggerIndex: 1,
+             child: Container(
+               padding: const EdgeInsets.all(16),
+               decoration: BoxDecoration(
+                 color: Colors.white,
+                 borderRadius: BorderRadius.circular(24),
+                 boxShadow: [
+                   BoxShadow(
+                     color: Colors.black.withValues(alpha: 0.1),
+                     blurRadius: 20,
+                     spreadRadius: 2,
+                   )
+                 ],
+               ),
+               child: Image.memory(
+                 base64Decode(_qrCodeBase64!),
+                 width: 160,
+                 height: 160,
+               ),
+             ),
+           ),
         const SizedBox(height: 20),
         if (_secret != null)
-          _SecretBox(secret: _secret!),
+          _StaggeredEntrance(staggerIndex: 2, child: _SecretBox(secret: _secret!)),
         const SizedBox(height: 24),
-        _OtpInput(controller: _otpController, error: _error),
+        _StaggeredEntrance(staggerIndex: 3, child: _OtpInput(controller: _otpController, error: _error)),
         const SizedBox(height: 24),
-        _ActionButton(
-          label: 'Activate Shield',
-          submitting: _submitting,
-          onPressed: _handleAction,
-          color: AppColors.success(context),
+        _StaggeredEntrance(
+          staggerIndex: 4,
+          child: _ActionButton(
+            label: 'Activate Shield',
+            submitting: _submitting,
+            onPressed: _handleAction,
+            color: AppColors.emerald(context),
+          ),
         ),
       ],
     );
@@ -206,13 +233,19 @@ class _ShieldManagementSheetState extends State<ShieldManagementSheet> {
   Widget _buildDeactivationFlow(ColorScheme cs) {
     return Column(
       children: [
-        _OtpInput(controller: _otpController, error: _error),
+        _StaggeredEntrance(
+          staggerIndex: 1,
+          child: _OtpInput(controller: _otpController, error: _error),
+        ),
         const SizedBox(height: 24),
-        _ActionButton(
-          label: 'Deactivate Shield',
-          submitting: _submitting,
-          onPressed: _handleAction,
-          color: AppColors.danger(context),
+        _StaggeredEntrance(
+          staggerIndex: 2,
+          child: _ActionButton(
+            label: 'Deactivate Shield',
+            submitting: _submitting,
+            onPressed: _handleAction,
+            color: AppColors.rose(context),
+          ),
         ),
       ],
     );
@@ -229,25 +262,32 @@ class _ShieldManagementSheetState extends State<ShieldManagementSheet> {
   }
 }
 
-class _SecretBox extends StatelessWidget {
+class _SecretBox extends ConsumerWidget {
   final String secret;
   const _SecretBox({required this.secret});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         Text(
           'Manual Entry Key',
-          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4), fontSize: 12),
+          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 8),
         GestureDetector(
           onTap: () {
+            AppHaptics.selection();
             Clipboard.setData(ClipboardData(text: secret));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Key copied to clipboard'), duration: Duration(seconds: 1)),
+              SnackBar(
+                content: const Text('Key copied to clipboard'),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: cs.surfaceTint,
+                showCloseIcon: true,
+                duration: const Duration(seconds: 2),
+              ),
             );
           },
           child: Container(
@@ -272,41 +312,69 @@ class _SecretBox extends StatelessWidget {
   }
 }
 
-class _OtpInput extends StatelessWidget {
+class _OtpInput extends ConsumerWidget {
   final TextEditingController controller;
   final String? error;
   const _OtpInput({required this.controller, this.error});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Enter Authenticator Code',
-          style: TextStyle(
-            color: cs.onSurface.withValues(alpha: 0.8),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Text(
+            'Enter Authenticator Code',
+            style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.5),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         TextField(
           controller: controller,
           keyboardType: TextInputType.number,
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 8),
+          onChanged: (v) {
+             if (v.length == 6) AppHaptics.success();
+             else if (v.isNotEmpty) AppHaptics.selection();
+          },
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 12,
+            color: cs.primary,
+          ),
           decoration: InputDecoration(
             counterText: '',
             hintText: '000000',
             hintStyle: TextStyle(color: cs.onSurface.withValues(alpha: 0.1)),
             errorText: error,
             filled: true,
-            fillColor: cs.onSurface.withValues(alpha: 0.05),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            fillColor: cs.onSurface.withValues(alpha: 0.04),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(color: cs.onSurface.withValues(alpha: 0.1)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(color: cs.primary, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(color: AppColors.rose(context)),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: BorderSide(color: AppColors.rose(context), width: 2),
+            ),
           ),
         ),
       ],
@@ -314,7 +382,35 @@ class _OtpInput extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _StaggeredEntrance extends ConsumerWidget {
+  final Widget child;
+  final int staggerIndex;
+
+  const _StaggeredEntrance({required this.child, required this.staggerIndex});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, val, child) {
+        final double delay = staggerIndex * 0.1;
+        final double animValue = (val - delay).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: animValue,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - animValue)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class _ActionButton extends ConsumerWidget {
   final String label;
   final bool submitting;
   final VoidCallback onPressed;
@@ -328,7 +424,7 @@ class _ActionButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       width: double.infinity,
       height: 56,

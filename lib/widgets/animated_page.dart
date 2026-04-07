@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AnimatedPage extends StatefulWidget {
+class AnimatedPage extends ConsumerStatefulWidget {
   final Widget child;
 
   const AnimatedPage({super.key, required this.child});
 
   @override
-  State<AnimatedPage> createState() => _AnimatedPageState();
+  ConsumerState<AnimatedPage> createState() => _AnimatedPageState();
 }
 
-class _AnimatedPageState extends State<AnimatedPage>
+class _AnimatedPageState extends ConsumerState<AnimatedPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late CurvedAnimation _fadeCurve;

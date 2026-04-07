@@ -1,611 +1,105 @@
-import 'dart:async';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:home_widget/home_widget.dart';
-import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
-import '../utils/formatters.dart'; // FIX: use shared fmtAmount, removed duplicate _fmt
-import '../widgets/pressable.dart';
-import '../widgets/liquidity_refresh_indicator.dart';
-import '../widgets/skeleton.dart';
-import '../widgets/stagger_list.dart';
 import '../widgets/app_logo_header.dart';
-import '../widgets/animated_amount_text.dart';
-import '../widgets/animated_empty_state.dart';
-import 'invoice_detail_screen.dart';
+import '../widgets/liquidity_refresh_indicator.dart';
+import '../view_models/marketplace_view_model.dart';
+import '../widgets/marketplace/marketplace_filters.dart';
+import '../widgets/marketplace/marketplace_search.dart';
+import '../widgets/marketplace/marketplace_list.dart';
+import '../widgets/marketplace/fast_scrollbar.dart';
+import '../widgets/skeleton.dart';
 
-// ── Models ───────────────────────────────────────────────────────────────────
-
-class InvoiceItem {
-  final String id;
-  final String company;
-  final String particular;
-  final String debtor;
-  final String status;
-  final String statusDisplay;
-  final double roi;
-  final int daysLeft;
-  final int tenureDays;
-  final double remainingAmount;
-  final double fundingPct;
-
-  final String roiDisplay;
-  final String daysLeftDisplay;
-  final String tenureDisplay;
-  final String remainingDisplay;
-  final String fundingDisplay;
-
-  const InvoiceItem({
-    required this.id,
-    required this.company,
-    required this.particular,
-    required this.debtor,
-    required this.status,
-    required this.statusDisplay,
-    required this.roi,
-    required this.daysLeft,
-    required this.tenureDays,
-    required this.remainingAmount,
-    required this.fundingPct,
-    required this.roiDisplay,
-    required this.daysLeftDisplay,
-    required this.tenureDisplay,
-    required this.remainingDisplay,
-    required this.fundingDisplay,
-  });
-
-  bool get isAvailable => fundingPct < 100;
-
-  @override
-  bool operator ==(Object other) => other is InvoiceItem && other.id == id;
-
-  @override
-  int get hashCode => id.hashCode;
-
-  factory InvoiceItem.fromMap(Map<String, dynamic> m) {
-    final rawRoi = double.tryParse(
-            (m['investor_rate'] ?? m['roi_value'] ?? m['roi'] ?? '0')
-                .toString()) ??
-        0;
-
-    final rawDaysLeft = (m['days_until_payment'] as num?)?.toInt() ?? 0;
-
-    int rawTenure = 0;
-    try {
-      final invoiceDateStr = m['invoice_date']?.toString() ?? '';
-      final paymentDateStr = m['payment_date']?.toString() ?? '';
-      if (invoiceDateStr.isNotEmpty && paymentDateStr.isNotEmpty) {
-        final invoiceDate = DateTime.parse(invoiceDateStr);
-        final paymentDate = DateTime.parse(paymentDateStr);
-        rawTenure = paymentDate.difference(invoiceDate).inDays;
-        if (rawTenure < 0) rawTenure = 0;
-      }
-    } catch (_) {
-      rawTenure = rawDaysLeft;
-    }
-    final approved =
-        double.tryParse((m['approved_amount'] ?? '0').toString()) ?? 0;
-
-    final funded = double.tryParse((m['funded_amount'] ??
-                m['total_funded'] ??
-                m['amount_funded'] ??
-                m['funded_total'] ??
-                m['funded_amount_cached'] ??
-                '0')
-            .toString()) ??
-        0;
-
-    final remaining = approved > funded ? (approved - funded) : 0.0;
-    final safeFunded = funded > approved ? approved : funded;
-
-    final double calcFunding =
-        approved > 0 ? ((safeFunded / approved) * 100).clamp(0.0, 100.0) : 0.0;
-    final double apiFunding = m['funding_percentage'] != null
-        ? (double.tryParse(m['funding_percentage'].toString()) ?? 0.0)
-            .clamp(0.0, 100.0)
-        : 0.0;
-
-    final rawFunding = (calcFunding > 0 && apiFunding == 0)
-        ? calcFunding
-        : (m['funding_percentage'] != null ? apiFunding : calcFunding);
-
-    return InvoiceItem(
-      id: (m['id'] ?? '').toString(),
-      company: (m['company'] ?? '').toString(),
-      particular: (m['particular'] ?? '').toString(),
-      debtor: (m['debtor'] ?? '').toString(),
-      status: (m['status'] ?? '').toString(),
-      statusDisplay: (m['status_display'] ?? '').toString(),
-      roi: rawRoi,
-      daysLeft: rawDaysLeft,
-      tenureDays: rawTenure,
-      remainingAmount: remaining,
-      fundingPct: rawFunding,
-      roiDisplay: '${rawRoi.toStringAsFixed(2)}%',
-      daysLeftDisplay: '${rawDaysLeft}D left',
-      tenureDisplay: '${rawTenure}D',
-      // FIX: use shared fmtAmount — was using private _fmt which is identical
-      remainingDisplay: '₹${fmtAmount(remaining)}',
-      fundingDisplay: '${rawFunding.toStringAsFixed(1)}%',
-    );
-  }
-}
-
-// ── Isolate Logic ─────────────────────────────────────────────────────────────
-
-const int _isolateThreshold = 300;
-
-List<Map<String, dynamic>> _filterInvoicesIsolate(Map<String, dynamic> params) {
-  final raw = List<Map<String, dynamic>>.from(params['invoices'] as List);
-  final selectedStatus = params['status'] as String;
-  final minRoi = params['minRoi'] as double;
-  final maxRoi = params['maxRoi'] as double;
-  final minDays = params['minDays'] as double;
-  final maxDays = params['maxDays'] as double;
-  final minAmount = params['minAmount'] as double;
-  final maxAmount = params['maxAmount'] as double;
-  final sortBy = params['sortBy'] as String;
-  final query = (params['query'] as String).toLowerCase();
-  final minFunding = params['minFunding'] as double;
-  final maxFunding = params['maxFunding'] as double;
-
-  var result = raw;
-  if (selectedStatus == 'Available') {
-    result = result.where((i) =>
-    (i['status'] ?? '').toString().toLowerCase() == 'available'
-    ).toList();
-  } else if (selectedStatus == 'Partially Funded') {
-    result = result.where((i) {
-      final status = (i['status'] ?? '').toString().toLowerCase();
-      final display = (i['statusDisplay'] ?? '').toString().toLowerCase();
-      return status.contains('partial') || display.contains('partial');
-    }).toList();
-  }
-
-  result = result.where((i) {
-    final roi = (i['roi'] as num?)?.toDouble() ?? 0;
-    final tenure = (i['tenureDays'] as num?)?.toDouble() ?? 0;
-    final amt = (i['remainingAmount'] as num?)?.toDouble() ?? 0;
-    final funding = (i['fundingPct'] as num?)?.toDouble() ?? 0;
-
-    return roi >= minRoi &&
-        roi <= maxRoi &&
-        tenure >= minDays &&
-        tenure <= maxDays &&
-        amt >= minAmount &&
-        amt <= maxAmount &&
-        funding >= minFunding &&
-        funding <= maxFunding;
-  }).toList();
-
-  if (query.isNotEmpty) {
-    result = result
-        .where((i) =>
-            (i['company'] as String).toLowerCase().contains(query) ||
-            (i['status'] as String).toLowerCase().contains(query))
-        .toList();
-  }
-
-  switch (sortBy) {
-    case 'roi_high':
-      result.sort((a, b) =>
-          ((b['roi'] as num?) ?? 0).compareTo((a['roi'] as num?) ?? 0));
-      break;
-    case 'days_low':
-      result.sort((a, b) => ((a['daysLeft'] as num?) ?? 0)
-          .compareTo((b['daysLeft'] as num?) ?? 0));
-      break;
-    case 'amount_low':
-      result.sort((a, b) => ((a['remainingAmount'] as num?) ?? 0)
-          .compareTo((b['remainingAmount'] as num?) ?? 0));
-      break;
-    case 'amount_high':
-      result.sort((a, b) => ((b['remainingAmount'] as num?) ?? 0)
-          .compareTo((a['remainingAmount'] as num?) ?? 0));
-      break;
-  }
-  return result;
-}
-
-Map<String, dynamic> _itemToMap(InvoiceItem i) => {
-      'id': i.id,
-      'company': i.company,
-      'status': i.status,
-      'statusDisplay': i.statusDisplay,
-      'roi': i.roi,
-      'daysLeft': i.daysLeft,
-      'tenureDays': i.tenureDays,
-      'remainingAmount': i.remainingAmount,
-      'fundingPct': i.fundingPct,
-    };
-
-// ── Marketplace Screen ────────────────────────────────────────────────────────
-
-class MarketplaceScreen extends StatefulWidget {
+class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key});
 
   @override
-  State<MarketplaceScreen> createState() => _MarketplaceScreenState();
+  ConsumerState<MarketplaceScreen> createState() => _MarketplaceScreenState();
 }
 
-class _MarketplaceScreenState extends State<MarketplaceScreen> {
-  static const int _limit = 40;
-  int _page = 1;
-  bool _animateList = true;
-  bool _hasMore = true;
-  bool _loadingMore = false;
-
-  final List<InvoiceItem> _invoices = [];
-  List<InvoiceItem> _filtered = [];
-  bool _isLoading = true;
-  String? _loadError;
-  int _filterGeneration = 0;
-
-  final GlobalKey<_FastScrollbarState> _fastScrollbarKey = GlobalKey();
+class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchCtrl = TextEditingController();
+  final GlobalKey<FastScrollbarState> _scrollbarKey = GlobalKey();
   bool _searchVisible = false;
-  String _searchQuery = '';
-  Timer? _searchDebounce;
-
-  String _selectedStatus = 'All';
-  final _statusFilters = ['All', 'Available', 'Partially Funded'];
-  final _quickFilters = ['High ROI', 'Short Tenure', 'Almost Funded'];
-
-  double _minRoi = 0, _maxRoi = 30;
-  double _minDays = 0, _maxDays = 365;
-  double _minAmount = 0, _maxAmount = 10000000;
-  double _minFunding = 0;
-  double _maxFunding = 100;
-  String _sortBy = 'default';
-  String? _activeQuickFilter; // Item #16: track active quick filter
-
-  int get _activeFilterCount {
-    int c = 0;
-    if (_minRoi > 0 || _maxRoi < 30) c++;
-    if (_minDays > 0 || _maxDays < 365) c++;
-    if (_minAmount > 0 || _maxAmount < 10000000) c++;
-    if (_sortBy != 'default') c++;
-    if (_minFunding > 0 || _maxFunding < 100) c++;
-    return c;
-  }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        setState(() => _animateList = false);
-      }
-    });
     _scrollController.addListener(_onScroll);
-    _loadInvoices();
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     _searchCtrl.dispose();
-    _searchDebounce?.cancel();
     super.dispose();
   }
 
   void _onScroll() {
-    if (_loadingMore || !_hasMore || _isLoading) return;
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent * 0.8) {
-      _loadInvoices();
-    }
-  }
-
-  Future<void> _loadInvoices({bool refresh = false}) async {
-    if (!refresh && (_loadingMore || !_hasMore)) return;
-    if (refresh) {
-      _page = 1;
-      _hasMore = true;
-      _invoices.clear();
-      _filterGeneration++;
-    }
-
-    if (mounted) {
-      setState(() {
-        _loadError = null;
-        if (_page == 1) {
-          _isLoading = true;
-        } else {
-          _loadingMore = true;
-        }
-      });
-    }
-
-    try {
-      final data = await ApiService.getInvoices(page: _page, limit: _limit);
-      if (!mounted) return;
-
-      final incoming =
-          (data).cast<Map<String, dynamic>>().map(InvoiceItem.fromMap).toList();
-      for (var item in incoming) {
-        final index = _invoices.indexWhere((i) => i.id == item.id);
-        if (index != -1) {
-          _invoices[index] = item; // update existing
-        } else {
-          _invoices.add(item); // add new
-        }
-      }
-
-      if (data.length < _limit) {
-        _hasMore = false;
-      } else {
-        _page++;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _loadingMore = false;
-      });
-      _applyFilters();
-
-      if (_page == 2 && _invoices.isNotEmpty) {
-        unawaited(_updateMarketplaceWidget(_invoices.take(10).toList()));
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _loadingMore = false;
-        _loadError = 'Failed to load invoices';
-      });
-    }
-  }
-
-  Future<void> _updateMarketplaceWidget(List<InvoiceItem> data) async {
-    if (data.isEmpty) return;
-    try {
-      final top = data.reduce((a, b) => b.roi > a.roi ? b : a);
-      await HomeWidget.saveWidgetData('company', top.company);
-      await HomeWidget.saveWidgetData('roi', top.roi.toStringAsFixed(2));
-      await HomeWidget.saveWidgetData('days', top.daysLeft.toString());
-      await HomeWidget.saveWidgetData(
-          'remaining', top.remainingAmount.toStringAsFixed(0));
-      await HomeWidget.saveWidgetData('funding', top.fundingPct.toInt());
-      await HomeWidget.updateWidget(androidName: 'MarketplaceWidgetProvider');
-    } catch (_) {}
-  }
-
-  Future<void> _applyFilters() async {
-    final generation = ++_filterGeneration;
-    final params = {
-      'invoices': _invoices.map(_itemToMap).toList(),
-      'status': _selectedStatus,
-      'minRoi': _minRoi,
-      'maxRoi': _maxRoi,
-      'minDays': _minDays,
-      'maxDays': _maxDays,
-      'minAmount': _minAmount,
-      'maxAmount': _maxAmount,
-      'minFunding': _minFunding,
-      'maxFunding': _maxFunding,
-      'sortBy': _sortBy,
-      'query': _searchQuery,
-    };
-
-    final rawResult = _invoices.length < _isolateThreshold
-        ? _filterInvoicesIsolate(params)
-        : await compute(_filterInvoicesIsolate, params);
-
-    if (generation != _filterGeneration || !mounted) return;
-
-    final idMap = {for (final item in _invoices) item.id: item};
-    setState(() => _filtered =
-        rawResult.map((m) => idMap[m['id']]).whereType<InvoiceItem>().toList());
-  }
-
-  void _onSearchChanged(String value) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
-      if (_searchQuery != value) {
-        _searchQuery = value;
-        _applyFilters();
+    final state = ref.read(marketplaceProvider);
+    state.whenData((data) {
+      if (data.isLoadingMore || !data.hasMore) return;
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent * 0.8) {
+        ref.read(marketplaceProvider.notifier).loadMore();
       }
     });
-  }
-
-  void _toggleSearch() async {
-    await AppHaptics.selection();
-    setState(() {
-      _searchVisible = !_searchVisible;
-      if (!_searchVisible) {
-        _searchCtrl.clear();
-        if (_searchQuery.isNotEmpty) {
-          _searchQuery = '';
-          _applyFilters();
-        }
-      }
-    });
-  }
-
-  void _showFilterSheet() {
-    // FIX: copy current filter values into local variables BEFORE opening
-    // the sheet. The sheet mutates these local copies via setSheet().
-    // The parent state is only updated when the user explicitly taps
-    // "Apply Filters". If the user swipes the sheet down to dismiss,
-    // the parent state is untouched — no stale filter badge, no ghost filters.
-    //
-    // Previously, the sheet called setSheet(() { _minRoi = ...; }) which
-    // mutated parent state directly, so dismiss-without-apply still changed
-    // the filter values (and showed the badge dot) without actually filtering.
-    double localMinRoi = _minRoi;
-    double localMaxRoi = _maxRoi;
-    double localMinDays = _minDays;
-    double localMaxDays = _maxDays;
-    double localMinAmount = _minAmount;
-    double localMaxAmount = _maxAmount;
-    double localMinFunding = _minFunding;
-    double localMaxFunding = _maxFunding;
-    String localSortBy = _sortBy;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      backgroundColor: AppColors.scaffold(context),
-      builder: (context) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Filters',
-                      style: TextStyle(
-                          color: AppColors.textPrimary(ctx),
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5)),
-                  TextButton(
-                    onPressed: () => setSheet(() {
-                      localMinRoi = 0;
-                      localMaxRoi = 30;
-                      localMinDays = 0;
-                      localMaxDays = 365;
-                      localMinAmount = 0;
-                      localMaxAmount = 10000000;
-                      localMinFunding = 0;
-                      localMaxFunding = 100;
-                      localSortBy = 'default';
-                    }),
-                    child: const Text('Reset'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Text('Sort By',
-                  style: TextStyle(
-                      color: AppColors.textPrimary(ctx),
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: [
-                  _FilterChip(
-                      label: 'ROI',
-                      selected: localSortBy == 'roi_high',
-                      onSelected: (s) => setSheet(
-                          () => localSortBy = s ? 'roi_high' : 'default')),
-                  _FilterChip(
-                      label: 'Days Left',
-                      selected: localSortBy == 'days_low',
-                      onSelected: (s) => setSheet(
-                          () => localSortBy = s ? 'days_low' : 'default')),
-                  _FilterChip(
-                      label: 'Amount',
-                      selected: localSortBy == 'amount_high',
-                      onSelected: (s) => setSheet(
-                          () => localSortBy = s ? 'amount_high' : 'default')),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _RangeSection(
-                  title: 'ROI Range (%)',
-                  values: RangeValues(localMinRoi, localMaxRoi),
-                  min: 0,
-                  max: 30,
-                  onChanged: (v) => setSheet(() {
-                        localMinRoi = v.start;
-                        localMaxRoi = v.end;
-                      })),
-              const SizedBox(height: 24),
-              _RangeSection(
-                  title: 'Total Tenure (Days)',
-                  values: RangeValues(localMinDays, localMaxDays),
-                  min: 0,
-                  max: 365,
-                  onChanged: (v) => setSheet(() {
-                        localMinDays = v.start;
-                        localMaxDays = v.end;
-                      })),
-              const SizedBox(height: 24),
-              _RangeSection(
-                title: 'Funding Progress (%)',
-                values: RangeValues(localMinFunding, localMaxFunding),
-                min: 0,
-                max: 100,
-                onChanged: (v) => setSheet(() {
-                  localMinFunding = v.start;
-                  localMaxFunding = v.end;
-                }),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  // FIX: only now commit local values to parent state
-                  setState(() {
-                    _minRoi = localMinRoi;
-                    _maxRoi = localMaxRoi;
-                    _minDays = localMinDays;
-                    _maxDays = localMaxDays;
-                    _minAmount = localMinAmount;
-                    _maxAmount = localMaxAmount;
-                    _minFunding = localMinFunding;
-                    _maxFunding = localMaxFunding;
-                    _sortBy = localSortBy;
-                  });
-                  _applyFilters();
-                  Navigator.pop(context);
-                },
-                child: const Text('Apply Filters'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
+    final marketplaceAsync = ref.watch(marketplaceProvider);
+    final notifier = ref.read(marketplaceProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      body: Listener(
-        onPointerDown: (_) {
-          _fastScrollbarKey.currentState?.show();
-        },
-        child: Stack(
-          children: [
-            LiquidityRefreshIndicator(
-              onRefresh: () => _loadInvoices(refresh: true),
-              child: CustomScrollView(
+      backgroundColor: cs.surface,
+      body: LiquidityRefreshIndicator(
+        onRefresh: () => notifier.refresh(silent: true),
+        color: cs.primary,
+        child: marketplaceAsync.when(
+          skipLoadingOnRefresh: true,
+          loading: () => const SkeletonMarketplaceContent(),
+          error: (err, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 40, color: cs.error),
+                const SizedBox(height: 16),
+                Text('Error loading marketplace',
+                    style: TextStyle(color: cs.error)),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => notifier.refresh(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+          data: (data) => Stack(
+            children: [
+              CustomScrollView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                cacheExtent: 180 * 8,
+                    parent: BouncingScrollPhysics()),
                 slivers: [
                   AppLogoHeader(
                     title: 'Marketplace',
                     actions: [
                       IconButton(
                         icon: Icon(
-                          _searchVisible ? Icons.search_off_rounded : Icons.search_rounded,
-                          color: colorScheme.primary,
-                        ),
+                            _searchVisible
+                                ? Icons.search_off_rounded
+                                : Icons.search_rounded,
+                            color: cs.primary),
                         onPressed: () {
-                          setState(() {
-                            _searchVisible = !_searchVisible;
-                            if (!_searchVisible) {
-                              _searchCtrl.clear();
-                              _onSearchChanged('');
-                            }
-                          });
+                          setState(() => _searchVisible = !_searchVisible);
+                          if (!_searchVisible) {
+                            _searchCtrl.clear();
+                            notifier.setSearchQuery('');
+                          }
                           AppHaptics.selection();
                         },
                       ),
@@ -613,869 +107,151 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.tune_rounded),
-                            onPressed: _showFilterSheet,
+                            onPressed: () {
+                              AppHaptics.selection();
+                              _showFilterSheet(context, data, notifier);
+                            },
                           ),
-                          if (_activeFilterCount > 0)
+                          if (notifier.getActiveFilterCount() > 0)
                             Positioned(
-                              right: 8,
-                              top: 8,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
+                                right: 8,
+                                top: 8,
+                                child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                        color: cs.primary,
+                                        shape: BoxShape.circle))),
                         ],
                       ),
                     ],
                   ),
                   if (_searchVisible)
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                        child: TextField(
+                      child: MarketplaceSearch(
                           controller: _searchCtrl,
-                          onChanged: _onSearchChanged,
-                          style: TextStyle(color: AppColors.textPrimary(context)),
-                          decoration: InputDecoration(
-                            hintText: 'Search companies...',
-                            prefixIcon: const Icon(Icons.search_rounded),
-                            filled: true,
-                            fillColor: AppColors.navyCard(context),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                          ),
-                        ),
-                      ),
+                          notifier: notifier,
+                          currentQuery: data.searchQuery),
                     ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Status Filters ─────────────────────────
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: _statusFilters.map((f) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: ChoiceChip(
-                                    label: Text(f),
-                                    selected: _selectedStatus == f,
-                                    onSelected: (s) {
-                                      if (s) {
-                                        setState(() => _selectedStatus = f);
-                                        _applyFilters();
-                                      }
-                                    },
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // ── Quick Filters ─────────────────────────
-                          // ── Quick Filters ─────────────────────────
-                          Row(
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: _quickFilters.map((f) {
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(right: 8),
-                                        child: ChoiceChip(
-                                          label: Text(f),
-                                          avatar: const Icon(Icons.flash_on,
-                                              size: 16),
-                                          selected: _activeQuickFilter == f,
-                                          onSelected: (_) {
-                                            setState(() {
-                                              _minRoi = 0;
-                                              _maxRoi = 30;
-                                              _minDays = 0;
-                                              _maxDays = 365;
-                                              _minFunding = 0;
-                                              _maxFunding = 100;
-
-                                              if (_activeQuickFilter == f) {
-                                                _activeQuickFilter = null;
-                                              } else {
-                                                _activeQuickFilter = f;
-
-                                                if (f == 'High ROI') {
-                                                  _minRoi = 13;
-                                                }
-                                                if (f == 'Short Tenure') {
-                                                  _maxDays = 30;
-                                                }
-                                                if (f == 'Almost Funded') {
-                                                  _minFunding = 75;
-                                                }
-                                              }
-                                            });
-
-                                            _applyFilters();
-                                          },
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              ActionChip(
-                                label: const Text('Clear'),
-                                avatar:
-                                    const Icon(Icons.close_rounded, size: 16),
-                                onPressed: () {
-                                  setState(() {
-                                    _activeQuickFilter = null;
-                                    _minRoi = 0;
-                                    _maxRoi = 30;
-                                    _minDays = 0;
-                                    _maxDays = 365;
-                                    _minFunding = 0;
-                                    _maxFunding = 100;
-                                  });
-
-                                  _applyFilters();
-                                },
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
+                  const SliverToBoxAdapter(
+                    child: MarketplaceFilters(),
                   ),
-                  if (_isLoading)
-                    SliverToBoxAdapter(
-                      child: SkeletonTheme(
-                        child: const SkeletonMarketplaceContent(cardCount: 3),
-                      ),
-                    )
-                  else if (_filtered.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Center(
-                        child: AnimatedEmptyState(
-                          icon: _loadError != null ? Icons.error_outline_rounded : Icons.search_off_rounded,
-                          title: _loadError != null ? 'Connection Error' : 'No Invoices Found',
-                          subtitle: _loadError ?? 'No invoices match your search or filter criteria.',
-                          actionLabel: _loadError != null ? 'Retry' : null,
-                          onAction: _loadError != null ? () => _loadInvoices(refresh: true) : null,
-                        ),
-                      ),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          addAutomaticKeepAlives: false,
-                          addRepaintBoundaries: true,
-                          (ctx, i) => RepaintBoundary(
-                            child: _animateList
-                                ? StaggerItem(
-                                    index: i,
-                                    child: _InvoiceCard(item: _filtered[i]),
-                                  )
-                                : _InvoiceCard(item: _filtered[i]),
-                          ),
-                          childCount: _filtered.length,
-                        ),
-                      ),
-                    ),
+                  MarketplaceList(
+                    state: data,
+                    notifier: notifier,
+                    scrollController: _scrollController,
+                    scrollbarKey: _scrollbarKey,
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
-            ),
-
-            // ── Fast scrollbar overlay ─────────────────────────────
-            if (!_isLoading && _filtered.length > 6)
+              if (data.filtered.length > 5)
                 Positioned(
                   right: 4,
-                  top: MediaQuery.of(context).padding.top + 120,
-                  bottom: 80,
-                  child: _FastScrollbar(
-                    key: _fastScrollbarKey,
-                    controller: _scrollController,
-                    itemCount: _filtered.length,
-                  ),
+                  top: 180,
+                  bottom: 100,
+                  child: FastScrollbar(
+                      key: _scrollbarKey,
+                      controller: _scrollController,
+                      itemCount: data.filtered.length),
                 ),
             ],
           ),
         ),
+      ),
     );
   }
-}
 
-// ── Fast Scrollbar ────────────────────────────────────────────────────────────
-
-class _FastScrollbar extends StatefulWidget {
-  final ScrollController controller;
-  final int itemCount;
-
-  const _FastScrollbar({
-    super.key,
-    required this.controller,
-    required this.itemCount,
-  });
-
-  @override
-  State<_FastScrollbar> createState() => _FastScrollbarState();
-}
-
-class _FastScrollbarState extends State<_FastScrollbar>
-    with SingleTickerProviderStateMixin {
-  bool _visible = false;
-  bool _dragging = false;
-  double _lastDragY = 0;
-  DateTime? _lastDragTime;
-  double _thumbFraction = 0;
-  int _currentIndex = 0;
-  int _lastHapticIndex = -1;
-  Timer? _hideTimer;
-  DateTime? _lastScrollUpdate;
-
-  late final AnimationController _fadeCtrl;
-  late final Animation<double> _fadeAnim;
-
-  static const double _thumbH = 46;
-  static const double _thumbHDrag = 56;
-  static const double _hitWidth = 32;
-
-  void show() {
-    if (!mounted) return;
-
-    setState(() => _visible = true);
-    _fadeCtrl.forward();
-    _scheduleHide();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 180),
-    );
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    widget.controller.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _hideTimer?.cancel();
-    widget.controller.removeListener(_onScroll);
-    _fadeCtrl.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_dragging) return;
-    if (!widget.controller.hasClients) return;
-    final maxScroll = widget.controller.position.maxScrollExtent;
-    if (maxScroll <= 0) return;
-
-    final frac = (widget.controller.offset / maxScroll).clamp(0.0, 1.0);
-    final newIndex = ((frac * (widget.itemCount - 1)).round())
-        .clamp(0, widget.itemCount - 1);
-
-    if ((_thumbFraction - frac).abs() > 0.002 || _currentIndex != newIndex) {
-      setState(() {
-        _thumbFraction = frac;
-        _currentIndex = newIndex;
-        _visible = true;
-      });
-    }
-    _fadeCtrl.forward();
-    _scheduleHide();
-  }
-
-  void _scheduleHide() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(milliseconds: 900), () {
-      if (!_dragging && mounted) {
-        _fadeCtrl.reverse().then((_) {
-          if (mounted) setState(() => _visible = false);
-        });
-      }
-    });
-  }
-
-  void _startDrag() {
-    _hideTimer?.cancel();
-    setState(() => _dragging = true);
-    _fadeCtrl.forward();
-    AppHaptics.scrollTick();
-
-    _lastDragTime = DateTime.now();
-  }
-
-  void _updateDrag(double localY, double trackHeight) {
-    final thumbH = _dragging ? _thumbHDrag : _thumbH;
-    final usableTrack = trackHeight - thumbH;
-
-    final now = DateTime.now();
-    if (_lastScrollUpdate != null &&
-        now.difference(_lastScrollUpdate!).inMilliseconds < 16) {
-      return;
-    }
-    _lastScrollUpdate = now;
-    final dt = _lastDragTime == null
-        ? 16
-        : now.difference(_lastDragTime!).inMilliseconds;
-
-    final dy = localY - _lastDragY;
-
-    // pixels per ms
-    final velocity = dt > 0 ? (dy.abs() / dt) : 0;
-
-    double acceleration = 1.0;
-
-    if (velocity > 1.2) {
-      acceleration = 3.0;
-    } else if (velocity > 0.6) {
-      acceleration = 2.0;
-    } else if (velocity > 0.3) {
-      acceleration = 1.4;
-    }
-
-    final frac = ((localY - thumbH / 2) / usableTrack).clamp(0.0, 1.0);
-
-    final maxScroll = widget.controller.position.maxScrollExtent;
-
-    widget.controller.animateTo(
-      (frac * maxScroll * acceleration).clamp(0.0, maxScroll),
-      duration: const Duration(milliseconds: 10),
-      curve: Curves.linear,
-    );
-
-    final index = ((frac * (widget.itemCount - 1)).round())
-        .clamp(0, widget.itemCount - 1);
-
-    if (index != _lastHapticIndex) {
-      _lastHapticIndex = index;
-      AppHaptics.selection();
-    }
-
-    if ((_thumbFraction - frac).abs() > 0.002 || _currentIndex != index) {
-      setState(() {
-        _thumbFraction = frac;
-        _currentIndex = index;
-        _visible = true;
-      });
-    }
-
-    _lastDragY = localY;
-    _lastDragTime = now;
-  }
-
-  void _endDrag() {
-    setState(() => _dragging = false);
-    _scheduleHide();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_visible) return const SizedBox(width: _hitWidth);
-
-    final colorScheme = Theme.of(context).colorScheme;
-    final primary = colorScheme.primary;
-
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: SizedBox(
-        width: _hitWidth,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final trackHeight = constraints.maxHeight;
-            final thumbH = _dragging ? _thumbHDrag : _thumbH;
-            final thumbTop = (_thumbFraction * (trackHeight - thumbH))
-                .clamp(0.0, trackHeight - thumbH);
-
-            return GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragStart: (_) => _startDrag(),
-              onVerticalDragUpdate: (d) =>
-                  _updateDrag(d.localPosition.dy, trackHeight),
-              onVerticalDragEnd: (_) => _endDrag(),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    right: (_hitWidth - 2) / 2,
-                    top: 20,
-                    bottom: 20,
-                    child: Container(
-                      width: 3,
-                      decoration: BoxDecoration(
-                        color:
-                            colorScheme.outlineVariant.withValues(alpha: 0.35),
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                    ),
-                  ),
-                  AnimatedPositioned(
-                      duration: _dragging
-                          ? Duration.zero
-                          : const Duration(milliseconds: 80),
-                      right: 2,
-                      top: thumbTop,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 120),
-                        width: _dragging ? 10 : 6,
-                        height: _dragging ? 48 : 36,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          color: _dragging
-                              ? primary
-                              : primary.withValues(alpha: 0.7),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primary.withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            )
-                          ],
-                        ),
-                      )),
-                  if (_dragging)
-                    AnimatedPositioned(
-                      duration: Duration.zero,
-                      top: thumbTop + thumbH / 2 - 18,
-                      right: _hitWidth + 6,
-                      child: _LabelBubble(
-                        label: '${_currentIndex + 1} / ${widget.itemCount}',
-                        color: primary,
-                      ),
-                    ),
-                ],
+  void _showFilterSheet(BuildContext context, MarketplaceState data,
+      MarketplaceNotifier notifier) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Filters',
+                    style:
+                        TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                TextButton(
+                    onPressed: () {
+                      notifier.clearFilters();
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Reset')),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Text('Sort By',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _SortChip(
+                    label: 'ROI (High to Low)',
+                    selected: data.sortBy == 'roi_high',
+                    onSelected: (s) =>
+                        notifier.setSortBy(s ? 'roi_high' : 'default')),
+                _SortChip(
+                    label: 'Days Left',
+                    selected: data.sortBy == 'days_low',
+                    onSelected: (s) =>
+                        notifier.setSortBy(s ? 'days_low' : 'default')),
+                _SortChip(
+                    label: 'Investment Amount',
+                    selected: data.sortBy == 'amount_high',
+                    onSelected: (s) =>
+                        notifier.setSortBy(s ? 'amount_high' : 'default')),
+              ],
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            );
-          },
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _LabelBubble extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _LabelBubble({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(10),
-          topRight: Radius.circular(10),
-          bottomLeft: Radius.circular(10),
-          bottomRight: Radius.circular(2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          height: 1,
-        ),
-      ),
-    );
-  }
-}
-
-// ── Supporting widgets ────────────────────────────────────────────────────────
-
-class _FilterChip extends StatelessWidget {
+class _SortChip extends ConsumerWidget {
   final String label;
   final bool selected;
   final Function(bool) onSelected;
 
-  const _FilterChip(
+  const _SortChip(
       {required this.label, required this.selected, required this.onSelected});
 
   @override
-  Widget build(BuildContext context) {
-    return FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: onSelected,
-        showCheckmark: false,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)));
-  }
-}
-
-class _RangeSection extends StatelessWidget {
-  final String title;
-  final RangeValues values;
-  final double min, max;
-  final Function(RangeValues) onChanged;
-
-  const _RangeSection(
-      {required this.title,
-      required this.values,
-      required this.min,
-      required this.max,
-      required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(title,
-              style: TextStyle(
-                  color: AppColors.textPrimary(context),
-                  fontWeight: FontWeight.w700)),
-          Text('${values.start.toInt()} - ${values.end.toInt()}',
-              style: TextStyle(
-                  color: AppColors.primary(context),
-                  fontWeight: FontWeight.w600))
-        ]),
-        RangeSlider(
-          values: values,
-          min: min,
-          max: max,
-          onChanged: onChanged,
-          activeColor: AppColors.primary(context),
-        ),
-      ],
-    );
-  }
-}
-
-class _InvoiceCard extends StatelessWidget {
-  final InvoiceItem item;
-
-  const _InvoiceCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final statusColor = item.isAvailable
-        ? AppColors.emerald(context)
-        : AppColors.amber(context);
-
-    final daysColor = item.daysLeft <= 7
-        ? AppColors.rose(context)
-        : item.daysLeft <= 30
-            ? AppColors.amber(context)
-            : AppColors.primary(context);
-
-    return Pressable(
-      onTap: () async {
-        await AppHaptics.selection();
-        if (context.mounted) {
-          Navigator.push(context,
-              SmoothPageRoute(builder: (_) => InvoiceDetailScreen(item: item)));
-        }
-      },
-      child: Hero(
-        tag: 'invoice-${item.id}',
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.navyCard(context),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppColors.divider(context)),
-            boxShadow: AppColors.cardShadow(context),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text(item.company,
-                          style: TextStyle(
-                              color: AppColors.textPrimary(context),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16)),
-                      Text(item.particular,
-                          style: TextStyle(
-                              color: AppColors.textSecondary(context),
-                              fontSize: 12))
-                    ])),
-                Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: statusColor.withValues(alpha: 0.2))),
-                    child: Text(item.statusDisplay,
-                        style: TextStyle(
-                            color: statusColor,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800))),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _StatCell(
-                  label: 'ROI',
-                  color: AppColors.emerald(context),
-                  value: AnimatedAmountText(
-                    value: item.roi,
-                    suffix: '%',
-                    style: TextStyle(
-                      color: AppColors.emerald(context),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                _StatCell(
-                  label: 'Tenure',
-                  color: AppColors.primary(context),
-                  value: AnimatedAmountText(
-                    value: item.tenureDays.toDouble(),
-                    suffix: 'D',
-                    style: TextStyle(
-                      color: AppColors.primary(context),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                _StatCell(
-                  label: 'Remaining',
-                  color: AppColors.textPrimary(context),
-                  value: AnimatedAmountText(
-                    value: item.remainingAmount,
-                    prefix: '₹',
-                    style: TextStyle(
-                      color: AppColors.textPrimary(context),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${item.fundingDisplay} funded',
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.schedule_rounded, size: 13, color: daysColor),
-                const SizedBox(width: 4),
-                Text(
-                  '${item.daysLeft}D left to payment',
-                  style: TextStyle(
-                      color: daysColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600),
-                ),
-                if (item.debtor.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text('·',
-                      style:
-                          TextStyle(color: AppColors.textSecondary(context))),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      item.debtor,
-                      style: TextStyle(
-                          color: AppColors.textSecondary(context),
-                          fontSize: 12),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
-            _AnimatedFundingBar(percentage: item.fundingPct),
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('Funding Progress',
-                  style: TextStyle(
-                      color: AppColors.textSecondary(context),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500)),
-              Text(item.fundingDisplay,
-                  style: TextStyle(
-                      color: AppColors.textPrimary(context),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800))
-            ]),
-          ],
-        ),
-      ),
-      ),
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  final String label;
-  final Widget value;
-  final Color color;
-
-  const _StatCell(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
-          style:
-              TextStyle(color: AppColors.textSecondary(context), fontSize: 11)),
-      value,
-    ]);
-  }
-}
-class _AnimatedFundingBar extends StatefulWidget {
-  final double percentage;
-
-  const _AnimatedFundingBar({required this.percentage});
-
-  @override
-  State<_AnimatedFundingBar> createState() => _AnimatedFundingBarState();
-}
-
-class _AnimatedFundingBarState extends State<_AnimatedFundingBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-
-    _animation = Tween<double>(
-      begin: 0,
-      end: widget.percentage / 100,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _controller.forward();
-  }
-
-  @override
-  void didUpdateWidget(covariant _AnimatedFundingBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.percentage != widget.percentage) {
-      _animation = Tween<double>(
-        begin: _animation.value,
-        end: widget.percentage / 100,
-      ).animate(CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ));
-
-      _controller.forward(from: 0);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isHigh = widget.percentage >= 80;
-
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Stack(
-          children: [
-            // Background
-            Container(
-              height: 8,
-              decoration: BoxDecoration(
-                color: AppColors.navyLight(context),
-                borderRadius: BorderRadius.circular(6),
-              ),
-            ),
-
-            // Animated Fill
-            FractionallySizedBox(
-              widthFactor: _animation.value.clamp(0.02, 1.0),
-              child: Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  gradient: LinearGradient(
-                    colors: isHigh
-                        ? [
-                      AppColors.emerald(context),
-                      AppColors.primary(context),
-                    ]
-                        : [
-                      AppColors.primary(context),
-                      AppColors.primary(context).withValues(alpha: 0.6),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary(context).withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        );
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (s) {
+        onSelected(s);
+        AppHaptics.selection();
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }

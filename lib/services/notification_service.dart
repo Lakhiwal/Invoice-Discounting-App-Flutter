@@ -20,7 +20,6 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
 
   if (await NotificationService.isQuietHours()) {
-    print('🔕 Background notification suppressed (quiet hours)');
     return;
   }
 
@@ -46,7 +45,7 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
           'new_invoices',
           'New Invoice Alerts',
           channelDescription:
-          'Alerts when a new invoice is available for investment',
+              'Alerts when a new invoice is available for investment',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
@@ -60,14 +59,12 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
       payload: '${data['type'] ?? ''}|${data['invoice_id'] ?? ''}',
     );
   }
-
-  print('Background notification: ${message.notification?.title}');
 }
 
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FlutterLocalNotificationsPlugin _localNotifications =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   static const String _prefKeyPush = 'push_enabled';
   static const String _prefKeyQuietStart = 'quiet_start';
@@ -88,7 +85,7 @@ class NotificationService {
       FirebaseMessaging.onBackgroundMessage(firebaseBackgroundHandler);
 
       const androidSettings =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = IOSInitializationSettings();
       const initSettings = InitializationSettings(
         android: androidSettings,
@@ -103,21 +100,19 @@ class NotificationService {
 
       await _localNotifications
           .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+              AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(_channel);
 
       try {
         final initialMessage = await _messaging.getInitialMessage();
         if (initialMessage != null) {
           await Future.delayed(const Duration(milliseconds: 500));
-          _handleDeepLink(initialMessage.data);
+          handleDeepLink(initialMessage.data);
         }
-      } catch (e) {
-        print('FCM getInitialMessage skipped: $e');
-      }
+      } catch (e) {}
 
       FirebaseMessaging.onMessageOpenedApp.listen((message) {
-        _handleDeepLink(message.data);
+        handleDeepLink(message.data);
       });
 
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
@@ -127,9 +122,7 @@ class NotificationService {
           await ApiService.registerFcmToken(token);
         }
       });
-    } catch (e) {
-      print('⚠️ NotificationService initialize skipped: $e');
-    }
+    } catch (e) {}
   }
 
   // ────────────────────────────── TOKEN ──────────────────────────────────
@@ -162,7 +155,7 @@ class NotificationService {
 
   // ─────────────────────────── DEEP LINK ─────────────────────────────────
 
-  static Future<void> _handleDeepLink(Map<String, dynamic> data) async {
+  static Future<void> handleDeepLink(Map<String, dynamic> data) async {
     try {
       final type = data['type'];
       final invoiceIdStr = data['invoice_id'];
@@ -195,7 +188,6 @@ class NotificationService {
       if (!await isPushEnabled()) return;
 
       if (await isQuietHours()) {
-        print('🔕 Foreground notification suppressed (quiet hours)');
         return;
       }
 
@@ -215,7 +207,7 @@ class NotificationService {
           'new_invoices',
           'New Invoice Alerts',
           channelDescription:
-          'Alerts when a new invoice is available for investment',
+              'Alerts when a new invoice is available for investment',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
@@ -234,9 +226,7 @@ class NotificationService {
         notificationDetails: details,
         payload: payload,
       );
-    } catch (e) {
-      print('Foreground notification error: $e');
-    }
+    } catch (e) {}
   }
 
   @pragma('vm:entry-point')
@@ -244,7 +234,7 @@ class NotificationService {
     final payload = response.payload;
     if (payload == null || !payload.contains('|')) return;
     final parts = payload.split('|');
-    _handleDeepLink({'type': parts[0], 'invoice_id': parts[1]});
+    handleDeepLink({'type': parts[0], 'invoice_id': parts[1]});
   }
 
   // ────────────────────────── LOCAL STORAGE ──────────────────────────────
@@ -256,9 +246,8 @@ class NotificationService {
 
       final notificationData = {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'title': message.notification?.title ??
-            message.data['title'] ??
-            'New Alert',
+        'title':
+            message.notification?.title ?? message.data['title'] ?? 'New Alert',
         'body': message.notification?.body ?? message.data['body'] ?? '',
         'type': message.data['type'] ?? 'system',
         'invoice_id': message.data['invoice_id'],
@@ -274,9 +263,7 @@ class NotificationService {
       }
 
       await prefs.setStringList(_prefKeyLocalStore, saved);
-    } catch (e) {
-      print('Error saving notification locally: $e');
-    }
+    } catch (e) {}
   }
 
   // ──────────────────────────── PERMISSION ───────────────────────────────
@@ -291,7 +278,6 @@ class NotificationService {
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (e) {
-      print('⚠️ requestPermission error: $e');
       return false;
     }
   }
@@ -300,9 +286,7 @@ class NotificationService {
     try {
       await _messaging.unsubscribeFromTopic('investors');
       await _messaging.deleteToken();
-    } catch (e) {
-      print('⚠️ revokePermission error: $e');
-    }
+    } catch (e) {}
   }
 
   // ───────────────────────── PUSH TOGGLE ─────────────────────────────────
@@ -325,9 +309,7 @@ class NotificationService {
         await _messaging.subscribeToTopic('investors');
         final token = await _messaging.getToken();
         if (token != null) await ApiService.registerFcmToken(token);
-      } catch (e) {
-        print('⚠️ setPushEnabled register token error: $e');
-      }
+      } catch (e) {}
     }
   }
 
@@ -354,9 +336,7 @@ class NotificationService {
 
     try {
       await ApiService.updateQuietHours(start, end);
-    } catch (e) {
-      print('⚠️ Failed to sync quiet hours to server: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<bool> isQuietHours() async {

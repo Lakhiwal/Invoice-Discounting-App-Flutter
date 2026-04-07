@@ -12,6 +12,7 @@ import '../config.dart';
 import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import 'login_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ProfileWebViewScreen
@@ -33,7 +34,7 @@ import 'login_screen.dart';
 //    iOS WKWebView handles file picking natively.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class ProfileWebViewScreen extends StatefulWidget {
+class ProfileWebViewScreen extends ConsumerStatefulWidget {
   final String token;
   final String name;
 
@@ -44,10 +45,10 @@ class ProfileWebViewScreen extends StatefulWidget {
   });
 
   @override
-  State<ProfileWebViewScreen> createState() => _ProfileWebViewScreenState();
+  ConsumerState<ProfileWebViewScreen> createState() => _ProfileWebViewScreenState();
 }
 
-class _ProfileWebViewScreenState extends State<ProfileWebViewScreen> {
+class _ProfileWebViewScreenState extends ConsumerState<ProfileWebViewScreen> {
   late final WebViewController _controller;
 
   bool _isLoading = true;
@@ -551,7 +552,7 @@ enum _FilePickChoice { camera, gallery, document }
 
 // ── Source tile (shared by both sheets) ──────────────────────────────────────
 
-class _SourceTile extends StatelessWidget {
+class _SourceTile extends ConsumerWidget {
   final IconData icon;
   final String label;
   final String subtitle;
@@ -565,7 +566,7 @@ class _SourceTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,

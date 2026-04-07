@@ -14,7 +14,7 @@ class UI {
   static const double radiusLg = 20;
 
   static const BorderRadius cardRadius =
-  BorderRadius.all(Radius.circular(14));
+  BorderRadius.all(Radius.circular(20));
 
   static const BorderRadius sheetRadius =
   BorderRadius.vertical(top: Radius.circular(20));

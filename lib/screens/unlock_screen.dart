@@ -11,15 +11,16 @@ import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import 'login_screen.dart';
 import 'main_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class UnlockScreen extends StatefulWidget {
+class UnlockScreen extends ConsumerStatefulWidget {
   const UnlockScreen({super.key});
 
   @override
-  State<UnlockScreen> createState() => _UnlockScreenState();
+  ConsumerState<UnlockScreen> createState() => _UnlockScreenState();
 }
 
-class _UnlockScreenState extends State<UnlockScreen> {
+class _UnlockScreenState extends ConsumerState<UnlockScreen> {
   final LocalAuthentication _auth = LocalAuthentication();
 
   String? _name;

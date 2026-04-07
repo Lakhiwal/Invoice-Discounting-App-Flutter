@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/formatters.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class AnimatedAmountText extends StatefulWidget {
+class AnimatedAmountText extends ConsumerStatefulWidget {
   final double value;
   final TextStyle style;
   final String prefix;
@@ -20,13 +21,17 @@ class AnimatedAmountText extends StatefulWidget {
   });
 
   @override
-  State<AnimatedAmountText> createState() => _AnimatedAmountTextState();
+  ConsumerState<AnimatedAmountText> createState() => _AnimatedAmountTextState();
 }
 
-class _AnimatedAmountTextState extends State<AnimatedAmountText>
+class _AnimatedAmountTextState extends ConsumerState<AnimatedAmountText>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
+  
+  // 10/10 FIX: cache the last value globally per widget key to prevent 
+  // "counting from zero" when slivers are rebuilt during scroll.
+  static final Map<Key?, double> _lastSeenValues = {};
   
   static const String _kMasked = '● ●,● ● ●';
 
@@ -35,13 +40,15 @@ class _AnimatedAmountTextState extends State<AnimatedAmountText>
     super.initState();
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
-        
-    // Always start from 0 on completely fresh load
-    _anim = Tween<double>(begin: 0, end: widget.value).animate(
+
+    final lastValue = _lastSeenValues[widget.key] ?? 0.0;
+    
+    _anim = Tween<double>(begin: lastValue, end: widget.value).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo),
     );
     
-    // Defer the animation lightly to let route transitions clear
+    _lastSeenValues[widget.key] = widget.value;
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _ctrl.addStatusListener((status) {
@@ -49,7 +56,9 @@ class _AnimatedAmountTextState extends State<AnimatedAmountText>
             widget.onCompleted?.call();
           }
         });
-        _ctrl.forward();
+        if (lastValue != widget.value) {
+          _ctrl.forward();
+        }
       }
     });
   }
@@ -58,6 +67,7 @@ class _AnimatedAmountTextState extends State<AnimatedAmountText>
   void didUpdateWidget(AnimatedAmountText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
+      _lastSeenValues[widget.key] = widget.value;
       _anim = Tween<double>(begin: oldWidget.value, end: widget.value).animate(
         CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo),
       );

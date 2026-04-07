@@ -7,15 +7,16 @@ import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/smooth_page_route.dart';
 import 'login_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   // ── Step: 0 = email, 1 = OTP, 2 = new password ─────────────────────────
   int _step = 0;
 
@@ -255,7 +256,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return PopScope(
-      canPop: !_loading,
+      canPop: _step == 0 && !_loading,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_step > 0 && !_loading) {
+          setState(() {
+            _step--;
+            _error = null;
+          });
+        }
+      },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
         appBar: AppBar(
@@ -636,12 +646,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 // WIDGETS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _StepIndicator extends StatelessWidget {
+class _StepIndicator extends ConsumerWidget {
   final int currentStep;
   const _StepIndicator({required this.currentStep});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Row(
       children: [
@@ -662,7 +672,7 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
-class _StepDot extends StatelessWidget {
+class _StepDot extends ConsumerWidget {
   final String label;
   final bool active;
   final bool completed;
@@ -674,7 +684,7 @@ class _StepDot extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
@@ -715,12 +725,12 @@ class _StepDot extends StatelessWidget {
   }
 }
 
-class _PasswordHint extends StatelessWidget {
+class _PasswordHint extends ConsumerWidget {
   final String password;
   const _PasswordHint({required this.password});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     if (password.isEmpty) return const SizedBox.shrink();
 

@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../screens/notification_center_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -17,14 +17,14 @@ import '../utils/smooth_page_route.dart';
 ///   actions: const [AppBarActions()],
 /// )
 /// ```
-class AppBarActions extends StatefulWidget {
+class AppBarActions extends ConsumerStatefulWidget {
   const AppBarActions({super.key});
 
   @override
-  State<AppBarActions> createState() => _AppBarActionsState();
+  ConsumerState<AppBarActions> createState() => _AppBarActionsState();
 }
 
-class _AppBarActionsState extends State<AppBarActions> {
+class _AppBarActionsState extends ConsumerState<AppBarActions> {
   Map<String, dynamic>? _user;
 
   @override
@@ -43,7 +43,7 @@ class _AppBarActionsState extends State<AppBarActions> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final unread = context.watch<NotificationProvider>().unreadCount;
+    final unread = ref.watch(notificationProvider).unreadCount;
 
     final userName = _user?['name'] ?? 'U';
     final initial = userName.isNotEmpty ? userName[0] : 'U';
@@ -126,7 +126,7 @@ class _AppBarActionsState extends State<AppBarActions> {
   }
 }
 
-class _AvatarCircle extends StatelessWidget {
+class _AvatarCircle extends ConsumerWidget {
   final String initial;
   final String? imageUrl;
   final ColorScheme colorScheme;
@@ -140,7 +140,7 @@ class _AvatarCircle extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: size,
       height: size,

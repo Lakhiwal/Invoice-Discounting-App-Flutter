@@ -9,10 +9,11 @@ import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import 'profile_webview_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const Color _kGreen = Color(0xFF10B981);
 
-class VerifyOtpScreen extends StatefulWidget {
+class VerifyOtpScreen extends ConsumerStatefulWidget {
   final String email;
   final String name;
   final String password; // still needed for initial login after OTP
@@ -25,10 +26,10 @@ class VerifyOtpScreen extends StatefulWidget {
   });
 
   @override
-  State<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
+  ConsumerState<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
 }
 
-class _VerifyOtpScreenState extends State<VerifyOtpScreen>
+class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
     with SingleTickerProviderStateMixin {
   // ── OTP fields ─────────────────────────────────────────────────────────────
   static const int _otpLength = 6;
@@ -238,6 +239,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen>
 
     return PopScope(
       canPop: !_isVerifying,
+      onPopInvokedWithResult: (didPop, result) {
+        // can handle extra cleanup here if needed
+      },
       child: Scaffold(
         backgroundColor: AppColors.scaffold(context),
         body: Stack(

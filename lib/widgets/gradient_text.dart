@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── GradientText ──────────────────────────────────────────────────────────────
 //
@@ -17,7 +18,7 @@ import 'package:flutter/material.dart';
 //     style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700),
 //   )
 
-class GradientText extends StatelessWidget {
+class GradientText extends ConsumerWidget {
   final String text;
   final TextStyle? style;
   final Gradient gradient;
@@ -48,7 +49,7 @@ class GradientText extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ShaderMask(
       blendMode: BlendMode.srcIn,
       shaderCallback: (bounds) => gradient.createShader(

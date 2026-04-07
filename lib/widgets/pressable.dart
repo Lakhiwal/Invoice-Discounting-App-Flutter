@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Pressable
@@ -19,7 +20,7 @@ import 'package:flutter/material.dart';
 //    enabled — when false the widget is inert (no visual change).
 // ─────────────────────────────────────────────────────────────────────────────
 
-class Pressable extends StatefulWidget {
+class Pressable extends ConsumerStatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
@@ -44,10 +45,10 @@ class Pressable extends StatefulWidget {
   });
 
   @override
-  State<Pressable> createState() => _PressableState();
+  ConsumerState<Pressable> createState() => _PressableState();
 }
 
-class _PressableState extends State<Pressable>
+class _PressableState extends ConsumerState<Pressable>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scaleAnim;

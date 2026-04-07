@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../theme/ui_constants.dart';
 import '../../../widgets/skeleton.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Error state ─────────────────────────────────────────────────────────────
 
-class ProfileErrorState extends StatelessWidget {
+class ProfileErrorState extends ConsumerWidget {
   final VoidCallback onRetry;
   const ProfileErrorState({super.key, required this.onRetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
@@ -46,11 +47,11 @@ class ProfileErrorState extends StatelessWidget {
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 
-class ProfileSkeleton extends StatelessWidget {
+class ProfileSkeleton extends ConsumerWidget {
   const ProfileSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SkeletonTheme(
       child: SafeArea(
         child: Padding(

@@ -22,23 +22,23 @@ import '../personal_details_screen.dart';
 import '../profile_webview_screen.dart';
 import '../settings_screen.dart';
 import '../../widgets/pressable.dart';
-
+import '../../widgets/vibe_state_wrapper.dart';
 import 'widgets/hero_section.dart';
 import 'widgets/stats_row.dart';
 import 'widgets/menu_widgets.dart';
 import 'widgets/status_widgets.dart';
 import 'widgets/app_bar_widgets.dart';
 import 'widgets/sign_out_button.dart';
-import 'widgets/profile_skeleton.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ProfileScreen extends StatefulWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with RouteAware, TickerProviderStateMixin {
   Map<String, dynamic>? _profile;
   Map<String, dynamic>? _portfolio;
@@ -55,42 +55,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const String _supportEmail = 'lakhiwal43@gmail.com';
   static const String _appVersion = '1.0.0';
 
-  late final AnimationController _crossfadeCtrl;
-  late final Animation<double> _skeletonOpacity;
-  late final Animation<double> _contentOpacity;
-  late final Animation<Offset> _contentSlide;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
 
-    _crossfadeCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-
-    _skeletonOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _crossfadeCtrl,
-        curve: const Interval(0.0, 0.4, curve: Curves.easeOut),
-      ),
-    );
-
-    _contentOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _crossfadeCtrl,
-        curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
-      ),
-    );
-
-    _contentSlide = Tween<Offset>(
-      begin: const Offset(0, 0.03),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _crossfadeCtrl,
-      curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
-    ));
-
+    _scrollController = ScrollController();
     _loadAll();
   }
 
@@ -103,35 +74,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
-    _crossfadeCtrl.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   @override
-  void didPopNext() => _refreshProfile();
+  void didPopNext() => _loadAll(forceRefresh: false);
 
-  Future<void> _loadAll() async {
+  Future<void> _loadAll({bool forceRefresh = true, bool silent = false}) async {
     if (!mounted) return;
+    final startTime = DateTime.now();
 
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
-
-    _crossfadeCtrl.reset();
-
-    // Let the route transition finish smoothly before parsing
-    await Future.delayed(const Duration(milliseconds: 250));
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     try {
       final results = await Future.wait([
-        ApiService.getProfile(),
-        PortfolioCache.getPortfolio(),
-        ApiService.getBankAccounts(),
-        ApiService.getNominee(),
+        ApiService.getProfile(forceRefresh: forceRefresh),
+        PortfolioCache.getPortfolio(forceRefresh: forceRefresh),
+        ApiService.getBankAccounts(forceRefresh: forceRefresh),
+        ApiService.getNominee(forceRefresh: forceRefresh),
       ]);
 
       if (!mounted) return;
+
+      // Ensure the "Syncing" state is visible for a premium feel
+      if (forceRefresh) {
+        final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+        if (elapsed < 800) {
+          await Future.delayed(Duration(milliseconds: 800 - elapsed));
+        }
+      }
 
       final profile = results[0] as Map<String, dynamic>?;
       final portfolio = results[1] as Map<String, dynamic>?;
@@ -158,8 +135,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         _avgReturn = avgReturn;
         _isLoading = false;
       });
-
-      _crossfadeCtrl.forward();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -170,28 +145,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  bool _refreshing = false;
-
   Future<void> _refreshProfile() async {
-    if (_refreshing) return;
-    _refreshing = true;
-    try {
-      final results = await Future.wait([
-        ApiService.getProfile(),
-        ApiService.getBankAccounts(),
-        ApiService.getNominee(),
-      ]);
-
-      if (!mounted) return;
-      setState(() {
-        _profile = results[0] as Map<String, dynamic>?;
-        _bankAccounts = results[1] as List<Map<String, dynamic>>;
-        _nominee = results[2] as Map<String, dynamic>?;
-      });
-    } catch (e) {
-      debugPrint('Profile refresh error: $e');
-    }
-    _refreshing = false;
+    await _loadAll(forceRefresh: true, silent: true);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -313,94 +268,75 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    if (_hasError && !_isLoading) {
-      return Scaffold(
-        backgroundColor: colorScheme.surface,
-        body: ProfileErrorState(onRetry: _loadAll),
-      );
-    }
-
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      body: Stack(
-        children: [
-          if (!_isLoading)
-            LiquidityRefreshIndicator(
-              onRefresh: _loadAll,
-              color: colorScheme.primary,
-              child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics()),
-                slivers: [
-                      _buildAppBar(colorScheme),
-                      SliverToBoxAdapter(
-                        child: StaggerItem(
-                          index: 0,
-                          child: ProfileHeroSection(
-                            profile: _profile,
-                            isKycVerified: _isKycVerified,
-                            journeySteps: _journeySteps,
-                            journeyProgress: _journeyProgress,
-                            onProfileUpdated: _refreshProfile,
-                          ),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: StaggerItem(
-                          index: 1,
-                          child: RepaintBoundary(
-                            child: ProfileStatsRow(
-                              totalInvested: _totalInvested,
-                              avgReturn: _avgReturn,
-                              activeCount: _activeCount,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate(
-                            _buildSections(context)
-                                .asMap()
-                                .entries
-                                .map((e) => StaggerItem(
+      body: LiquidityRefreshIndicator(
+        onRefresh: () => _loadAll(forceRefresh: true, silent: true),
+        color: colorScheme.primary,
+        child: VibeStateWrapper(
+          state: _isLoading
+              ? VibeState.loading
+              : (_hasError ? VibeState.error : VibeState.success),
+          onRetry: () => _loadAll(forceRefresh: true),
+          loadingSkeleton: CustomScrollView(
+            physics: const NeverScrollableScrollPhysics(),
+            slivers: [
+              _buildAppBar(colorScheme),
+              const SliverToBoxAdapter(
+                child: RepaintBoundary(
+                  child: SkeletonProfileContent(),
+                ),
+              ),
+            ],
+          ),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics()),
+            slivers: [
+              _buildAppBar(colorScheme),
+              SliverToBoxAdapter(
+                child: StaggerItem(
+                  index: 0,
+                  child: ProfileHeroSection(
+                    profile: _profile,
+                    isKycVerified: _isKycVerified,
+                    journeySteps: _journeySteps,
+                    journeyProgress: _journeyProgress,
+                    onProfileUpdated: _refreshProfile,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: StaggerItem(
+                  index: 1,
+                  child: RepaintBoundary(
+                    child: ProfileStatsRow(
+                      totalInvested: _totalInvested,
+                      avgReturn: _avgReturn,
+                      activeCount: _activeCount,
+                    ),
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(
+                    _buildSections(context)
+                        .asMap()
+                        .entries
+                        .map((e) => StaggerItem(
                               index: e.key + 2,
                               child: RepaintBoundary(child: e.value),
                             ))
-                                .toList(),
-                          ),
-                        ),
-                      ),
-                    ],
+                        .toList(),
                   ),
                 ),
-            if (_isLoading || _crossfadeCtrl.isAnimating)
-              IgnorePointer(
-                ignoring: !_isLoading,
-                child: _isLoading 
-                    ? _buildSkeletonUi(colorScheme) 
-                    : FadeTransition(
-                        opacity: _skeletonOpacity,
-                        child: _buildSkeletonUi(colorScheme),
-                      ),
               ),
-          ],
-        ),
-      );
-  }
-
-  Widget _buildSkeletonUi(ColorScheme colorScheme) {
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        _buildAppBar(colorScheme),
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
-            child: SkeletonProfileContent(),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -484,6 +420,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           subtitle: _profile?['name'] ?? 'View your info',
           onTap: () async {
             await AppHaptics.selection();
+            if (!mounted) return;
             Navigator.of(context, rootNavigator: false).push(
               SmoothPageRoute(
                 builder: (_) => PersonalDetailsScreen(
@@ -540,6 +477,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               : null,
           onTap: () async {
             await AppHaptics.selection();
+            if (!mounted) return;
             Navigator.of(context, rootNavigator: false).push(
                 SmoothPageRoute(builder: (_) => const BankAccountsScreen()));
           },
@@ -560,6 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               : null,
           onTap: () async {
             await AppHaptics.selection();
+            if (!mounted) return;
             Navigator.of(context, rootNavigator: false)
                 .push(SmoothPageRoute(builder: (_) => const NomineeScreen()));
           },
@@ -571,6 +510,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           label: 'Change password',
           onTap: () async {
             await AppHaptics.selection();
+            if (!mounted) return;
             Navigator.of(context, rootNavigator: false).push(
                 SmoothPageRoute(builder: (_) => const ChangePasswordScreen()));
           },
@@ -594,7 +534,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
 // ── Footer links row ────────────────────────────────────────────────────────
 
-class _FooterLinks extends StatelessWidget {
+class _FooterLinks extends ConsumerWidget {
   final String supportEmail;
   final String appVersion;
 
@@ -604,7 +544,7 @@ class _FooterLinks extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -648,7 +588,7 @@ class _FooterLinks extends StatelessWidget {
   }
 }
 
-class _FooterButton extends StatelessWidget {
+class _FooterButton extends ConsumerWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -660,7 +600,7 @@ class _FooterButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: Pressable(

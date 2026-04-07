@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../theme/theme_provider.dart';
 import '../../../theme/ui_constants.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Sign out button ─────────────────────────────────────────────────────────
 
-class ProfileSignOutButton extends StatelessWidget {
+class ProfileSignOutButton extends ConsumerWidget {
   final VoidCallback onTap;
   const ProfileSignOutButton({super.key, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dangerColor = AppColors.danger(context);
     return Material(
       color: Colors.transparent,

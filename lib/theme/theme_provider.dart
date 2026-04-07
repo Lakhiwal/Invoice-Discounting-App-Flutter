@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Fintech theme extension ───────────────────────────────────────────────────
+
+final themeProvider = ChangeNotifierProvider<ThemeProvider>((ref) => ThemeProvider());
 
 @immutable
 class FintechTheme extends ThemeExtension<FintechTheme> {
@@ -243,7 +246,7 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
         danger: const Color(0xFFEF4444),
         warning: const Color(0xFFF59E0B),
         info: colorScheme.primary,
-        cardRadius: 14,
+        cardRadius: 20,
         glassOpacity: isDark ? 0.08 : 0.7,
       ),
     ],
@@ -267,7 +270,7 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         side: BorderSide(
             color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
       ),
@@ -276,11 +279,11 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
       filled: true,
       fillColor: colorScheme.surfaceContainerHigh,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -291,7 +294,7 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
         foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         minimumSize: const Size.fromHeight(56),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),

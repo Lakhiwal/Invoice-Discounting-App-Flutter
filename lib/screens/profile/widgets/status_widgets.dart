@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../theme/ui_constants.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
 // ── Status pill ─────────────────────────────────────────────────────────────
 
-class ProfileStatusPill extends StatelessWidget {
+class ProfileStatusPill extends ConsumerWidget {
   final String label;
   final Color color;
 
@@ -15,7 +16,7 @@ class ProfileStatusPill extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -36,7 +37,7 @@ class ProfileStatusPill extends StatelessWidget {
 
 // ── Info banner ─────────────────────────────────────────────────────────────
 
-class ProfileInfoBanner extends StatelessWidget {
+class ProfileInfoBanner extends ConsumerWidget {
   final IconData icon;
   final String text;
   final Color color;
@@ -49,7 +50,7 @@ class ProfileInfoBanner extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),

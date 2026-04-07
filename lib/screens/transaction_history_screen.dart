@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
@@ -7,7 +7,6 @@ import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
 import '../widgets/app_logo_header.dart';
 import '../widgets/animated_amount_text.dart';
-import '../widgets/animated_empty_state.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
@@ -25,15 +24,15 @@ class RetryPaymentRequest {
   const RetryPaymentRequest({required this.amount});
 }
 
-class TransactionHistoryScreen extends StatefulWidget {
+class TransactionHistoryScreen extends ConsumerStatefulWidget {
   const TransactionHistoryScreen({super.key});
 
   @override
-  State<TransactionHistoryScreen> createState() =>
+  ConsumerState<TransactionHistoryScreen> createState() =>
       _TransactionHistoryScreenState();
 }
 
-class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
+class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScreen>
     with SingleTickerProviderStateMixin {
   List<dynamic> _all = [];
   List<dynamic> _filtered = [];
@@ -70,18 +69,33 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 
   // ── Data ───────────────────────────────────────────────────────────────────
 
-  Future<void> _loadTransactions() async {
+  Future<void> _loadTransactions({bool forceRefresh = false, bool silent = false}) async {
     if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
+    final startTime = DateTime.now();
+
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     // Defer heavy data assembly until route transition completes
-    await Future.delayed(const Duration(milliseconds: 250));
+    if (!forceRefresh) {
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
 
     try {
-      final data = await ApiService.getWalletHistory();
+      final data = await ApiService.getWalletHistory(forceRefresh: forceRefresh);
+      
+      // Ensure the "Syncing" state is visible for a premium feel
+      if (forceRefresh) {
+        final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+        if (elapsed < 800) {
+          await Future.delayed(Duration(milliseconds: 800 - elapsed));
+        }
+      }
+
       if (mounted) {
         setState(() {
           _all = (data['transactions'] as List?) ?? [];
@@ -404,7 +418,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: LiquidityRefreshIndicator(
-        onRefresh: () async { await AppHaptics.selection(); await _loadTransactions(); },
+        onRefresh: () => _loadTransactions(forceRefresh: true, silent: true),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
@@ -674,7 +688,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 // WIDGETS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _PremiumSummary extends StatelessWidget {
+class _PremiumSummary extends ConsumerWidget {
   final double credits, debits;
   final int failedCount;
 
@@ -685,9 +699,9 @@ class _PremiumSummary extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassCard(
@@ -754,7 +768,7 @@ class _PremiumSummary extends StatelessWidget {
   }
 }
 
-class _SumItem extends StatelessWidget {
+class _SumItem extends ConsumerWidget {
   final String label;
   final double value;
   final Color color;
@@ -768,9 +782,9 @@ class _SumItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -816,7 +830,7 @@ class _SumItem extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
+class _FilterChip extends ConsumerWidget {
   final String label;
   final bool active;
   final bool isDestructive;
@@ -832,7 +846,7 @@ class _FilterChip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final color = isDestructive ? colorScheme.error : colorScheme.primary;
 
@@ -871,7 +885,7 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _TxTile extends StatelessWidget {
+class _TxTile extends ConsumerWidget {
   final Map<String, dynamic> tx;
   final VoidCallback? onTap;
 
@@ -904,9 +918,9 @@ class _TxTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
+    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
     final isDebit = tx['type'] == 'debit';
     final desc = tx['description']?.toString() ?? 'Transaction';
     final txStatus = tx['status']?.toString() ?? 'completed';
@@ -1026,13 +1040,13 @@ class _TxTile extends StatelessWidget {
   }
 }
 
-class _DetailRow extends StatelessWidget {
+class _DetailRow extends ConsumerWidget {
   final String label, value;
 
   const _DetailRow({required this.label, required this.value});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../utils/app_haptics.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Back button ─────────────────────────────────────────────────────────────
 
-class ProfileBackButton extends StatelessWidget {
+class ProfileBackButton extends ConsumerWidget {
   const ProfileBackButton({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(left: 8),
@@ -45,12 +46,12 @@ class ProfileBackButton extends StatelessWidget {
 
 // ── Edit button ─────────────────────────────────────────────────────────────
 
-class ProfileEditButton extends StatelessWidget {
+class ProfileEditButton extends ConsumerWidget {
   final VoidCallback onTap;
   const ProfileEditButton({super.key, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(right: 8),

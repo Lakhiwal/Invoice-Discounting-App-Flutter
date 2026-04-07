@@ -2,16 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/portfolio_cache.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
+
 import '../utils/formatters.dart';
-import '../widgets/animated_empty_state.dart';
 import '../widgets/pressable.dart';
 import '../widgets/skeleton.dart';
+import '../theme/ui_constants.dart';
 import '../widgets/stagger_list.dart';
+import '../widgets/vibe_state_wrapper.dart';
 import '../widgets/animated_amount_text.dart';
 import '../widgets/app_logo_header.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
@@ -43,14 +45,14 @@ Color _cardBorder(BuildContext c, bool isBlack, [double darkAlpha = 0.15]) =>
 // PortfolioScreen
 // ─────────────────────────────────────────────────────────────────────────────
 
-class PortfolioScreen extends StatefulWidget {
+class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
 
   @override
-  State<PortfolioScreen> createState() => _PortfolioScreenState();
+  ConsumerState<PortfolioScreen> createState() => _PortfolioScreenState();
 }
 
-class _PortfolioScreenState extends State<PortfolioScreen>
+class _PortfolioScreenState extends ConsumerState<PortfolioScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late ScrollController _scrollController;
@@ -84,12 +86,26 @@ class _PortfolioScreenState extends State<PortfolioScreen>
     super.dispose();
   }
 
-  Future<void> _loadPortfolio({bool forceRefresh = false}) async {
+  Future<void> _loadPortfolio({bool forceRefresh = false, bool silent = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    
+    final startTime = DateTime.now();
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
+    
     if (forceRefresh) PortfolioCache.invalidate();
     try {
-      final data = await PortfolioCache.getPortfolio();
+      final data = await PortfolioCache.getPortfolio(forceRefresh: forceRefresh);
+      
+      // Ensure the "Syncing" state is visible for a premium feel
+      if (forceRefresh) {
+        final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+        if (elapsed < 800) {
+          await Future.delayed(Duration(milliseconds: 800 - elapsed));
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _portfolio = data;
@@ -107,18 +123,15 @@ class _PortfolioScreenState extends State<PortfolioScreen>
     final summary = _portfolio?['summary'];
     final active = (_portfolio?['active'] as List?) ?? [];
     final repaid = (_portfolio?['repaid'] as List?) ?? [];
-    final isBlack = context.select<ThemeProvider, bool>((p) => p.isBlackMode);
+    final isBlack = ref.watch(themeProvider.select((p) => p.isBlackMode));
 
     return Scaffold(
       body: LiquidityRefreshIndicator(
-        onRefresh: () => _loadPortfolio(forceRefresh: true),
+        onRefresh: () async => _loadPortfolio(forceRefresh: true, silent: true),
         child: Stack(
           children: [
             NestedScrollView(
               controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 AppLogoHeader(
                   title: 'Portfolio',
@@ -131,68 +144,70 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                   ],
                 ),
                 SliverToBoxAdapter(
-              child: _isLoading
-                  ? const SkeletonPortfolioHeader()
-                  : Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Row(children: [
-                        _SummaryTile(
-                            label: 'Invested',
-                            value: summary?['total_invested'] ?? 0,
-                            icon: Icons.account_balance_wallet_rounded,
-                            color: colorScheme.primary,
-                            isBlackMode: isBlack),
-                        const SizedBox(width: 12),
-                        _SummaryTile(
-                            label: 'Returns',
-                            value: summary?['total_returns'] ?? 0,
-                            icon: Icons.trending_up_rounded,
-                            color: AppColors.emerald(context),
-                            isBlackMode: isBlack),
-                      ]),
-                    ),
-            ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _TabDelegate(
-                child: Container(
-                  color: colorScheme.surface,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: _isLoading
-                      ? const SkeletonTabBar()
-                      : TabBar(
-                          controller: _tabController,
-                          indicator: BoxDecoration(
-                              color: colorScheme.primary,
-                              borderRadius: BorderRadius.circular(12)),
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          labelColor: colorScheme.onPrimary,
-                          unselectedLabelColor: colorScheme.onSurfaceVariant,
-                          dividerColor: Colors.transparent,
-                          tabs: [
-                            Tab(text: 'Active (${active.length})'),
-                            Tab(text: 'Repaid (${repaid.length})'),
-                          ],
+                      ? const SkeletonPortfolioHeader()
+                      : Padding(
+                          padding: const EdgeInsets.all(UI.lg),
+                          child: Row(children: [
+                            _SummaryTile(
+                                label: 'Invested',
+                                value: summary?['total_invested'] ?? 0,
+                                icon: Icons.account_balance_wallet_rounded,
+                                color: colorScheme.primary,
+                                isBlackMode: isBlack),
+                            const SizedBox(width: 12),
+                            _SummaryTile(
+                                label: 'Returns',
+                                value: summary?['total_returns'] ?? 0,
+                                icon: Icons.trending_up_rounded,
+                                color: AppColors.emerald(context),
+                                isBlackMode: isBlack),
+                          ]),
                         ),
                 ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _TabDelegate(
+                    child: Container(
+                      color: colorScheme.surface,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      child: _isLoading
+                          ? const SkeletonTabBar()
+                          : TabBar(
+                              controller: _tabController,
+                              indicator: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(12)),
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              labelColor: colorScheme.onPrimary,
+                              unselectedLabelColor:
+                                  colorScheme.onSurfaceVariant,
+                              dividerColor: Colors.transparent,
+                              tabs: [
+                                Tab(text: 'Active (${active.length})'),
+                                Tab(text: 'Repaid (${repaid.length})'),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+              body: TabBarView(
+                controller: _tabController,
+                children: [
+                  _InvestmentList(
+                      investments: active,
+                      isRepaid: false,
+                      isLoading: _isLoading,
+                      isBlackMode: isBlack),
+                  _InvestmentList(
+                      investments: repaid,
+                      isRepaid: true,
+                      isLoading: _isLoading,
+                      isBlackMode: isBlack),
+                ],
               ),
-            ),
-          ],
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-            _InvestmentList(
-                investments: active,
-                isRepaid: false,
-                isLoading: _isLoading,
-                isBlackMode: isBlack),
-            _InvestmentList(
-                investments: repaid,
-                isRepaid: true,
-                isLoading: _isLoading,
-                isBlackMode: isBlack),
-          ]),
             ),
             _buildFloatingSummary(context, summary),
           ],
@@ -253,6 +268,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                   label: 'Value',
                   value: double.tryParse(value.toString()) ?? 0.0,
                   color: Theme.of(context).colorScheme.primary,
+                  staggerIndex: 0,
                 ),
                 Container(
                   width: 1,
@@ -264,6 +280,7 @@ class _PortfolioScreenState extends State<PortfolioScreen>
                   label: 'Returns',
                   value: double.tryParse(returns.toString()) ?? 0.0,
                   color: AppColors.emerald(context),
+                  staggerIndex: 1,
                 ),
               ],
             ),
@@ -274,53 +291,72 @@ class _PortfolioScreenState extends State<PortfolioScreen>
   }
 }
 
-class _SummaryMetric extends StatelessWidget {
+class _SummaryMetric extends ConsumerWidget {
   final String label;
   final double value;
   final Color color;
+  final int staggerIndex;
 
   const _SummaryMetric({
     required this.label,
     required this.value,
     required this.color,
+    this.staggerIndex = 0,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 9,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, val, child) {
+        final double delay = staggerIndex * 0.1;
+        final double animValue = (val - delay).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: animValue,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - animValue)),
+            child: child,
           ),
-        ),
-        const SizedBox(height: 2),
-        AnimatedAmountText(
-          value: value,
-          prefix: '₹',
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
+        );
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          AnimatedAmountText(
+            value: value,
+            prefix: '₹',
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Summary tile
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _SummaryTile extends StatelessWidget {
+class _SummaryTile extends ConsumerWidget {
   final String label;
   final dynamic value;
   final IconData icon;
@@ -335,7 +371,7 @@ class _SummaryTile extends StatelessWidget {
       this.isBlackMode = false});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
@@ -370,7 +406,7 @@ class _SummaryTile extends StatelessWidget {
 // Investment list
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _InvestmentList extends StatelessWidget {
+class _InvestmentList extends ConsumerWidget {
   final List investments;
   final bool isRepaid, isLoading, isBlackMode;
 
@@ -381,28 +417,33 @@ class _InvestmentList extends StatelessWidget {
       this.isBlackMode = false});
 
   @override
-  Widget build(BuildContext context) {
-    if (isLoading) return const SkeletonPortfolioContent();
-    if (investments.isEmpty) {
-      return AnimatedEmptyState(
-        icon: Icons.pie_chart_outline_rounded,
-        title: isRepaid ? 'No repaid investments' : 'No active investments',
-        subtitle: isRepaid
-            ? 'Your settled investments will appear here'
-            : 'Explore the marketplace to start investing',
-      );
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-      itemCount: investments.length,
-      itemBuilder: (ctx, i) => StaggerItem(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = isLoading
+        ? VibeState.loading
+        : (investments.isEmpty ? VibeState.empty : VibeState.success);
+
+    return VibeStateWrapper(
+      state: state,
+      loadingSkeleton: const SkeletonPortfolioContent(),
+      emptyIcon: Icons.pie_chart_outline_rounded,
+      emptyTitle: isRepaid ? 'No repaid investments' : 'No active investments',
+      emptySubtitle: isRepaid
+          ? 'Your settled investments will appear here'
+          : 'Explore the marketplace to start investing',
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+        itemCount: investments.length,
+        itemBuilder: (ctx, i) => StaggerItem(
           index: i,
           child: RepaintBoundary(
             child: _InvestmentCard(
-                inv: investments[i] as Map<String, dynamic>,
-                isRepaid: isRepaid,
-                isBlackMode: isBlackMode),
-          )),
+              inv: investments[i] as Map<String, dynamic>,
+              isRepaid: isRepaid,
+              isBlackMode: isBlackMode,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -411,7 +452,7 @@ class _InvestmentList extends StatelessWidget {
 // Investment card
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _InvestmentCard extends StatelessWidget {
+class _InvestmentCard extends ConsumerWidget {
   final Map<String, dynamic> inv;
   final bool isRepaid;
   final bool isBlackMode;
@@ -436,7 +477,7 @@ class _InvestmentCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final progress = _progress();
     final invested = double.tryParse(inv['amount']?.toString() ?? '0') ?? 0;
@@ -605,7 +646,7 @@ class _InvestmentCard extends StatelessWidget {
 // Investment detail bottom sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _InvestmentDetailSheet extends StatelessWidget {
+class _InvestmentDetailSheet extends ConsumerWidget {
   final Map<String, dynamic> inv;
   final bool isRepaid;
   final bool isBlackMode;
@@ -616,7 +657,7 @@ class _InvestmentDetailSheet extends StatelessWidget {
   double get _amount => double.tryParse(inv['amount']?.toString() ?? '0') ?? 0;
   double get _investorRate =>
       double.tryParse(inv['investor_rate']?.toString() ?? '0') ?? 0;
-  double get _grossRoi => double.tryParse(inv['roi']?.toString() ?? '0') ?? 0;
+
   int get _daysLeft => int.tryParse(inv['days_left']?.toString() ?? '0') ?? 0;
   int get _tenure => int.tryParse(inv['tenure_days']?.toString() ?? '0') ?? 30;
   double get _expectedProfit =>
@@ -634,7 +675,7 @@ class _InvestmentDetailSheet extends StatelessWidget {
   bool get _isOverdue => !isRepaid && _daysLeft < 0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final statusColor = isRepaid
         ? AppColors.emerald(context)
@@ -848,11 +889,11 @@ class _InvestmentDetailSheet extends StatelessWidget {
 // Detail sheet sub-widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _SheetSection extends StatelessWidget {
+class _SheetSection extends ConsumerWidget {
   final String title;
   const _SheetSection(this.title);
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(title.toUpperCase(),
             style: TextStyle(
@@ -885,14 +926,14 @@ class _TimelineRow extends _Row {
       : super('', '');
 }
 
-class _DetailCard extends StatelessWidget {
+class _DetailCard extends ConsumerWidget {
   final List<_Row> rows;
   final bool isBlackMode;
   const _DetailCard({required this.rows, this.isBlackMode = false});
 
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget build(BuildContext context, WidgetRef ref) {
+
     final widgets = <Widget>[];
     for (int i = 0; i < rows.length; i++) {
       final row = rows[i];
@@ -993,7 +1034,7 @@ class _DetailCard extends StatelessWidget {
   }
 }
 
-class _Banner extends StatelessWidget {
+class _Banner extends ConsumerWidget {
   final IconData icon;
   final String title, body;
   final Color color;
@@ -1003,7 +1044,7 @@ class _Banner extends StatelessWidget {
       required this.body,
       required this.color});
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context, WidgetRef ref) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
             color: color.withValues(alpha: 0.07),
@@ -1032,11 +1073,11 @@ class _Banner extends StatelessWidget {
       );
 }
 
-class _Metric extends StatelessWidget {
+class _Metric extends ConsumerWidget {
   final String label, value;
   const _Metric({required this.label, required this.value});
   @override
-  Widget build(BuildContext context) =>
+  Widget build(BuildContext context, WidgetRef ref) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: TextStyle(

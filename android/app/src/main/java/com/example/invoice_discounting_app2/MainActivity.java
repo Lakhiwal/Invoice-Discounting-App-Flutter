@@ -11,19 +11,38 @@ import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterFragmentActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodChannel;
+import androidx.core.view.WindowCompat;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.VibratorManager;
 
 public class MainActivity extends FlutterFragmentActivity {
 
-    private static final String DISPLAY_CHANNEL = "app/display";
     private static final String WIDGET_CHANNEL = "widget_navigation";
+    private static final String SECURITY_CHANNEL = "app/security";
+    private static final String HAPTICS_CHANNEL = "app/haptics";
 
     private String pendingTab;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Essential for Edge-to-Edge immersion
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        
         super.onCreate(savedInstanceState);
-
         handleWidgetNavigation(getIntent());
+        
+        // Automatically enable maximum supported refresh rate for a premium 120Hz feel
+        enableMaxRefreshRate();
+    }
+
+    @Override
+    protected void onNewIntent(@NonNull Intent intent) {
+        super.onNewIntent(intent);
+        handleWidgetNavigation(intent);
+        if (getFlutterEngine() != null) {
+            setupWidgetChannel(getFlutterEngine());
+        }
     }
 
     private void handleWidgetNavigation(Intent intent) {
@@ -37,11 +56,11 @@ public class MainActivity extends FlutterFragmentActivity {
         super.configureFlutterEngine(flutterEngine);
 
         setupWidgetChannel(flutterEngine);
-        setupDisplayChannel(flutterEngine);
+        setupSecurityChannel(flutterEngine);
+        setupHapticsChannel(flutterEngine);
     }
 
     private void setupWidgetChannel(FlutterEngine flutterEngine) {
-
         if (pendingTab == null) return;
 
         new MethodChannel(
@@ -52,79 +71,91 @@ public class MainActivity extends FlutterFragmentActivity {
         pendingTab = null;
     }
 
-    private void setupDisplayChannel(FlutterEngine flutterEngine) {
+    private void enableMaxRefreshRate() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
 
-        new MethodChannel(
-                flutterEngine.getDartExecutor().getBinaryMessenger(),
-                DISPLAY_CHANNEL
-        ).setMethodCallHandler((call, result) -> {
-
-            if (!call.method.equals("setRefreshMode")) {
-                result.notImplemented();
-                return;
+        try {
+            Display display;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                display = getDisplay();
+            } else {
+                display = getWindowManager().getDefaultDisplay();
             }
 
-            String mode = call.argument("mode");
+            if (display != null) {
+                Display.Mode[] modes = display.getSupportedModes();
+                Display.Mode bestMode = modes[0];
 
-            try {
-
-                Display display;
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    display = getDisplay();
-                } else {
-                    display = getWindowManager().getDefaultDisplay();
+                for (Display.Mode mode : modes) {
+                    if (mode.getRefreshRate() > bestMode.getRefreshRate()) {
+                        bestMode = mode;
+                    }
                 }
 
-                if (display == null) {
-                    result.success(null);
-                    return;
-                }
-
-                if ("max".equals(mode)) {
-                    setMaxRefreshRate(display);
-                } else {
-                    set60Hz(display);
-                }
-
-                result.success(null);
-
-            } catch (Exception e) {
-                result.success(null);
+                WindowManager.LayoutParams params = getWindow().getAttributes();
+                params.preferredDisplayModeId = bestMode.getModeId();
+                getWindow().setAttributes(params);
             }
-        });
-    }
-
-    private void setMaxRefreshRate(Display display) {
-
-        Display.Mode[] modes = display.getSupportedModes();
-        Display.Mode bestMode = modes[0];
-
-        for (Display.Mode mode : modes) {
-            if (mode.getRefreshRate() > bestMode.getRefreshRate()) {
-                bestMode = mode;
-            }
-        }
-
-        applyDisplayMode(bestMode.getModeId());
-    }
-
-    private void set60Hz(Display display) {
-
-        Display.Mode[] modes = display.getSupportedModes();
-
-        for (Display.Mode mode : modes) {
-            if (Math.round(mode.getRefreshRate()) == 60) {
-                applyDisplayMode(mode.getModeId());
-                return;
-            }
+        } catch (Exception ignored) {
+            // Default behavior
         }
     }
 
-    private void applyDisplayMode(int modeId) {
+    private void setupSecurityChannel(FlutterEngine flutterEngine) {
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), SECURITY_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if (call.method.equals("setSecure")) {
+                        boolean isSecure = call.argument("isSecure") != null && (boolean) call.argument("isSecure");
+                        if (isSecure) {
+                            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                        } else {
+                            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                        }
+                        result.success(null);
+                    } else {
+                        result.notImplemented();
+                    }
+                });
+    }
 
-        WindowManager.LayoutParams params = getWindow().getAttributes();
-        params.preferredDisplayModeId = modeId;
-        getWindow().setAttributes(params);
+    private void setupHapticsChannel(FlutterEngine flutterEngine) {
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), HAPTICS_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    String type = call.argument("type");
+                    Vibrator vibrator;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        VibratorManager vm = (VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE);
+                        vibrator = vm.getDefaultVibrator();
+                    } else {
+                        vibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+                    }
+
+                    if (vibrator == null || !vibrator.hasVibrator()) {
+                        result.success(null);
+                        return;
+                    }
+
+                    switch (type) {
+                        case "success":
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 50, 50, 50}, -1));
+                            } else {
+                                vibrator.vibrate(100);
+                            }
+                            break;
+                        case "error":
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                vibrator.vibrate(VibrationEffect.createWaveform(new long[]{0, 100, 50, 100}, -1));
+                            } else {
+                                vibrator.vibrate(250);
+                            }
+                            break;
+                        case "warning":
+                            vibrator.vibrate(150);
+                            break;
+                        default:
+                            result.notImplemented();
+                    }
+                });
     }
 }

@@ -24,6 +24,10 @@ dependencies:
   local_auth_android: ^2.0.7
   # Theme
   provider: ^6.1.5+1
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.3.5
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
   # PDF
   pdf: ^3.12.0
   printing: ^5.14.3
@@ -49,6 +53,8 @@ dependencies:
   razorpay_flutter: ^1.4.1
   lottie: ^3.3.2
   image_cropper: ^12.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
 
   http_parser: any
   flutter_cashfree_pg_sdk: ^2.2.10+48
@@ -57,6 +63,10 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.4.4
+  freezed: ^2.5.8
+  json_serializable: ^6.9.5
 
 flutter_launcher_icons:
   android: true

@@ -17,20 +17,23 @@ class PortfolioCache {
   // firing a duplicate network request.
   static Future<Map<String, dynamic>>? _inflight;
 
-  static const Duration cacheDuration = Duration(seconds: 10);
+  static const Duration cacheDuration = Duration(hours: 4);
 
-  static Future<Map<String, dynamic>> getPortfolio() async {
-    // Serve from cache if still fresh
-    if (_portfolio != null &&
+  static Future<Map<String, dynamic>> getPortfolio({bool forceRefresh = false}) async {
+    // Serve from cache if still fresh and NOT forced
+    if (!forceRefresh &&
+        _portfolio != null &&
         _lastFetch != null &&
         DateTime.now().difference(_lastFetch!) < cacheDuration) {
       return _portfolio!;
     }
 
+    if (forceRefresh) invalidate();
+
     // FIX #4: if a fetch is already in progress, return that same future
     if (_inflight != null) return _inflight!;
 
-    _inflight = _fetch();
+    _inflight = _fetch(forceRefresh: forceRefresh);
     try {
       return await _inflight!;
     } finally {
@@ -38,8 +41,8 @@ class PortfolioCache {
     }
   }
 
-  static Future<Map<String, dynamic>> _fetch() async {
-    final data = await ApiService.getPortfolio();
+  static Future<Map<String, dynamic>> _fetch({bool forceRefresh = false}) async {
+    final data = await ApiService.getPortfolio(forceRefresh: forceRefresh);
     if (data == null) return {};
     _portfolio = data;
     _lastFetch = DateTime.now();

@@ -30,6 +30,12 @@ public class MarketplaceWidgetProvider extends AppWidgetProvider {
                     R.layout.marketplace_widget
             );
 
+            // Fallback for missing data
+            if (company == null || company.isEmpty()) company = "Marketplace";
+            if (roi == null || roi.isEmpty()) roi = "0";
+            if (days == null || days.isEmpty()) days = "0";
+            if (remaining == null || remaining.isEmpty()) remaining = "0";
+
             views.setTextViewText(R.id.company, company);
             views.setTextViewText(R.id.roi, "ROI " + roi + "%");
             views.setTextViewText(R.id.days, days + " days left");
@@ -38,8 +44,10 @@ public class MarketplaceWidgetProvider extends AppWidgetProvider {
 
             views.setProgressBar(R.id.funding_progress, 100, funding, false);
 
+            // Navigation to App
             Intent intent = new Intent(context, MainActivity.class);
             intent.putExtra("open_tab", "marketplace");
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
             PendingIntent pendingIntent = PendingIntent.getActivity(
                     context,

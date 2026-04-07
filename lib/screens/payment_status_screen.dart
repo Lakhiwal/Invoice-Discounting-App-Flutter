@@ -3,10 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../utils/app_haptics.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 enum PaymentStatus { processing, success, failed }
 
-class PaymentStatusScreen extends StatefulWidget {
+class PaymentStatusScreen extends ConsumerStatefulWidget {
   final PaymentStatus status;
   final VoidCallback? onDismiss;
 
@@ -17,10 +18,10 @@ class PaymentStatusScreen extends StatefulWidget {
   });
 
   @override
-  State<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
+  ConsumerState<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
 }
 
-class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
+class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
   @override
   void initState() {
     super.initState();
@@ -40,6 +41,11 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
 
     return PopScope(
       canPop: widget.status != PaymentStatus.processing,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          widget.onDismiss?.call();
+        }
+      },
       child: Scaffold(
         backgroundColor: colorScheme.surface,
         body: Center(
@@ -111,14 +117,14 @@ class _PaymentStatusScreenState extends State<PaymentStatusScreen> {
 // PROCESSING — Gradient arc spinner + breathing ₹ center
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _ProcessingAnimation extends StatefulWidget {
+class _ProcessingAnimation extends ConsumerStatefulWidget {
   const _ProcessingAnimation();
 
   @override
-  State<_ProcessingAnimation> createState() => _ProcessingState();
+  ConsumerState<_ProcessingAnimation> createState() => _ProcessingState();
 }
 
-class _ProcessingState extends State<_ProcessingAnimation>
+class _ProcessingState extends ConsumerState<_ProcessingAnimation>
     with TickerProviderStateMixin {
   late AnimationController _spinCtrl;
   late AnimationController _pulseCtrl;
@@ -285,14 +291,14 @@ class _ProcessingPainter extends CustomPainter {
 // SUCCESS — Ring draw → fill → checkmark → particle burst
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SuccessAnimation extends StatefulWidget {
+class _SuccessAnimation extends ConsumerStatefulWidget {
   const _SuccessAnimation();
 
   @override
-  State<_SuccessAnimation> createState() => _SuccessState();
+  ConsumerState<_SuccessAnimation> createState() => _SuccessState();
 }
 
-class _SuccessState extends State<_SuccessAnimation>
+class _SuccessState extends ConsumerState<_SuccessAnimation>
     with TickerProviderStateMixin {
   late AnimationController _ringCtrl;
   late AnimationController _fillCtrl;
@@ -507,14 +513,14 @@ class _SuccessPainter extends CustomPainter {
 // FAILED — Ring draw → fill → X → shake + pulse ring
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _FailedAnimation extends StatefulWidget {
+class _FailedAnimation extends ConsumerStatefulWidget {
   const _FailedAnimation();
 
   @override
-  State<_FailedAnimation> createState() => _FailedState();
+  ConsumerState<_FailedAnimation> createState() => _FailedState();
 }
 
-class _FailedState extends State<_FailedAnimation>
+class _FailedState extends ConsumerState<_FailedAnimation>
     with TickerProviderStateMixin {
   late AnimationController _ringCtrl;
   late AnimationController _fillCtrl;
@@ -733,14 +739,14 @@ class _FailedPainter extends CustomPainter {
 // ₹ Symbol Widget — uses TextPainter for a crisp, proper glyph
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _RupeeSymbol extends StatelessWidget {
+class _RupeeSymbol extends ConsumerWidget {
   final Color color;
   final double size;
 
   const _RupeeSymbol({required this.color, required this.size});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Text(
       '₹',
       style: TextStyle(

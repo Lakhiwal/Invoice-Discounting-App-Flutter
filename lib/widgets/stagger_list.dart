@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  StaggerList
@@ -16,7 +17,7 @@ import 'package:flutter/material.dart';
 //    itemBuilder: (_, i) => StaggerItem(index: i, child: MyCard()),
 // ─────────────────────────────────────────────────────────────────────────────
 
-class StaggerList extends StatefulWidget {
+class StaggerList extends ConsumerStatefulWidget {
   final List<Widget> children;
 
   /// Delay between each item's animation start (ms).
@@ -37,10 +38,10 @@ class StaggerList extends StatefulWidget {
   });
 
   @override
-  State<StaggerList> createState() => _StaggerListState();
+  ConsumerState<StaggerList> createState() => _StaggerListState();
 }
 
-class _StaggerListState extends State<StaggerList>
+class _StaggerListState extends ConsumerState<StaggerList>
     with TickerProviderStateMixin {
   late final List<AnimationController> _ctrls;
   late final List<Animation<double>> _fades;
@@ -119,7 +120,7 @@ class _StaggerListState extends State<StaggerList>
 //    )
 // ─────────────────────────────────────────────────────────────────────────────
 
-class StaggerItem extends StatefulWidget {
+class StaggerItem extends ConsumerStatefulWidget {
   final int index;
   final Widget child;
 
@@ -140,10 +141,10 @@ class StaggerItem extends StatefulWidget {
   });
 
   @override
-  State<StaggerItem> createState() => _StaggerItemState();
+  ConsumerState<StaggerItem> createState() => _StaggerItemState();
 }
 
-class _StaggerItemState extends State<StaggerItem>
+class _StaggerItemState extends ConsumerState<StaggerItem>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _fade;

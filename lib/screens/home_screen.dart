@@ -1,39 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/api_service.dart';
-import '../widgets/animated_amount_text.dart';
 import '../services/cashfree_service.dart';
 import '../services/portfolio_cache.dart';
-import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
 import '../utils/smooth_page_route.dart';
+import '../theme/theme_provider.dart';
+import '../widgets/vibe_state_wrapper.dart';
 import '../widgets/app_bar_action.dart';
 import '../widgets/app_logo_header.dart';
-import '../widgets/glass_card.dart';
-import '../widgets/gradient_text.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
-import '../widgets/pressable.dart';
-import '../widgets/skeleton.dart';
-import '../widgets/stagger_list.dart';
-import 'invoice_detail_screen.dart';
 import 'marketplace_screen.dart';
 import 'transaction_history_screen.dart';
+import '../widgets/home/portfolio_hero.dart';
+import '../widgets/home/quick_actions.dart';
+import '../widgets/home/active_investment_card.dart';
+import '../widgets/home/transaction_activity.dart';
+import '../widgets/skeleton.dart';
+import '../theme/ui_constants.dart';
 
 const String _kMaskedShort = '● ● ●';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   Map<String, dynamic>? _portfolio;
   Map<String, dynamic>? _wallet;
   bool _isLoading = true;
@@ -41,14 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late CashfreeService _cashfree;
   late final ScrollController _scrollController;
 
-  double _computeCurrentlyInvested() {
-    final active = _portfolio?['active'] as List? ?? [];
-    double total = 0;
-    for (final inv in active) {
-      total += double.tryParse(inv['amount'].toString()) ?? 0;
-    }
-    return total;
-  }
 
   double get _walletBalance =>
       double.tryParse(_wallet?['balance']?.toString() ?? '0') ?? 0;
@@ -91,19 +83,34 @@ class _HomeScreenState extends State<HomeScreen> {
     return false;
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _hasError = false;
-    });
+  Future<void> _loadData({bool forceRefresh = false}) async {
+    final startTime = DateTime.now();
+
+    // Only set _isLoading to true if we don't have data yet.
+    // For pull-to-refresh (forceRefresh), we want a "silent" update
+    // so the LiquidityRefreshIndicator's "Syncing" state is the star.
+    if (!forceRefresh) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+      });
+    }
 
     try {
       final results = await Future.wait([
-        PortfolioCache.getPortfolio(),
-        ApiService.getWallet(),
+        PortfolioCache.getPortfolio(forceRefresh: forceRefresh),
+        ApiService.getWallet(forceRefresh: forceRefresh),
         ApiService.getCachedUser(),
         ApiService.getProfile(),
       ]);
+
+      // Ensure the "Syncing" state is visible for a premium feel
+      if (forceRefresh) {
+        final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+        if (elapsed < 800) {
+          await Future.delayed(Duration(milliseconds: 800 - elapsed));
+        }
+      }
 
       if (mounted) {
         setState(() {
@@ -143,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+            padding: const EdgeInsets.fromLTRB(UI.lg, 8, UI.lg, 40),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,15 +185,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(UI.radiusLg),
                         borderSide: BorderSide(
                             color: colorScheme.outline.withValues(alpha: 0.3))),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(UI.radiusLg),
                         borderSide: BorderSide(
                             color: colorScheme.outline.withValues(alpha: 0.3))),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(UI.radiusLg),
                         borderSide:
                             BorderSide(color: colorScheme.primary, width: 1.5)),
                   ),
@@ -229,10 +236,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           final result = await ApiService.createCashfreeOrder(amt);
 
+                          if (!mounted) return;
+                          final messenger = ScaffoldMessenger.of(context);
+
                           if (result['error'] != null && result['success'] == false) {
-                            if (!mounted) return;
                             setModal(() => isLoading = false);
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            messenger.showSnackBar(
                                 SnackBar(content: Text(result['error'])));
                             return;
                           }
@@ -241,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           final sessionId = result['payment_session_id'] as String;
                           final env = result['environment'] as String? ?? 'SANDBOX';
 
-                          final homeNavigator = Navigator.of(this.context);
+                          final homeNavigator = Navigator.of(context);
 
                           _cashfree.onSuccess = (cfOrderId) async {
                             if (!mounted) return;
@@ -462,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final summary = _portfolio?['summary'];
     final transactions = _wallet?['transactions'] as List? ?? [];
-    final isBlack = context.select<ThemeProvider, bool>((p) => p.isBlackMode);
+    final isBlack = ref.watch(themeProvider.select((p) => p.isBlackMode));
 
     final dividerColor = colorScheme.outlineVariant.withValues(
       alpha: isBlack ? 0.12 : 0.15,
@@ -481,56 +490,25 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: isBlack ? colorScheme.surface : Colors.transparent,
         body: LiquidityRefreshIndicator(
-          onRefresh: () async {
-            PortfolioCache.invalidate();
-            await _loadData();
-          },
-          child: CustomScrollView(
-            controller: _scrollController,
-            physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics()),
-            slivers: [
-              const AppLogoHeader(
-                title: 'Home',
-                actions: [
-                  AppBarActions(),
-                ],
-              ),
-              if (_hasError && !_isLoading)
-                SliverFillRemaining(
-                  child: Center(
-                      child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 48),
-                          child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.wifi_off_rounded,
-                                    size: 48,
-                                    color: colorScheme.onSurfaceVariant
-                                        .withValues(alpha: 0.4)),
-                                const SizedBox(height: 16),
-                                Text('Couldn\'t load your data',
-                                    style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 8),
-                                Text('Check your connection and try again.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                        color: colorScheme.onSurfaceVariant,
-                                        fontSize: 13)),
-                                const SizedBox(height: 20),
-                                TextButton.icon(
-                                    onPressed: _loadData,
-                                    icon: const Icon(Icons.refresh_rounded,
-                                        size: 16),
-                                    label: const Text('Retry')),
-                              ]))),
+          onRefresh: () => _loadData(forceRefresh: true),
+          color: colorScheme.primary,
+          child: VibeStateWrapper(
+            state: _isLoading
+                ? VibeState.loading
+                : (_hasError ? VibeState.error : VibeState.success),
+            loadingSkeleton: const SkeletonHomeContent(),
+            onRetry: () => _loadData(forceRefresh: true),
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics()),
+              slivers: [
+                const AppLogoHeader(
+                  title: 'Home',
+                  actions: [
+                    AppBarActions(),
+                  ],
                 ),
-              if (_isLoading)
-                SliverToBoxAdapter(child: const SkeletonHomeContent()),
-              if (!_isLoading && !_hasError) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -549,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                       child: RepaintBoundary(
-                        child: _PortfolioHero(
+                        child: PortfolioHero(
                           totalInvested: _totalInvested,
                           wallet: _walletBalance,
                           returns: _totalReturns,
@@ -560,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onWithdraw: _showWithdrawSheet,
                           onToggleHide: () {
                             AppHaptics.selection();
-                            final p = context.read<ThemeProvider>();
+                            final p = ref.read(themeProvider);
                             p.setHideBalance(!p.hideBalance);
                           },
                         ),
@@ -571,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: _QuickActions(
+                      child: QuickActions(
                           isBlackMode: isBlack,
                           onAdd: _showAddFundsSheet,
                           onWithdraw: _showWithdrawSheet,
@@ -621,7 +599,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: _activeInvestments.length,
                           itemBuilder: (ctx, i) => RepaintBoundary(
-                            child: _ActiveInvestmentCard(
+                            child: ActiveInvestmentCard(
                                 investment: _activeInvestments[i],
                                 index: i,
                                 isBlackMode: isBlack),
@@ -665,964 +643,49 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                      (context, i) {
-                        if (i >= transactions.length * 2 - 1) return null;
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) {
+                          final int itemIndex = i ~/ 2;
+                          if (i >= transactions.length * 2 - 1) return null;
 
-                        // Even indices = tiles, odd indices = dividers
-                        if (i.isOdd) {
-                          return Padding(
-                            padding: const EdgeInsets.only(left: 54),
-                            child: Divider(
-                              color: dividerColor,
-                              height: 0.5,
-                              thickness: 0.5,
-                            ),
-                          );
-                        }
+                          if (i.isOdd) {
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 54),
+                              child: Divider(
+                                color: dividerColor,
+                                height: 0.5,
+                                thickness: 0.5,
+                              ),
+                            );
+                          }
 
-                        final txIndex = i ~/ 2;
-                        return RepaintBoundary(
-                            child: StaggerItem(
-                                index: txIndex,
-                                child: _TransactionTile(
-                                    tx: transactions[txIndex])));
-                      },
-                      childCount: transactions.length * 2 - 1,
-                    )),
+                          return TransactionActivityTile(tx: transactions[itemIndex]);
+                        },
+                        childCount: transactions.isEmpty ? 0 : transactions.length * 2 - 1,
+                      ),
+                    ),
                   )
                 else
                   SliverToBoxAdapter(
-                      child: _EmptyActivity(
-                          isBlackMode: isBlack,
-                          onExplore: () {
-                            AppHaptics.selection();
-                            Navigator.push(
-                                context,
-                                SmoothPageRoute(
-                                    builder: (_) => const MarketplaceScreen()));
-                          })),
+                    child: EmptyActivityPlaceholder(
+                      isBlackMode: isBlack,
+                      onExplore: () {
+                        AppHaptics.selection();
+                        Navigator.push(
+                          context,
+                          SmoothPageRoute(builder: (_) => const MarketplaceScreen()),
+                        );
+                      },
+                    ),
+                  ),
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-// ── Portfolio hero card ───────────────────────────────────────────────────────
 
-class _PortfolioHero extends StatefulWidget {
-  final double totalInvested, wallet, returns;
-  final dynamic activeCount, repaidCount;
-  final bool isBlackMode;
-  final VoidCallback onAdd, onWithdraw, onToggleHide;
-
-  const _PortfolioHero({
-    required this.totalInvested,
-    required this.wallet,
-    required this.returns,
-    required this.activeCount,
-    required this.repaidCount,
-    required this.isBlackMode,
-    required this.onAdd,
-    required this.onWithdraw,
-    required this.onToggleHide,
-  });
-
-  @override
-  State<_PortfolioHero> createState() => _PortfolioHeroState();
-}
-
-class _PortfolioHeroState extends State<_PortfolioHero>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pulseCtrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 320));
-    _scale = Tween<double>(begin: 1.0, end: 1.025).animate(
-        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOutBack));
-  }
-
-  Future<void> pulse() async {
-    AppHaptics.selection();
-    await _pulseCtrl.forward();
-    await _pulseCtrl.reverse();
-  }
-
-  @override
-  void dispose() {
-    _pulseCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final hide = context.select<ThemeProvider, bool>((p) => p.hideBalance);
-    final isBlack = widget.isBlackMode;
-
-    return AnimatedBuilder(
-      animation: _scale,
-      builder: (_, child) => Transform.scale(scale: _scale.value, child: child),
-      child: isBlack
-          ? _buildBlackHero(colorScheme, hide)
-          : _buildDarkHero(colorScheme, hide),
-    );
-  }
-
-  Widget _buildBlackHero(ColorScheme colorScheme, bool hide) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0A0A),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(6)),
-              child: Text('PORTFOLIO VALUE',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0)),
-            ),
-            GestureDetector(
-              onTap: widget.onToggleHide,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    shape: BoxShape.circle),
-                child: Icon(
-                    hide
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
-                    color: Colors.white.withValues(alpha: 0.4),
-                    size: 16),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 8),
-          AnimatedAmountText(
-            value: widget.totalInvested.toDouble(),
-            prefix: '₹',
-            hideValue: hide,
-            onCompleted: pulse,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 38,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.5,
-                height: 1.1),
-          ),
-          const SizedBox(height: 20),
-          Row(children: [
-            Expanded(
-              child: _BlackStatCard(
-                label: 'Returns',
-                amountValue: widget.returns.toDouble(),
-                prefix: '₹',
-                hideValue: hide,
-                valueColor: const Color(0xFF10B981),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _BlackStatCard(
-                label: 'Active',
-                amountValue: (widget.activeCount as num).toDouble(),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: _BlackStatCard(
-                label: 'Repaid',
-                amountValue: (widget.repaidCount as num).toDouble(),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-            ),
-            child: Row(children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  color: Colors.white.withValues(alpha: 0.35), size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text('Wallet Balance',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            fontSize: 11)),
-                    AnimatedAmountText(
-                        value: widget.wallet.toDouble(),
-                        prefix: '₹',
-                        hideValue: hide,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800)),
-                  ])),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-
-  Widget _buildDarkHero(ColorScheme colorScheme, bool hide) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [colorScheme.primaryFixedDim, colorScheme.primaryFixed]),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(children: [
-        Positioned.fill(child: _HeroTexture()),
-        Positioned(
-            right: -60,
-            top: -60,
-            child: Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.06)))),
-        Positioned(
-            left: -40,
-            bottom: -70,
-            child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.04)))),
-        Padding(
-          padding: const EdgeInsets.all(24),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Text('PORTFOLIO VALUE',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0)),
-              ),
-              GestureDetector(
-                onTap: widget.onToggleHide,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      shape: BoxShape.circle),
-                  child: Icon(
-                      hide
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      color: Colors.white70,
-                      size: 16),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            ShaderMask(
-              blendMode: BlendMode.srcIn,
-              shaderCallback: (bounds) => GradientText.blue.createShader(
-                  Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-              child: AnimatedAmountText(
-                value: widget.totalInvested.toDouble(),
-                prefix: '₹',
-                hideValue: hide,
-                onCompleted: pulse,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 38,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.5,
-                    height: 1.1),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(children: [
-              Expanded(
-                child: GlassStatCard(
-                  label: 'Returns',
-                  value: hide
-                      ? '₹$_kMaskedShort'
-                      : '₹${fmtAmount(widget.returns)}',
-                  customValue: AnimatedAmountText(
-                    value: widget.returns.toDouble(),
-                    prefix: '₹',
-                    hideValue: hide,
-                    style: const TextStyle(
-                      color: Color(0xFF22C55E),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  valueColor: const Color(0xFF22C55E),
-                  icon: Icons.trending_up_rounded,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: GlassStatCard(
-                      label: 'Active',
-                      value: '${(widget.activeCount as num).toInt()}',
-                      icon: Icons.pending_outlined)),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: GlassStatCard(
-                      label: 'Repaid',
-                      value: '${(widget.repaidCount as num).toInt()}',
-                      icon: Icons.check_circle_outline_rounded)),
-            ]),
-            const SizedBox(height: 20),
-            GlassCard(
-              blur: 12,
-              opacity: 0.1,
-              borderRadius: 14,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-              boxShadow: const [],
-              child: Row(children: [
-                const Icon(Icons.account_balance_wallet_outlined,
-                    color: Colors.white70, size: 16),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      const Text('Wallet Balance',
-                          style:
-                              TextStyle(color: Colors.white60, fontSize: 11)),
-                      AnimatedAmountText(
-                          value: widget.wallet.toDouble(),
-                          prefix: '₹',
-                          hideValue: hide,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
-                    ])),
-              ]),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
-class _BlackStatCard extends StatelessWidget {
-  final String label;
-  final double? amountValue;
-  final String? value;
-  final String prefix;
-  final bool hideValue;
-  final Color? valueColor;
-
-  const _BlackStatCard({
-    required this.label,
-    this.amountValue,
-    this.value,
-    this.prefix = '',
-    this.hideValue = false,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Column(children: [
-        if (amountValue != null)
-          AnimatedAmountText(
-            value: amountValue!,
-            prefix: prefix,
-            hideValue: hideValue,
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          )
-        else
-          Text(
-            value ?? '',
-            style: TextStyle(
-              color: valueColor ?? Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        const SizedBox(height: 2),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.3),
-            fontSize: 8,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _HeroTexture extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => CustomPaint(painter: _DotGridPainter());
-}
-
-class _DotGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.045)
-      ..style = PaintingStyle.fill;
-    const spacing = 22.0;
-    const radius = 1.2;
-    for (double x = spacing; x < size.width; x += spacing) {
-      for (double y = spacing; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), radius, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DotGridPainter old) => false;
-}
-
-// ── Quick actions row ─────────────────────────────────────────────────────────
-
-class _QuickActions extends StatelessWidget {
-  final bool isBlackMode;
-  final VoidCallback onAdd, onWithdraw, onMarketplace;
-
-  const _QuickActions(
-      {required this.isBlackMode,
-      required this.onAdd,
-      required this.onWithdraw,
-      required this.onMarketplace});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-          color:
-              isBlackMode ? Colors.transparent : colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: colorScheme.outlineVariant
-                  .withValues(alpha: isBlackMode ? 0.06 : 0.3))),
-      child: Row(children: [
-        _ActionButton(
-            icon: Icons.add_rounded,
-            label: 'Add Funds',
-            color: AppColors.success(context),
-            onTap: onAdd),
-        _ActionDivider(),
-        _ActionButton(
-            icon: Icons.south_rounded,
-            label: 'Withdraw',
-            color: colorScheme.error,
-            onTap: onWithdraw),
-        _ActionDivider(),
-        _ActionButton(
-            icon: Icons.storefront_outlined,
-            label: 'Invest',
-            color: colorScheme.primary,
-            onTap: onMarketplace),
-      ]),
-    );
-  }
-}
-
-class _ActionDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-      width: 1,
-      height: 36,
-      color:
-          Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4));
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionButton(
-      {required this.icon,
-      required this.label,
-      required this.color,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-        child: Pressable(
-            onTap: onTap,
-            child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10)),
-                      child: Icon(icon, color: color, size: 18)),
-                  const SizedBox(height: 5),
-                  Text(label,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
-                ]))));
-  }
-}
-
-// ── Active investment mini card ────────────────────────────────────────────────
-
-class _ActiveInvestmentCard extends StatelessWidget {
-  final Map<String, dynamic> investment;
-  final int index;
-  final bool isBlackMode;
-
-  const _ActiveInvestmentCard({
-    required this.investment,
-    required this.index,
-    this.isBlackMode = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
-    final company = (investment['company'] ?? 'Invoice') as String;
-    final amount =
-        double.tryParse(investment['amount']?.toString() ?? '0') ?? 0;
-    final daysLeft = (investment['days_left'] as num?)?.toInt() ?? 0;
-    final roi = double.tryParse(investment['investor_rate']?.toString() ??
-            investment['roi']?.toString() ??
-            '0') ??
-        0;
-    final invoiceId = investment['invoice_id']?.toString() ?? '0';
-
-    final remainingAmount = amount;
-    final fundingPct = 100.0;
-    final tenureDays = daysLeft;
-
-    final urgencyColor = daysLeft <= 7
-        ? AppColors.danger(context)
-        : daysLeft <= 30
-            ? AppColors.warning(context)
-            : AppColors.success(context);
-
-    // Consistent card color — no alternating
-    final bg = isBlackMode
-        ? const Color(0xFF0A0A0A)
-        : colorScheme.surfaceContainerHigh;
-    final fg = colorScheme.onSurface;
-
-    final invoiceItem = InvoiceItem(
-      id: invoiceId,
-      company: company,
-      particular: '',
-      debtor: '',
-      status: 'active',
-      statusDisplay: 'Active',
-      roi: roi,
-      daysLeft: daysLeft,
-      tenureDays: tenureDays,
-      remainingAmount: remainingAmount,
-      fundingPct: fundingPct,
-      roiDisplay: '${roi.toStringAsFixed(1)}%',
-      daysLeftDisplay: '${daysLeft}d left',
-      tenureDisplay: '${tenureDays}d',
-      remainingDisplay: '₹${fmtAmount(remainingAmount)}',
-      fundingDisplay: '${fundingPct.toStringAsFixed(1)}%',
-    );
-
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 12),
-      child: Pressable(
-        onTap: () async {
-          await AppHaptics.selection();
-          if (!context.mounted) return;
-          Navigator.push(
-            context,
-            SmoothPageRoute(
-              builder: (_) => InvoiceDetailScreen(item: invoiceItem),
-            ),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border(
-              left: BorderSide(
-                color: colorScheme.primary
-                    .withValues(alpha: isBlackMode ? 0.5 : 0.7),
-                width: 2.5,
-              ),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      company,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: fg,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: urgencyColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${daysLeft}d',
-                      style: TextStyle(
-                        color: urgencyColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              AnimatedAmountText(
-                value: amount,
-                prefix: '₹',
-                hideValue: hideBalance,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${roi.toStringAsFixed(1)}% p.a.',
-                style: TextStyle(
-                  color: fg.withValues(alpha: 0.7),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Transaction tile — flat, no card border ──────────────────────────────────
-
-class _TransactionTile extends StatelessWidget {
-  final Map<String, dynamic> tx;
-
-  const _TransactionTile({
-    required this.tx,
-  });
-
-  static const _iconMap = {
-    'invest': (Icons.trending_up_rounded, false),
-    'investment': (Icons.trending_up_rounded, false),
-    'return': (Icons.receipt_long_outlined, true),
-    'repay': (Icons.receipt_long_outlined, true),
-    'settlement': (Icons.receipt_long_outlined, true),
-    'withdraw': (Icons.south_rounded, false),
-    'add': (Icons.north_rounded, true),
-    'deposit': (Icons.north_rounded, true),
-    'credit': (Icons.north_rounded, true),
-    'top-up': (Icons.north_rounded, true),
-    'failed': (Icons.error_outline_rounded, false),
-    'expired': (Icons.timer_off_rounded, false),
-  };
-
-  (IconData, bool) _resolveIcon(String desc, String status, bool isCredit) {
-    if (status == 'failed') return (Icons.error_outline_rounded, false);
-    if (status == 'expired') return (Icons.timer_off_rounded, false);
-
-    final lower = desc.toLowerCase();
-    for (final entry in _iconMap.entries) {
-      if (lower.contains(entry.key)) return entry.value;
-    }
-    return isCredit
-        ? (Icons.south_west_rounded, true)
-        : (Icons.north_east_rounded, false);
-  }
-
-  /// Parse settlement description to extract interest amount.
-  /// Backend format: "Settlement — INV-001 | Principal ₹50000.00 + Interest ₹1200.00"
-  static ({String title, String? interestLabel}) _parseSettlement(String desc) {
-    if (!desc.toLowerCase().startsWith('settlement')) {
-      return (title: desc, interestLabel: null);
-    }
-    // Clean title: show just "Settlement — INV-001"
-    final pipeIdx = desc.indexOf('|');
-    final title = pipeIdx > 0 ? desc.substring(0, pipeIdx).trim() : desc;
-    // Extract interest value after "Interest ₹"
-    final match = RegExp(r'Interest\s*₹?([\d,.]+)').firstMatch(desc);
-    if (match != null) {
-      final val = double.tryParse(match.group(1)!.replaceAll(',', ''));
-      if (val != null && val > 0) {
-        return (title: title, interestLabel: '+₹${fmtAmount(val)} earned');
-      }
-    }
-    return (title: title, interestLabel: null);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final hideBalance = context.select<ThemeProvider, bool>((p) => p.hideBalance);
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDebit = tx['type'] == 'debit';
-    final desc = tx['description']?.toString() ?? 'Transaction';
-    final txStatus = tx['status']?.toString() ?? 'completed';
-    final isFailed = txStatus == 'failed' || txStatus == 'expired';
-    final (icon, _) = _resolveIcon(desc, txStatus, !isDebit);
-    final amount = double.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
-
-    // Parse settlement for cleaner display
-    final parsed = _parseSettlement(desc);
-
-    final Color accentColor;
-    if (isFailed) {
-      accentColor = colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
-    } else {
-      accentColor = isDebit ? colorScheme.error : AppColors.success(context);
-    }
-
-    return GestureDetector(
-      onTap: null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(children: [
-          Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: accentColor, size: 18)),
-          const SizedBox(width: 14),
-          Expanded(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(parsed.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: isFailed
-                            ? colorScheme.onSurfaceVariant
-                            : colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        decoration: isFailed
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                        decorationColor: colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.4))),
-                const SizedBox(height: 2),
-                Row(children: [
-                  Text(tx['date'] ?? '',
-                      style: TextStyle(
-                          color: colorScheme.onSurfaceVariant, fontSize: 12)),
-                  // Interest earned badge for settlements
-                  if (parsed.interestLabel != null &&
-                      !isFailed &&
-                      !hideBalance) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color:
-                            AppColors.success(context).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(parsed.interestLabel!,
-                          style: TextStyle(
-                              color: AppColors.success(context),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                  if (isFailed) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: txStatus == 'failed'
-                            ? colorScheme.error.withValues(alpha: 0.1)
-                            : AppColors.warning(context).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        txStatus == 'failed' ? 'Failed' : 'Expired',
-                        style: TextStyle(
-                          color: txStatus == 'failed'
-                              ? colorScheme.error
-                              : AppColors.warning(context),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ]),
-              ])),
-          Text(
-            hideBalance
-                ? '${isDebit ? '-' : '+'}₹$_kMaskedShort'
-                : '${isDebit ? '-' : '+'}₹${fmtAmount(amount)}',
-            style: TextStyle(
-                color: isFailed
-                    ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-                    : accentColor,
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                decoration:
-                    isFailed ? TextDecoration.lineThrough : TextDecoration.none,
-                decorationColor:
-                    colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                fontFeatures: const [FontFeature.tabularFigures()]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-// ── Empty activity state ──────────────────────────────────────────────────────
-
-class _EmptyActivity extends StatelessWidget {
-  final bool isBlackMode;
-  final VoidCallback onExplore;
-  const _EmptyActivity({this.isBlackMode = false, required this.onExplore});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-            color: isBlackMode
-                ? const Color(0xFF0A0A0A)
-                : colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: colorScheme.outlineVariant
-                    .withValues(alpha: isBlackMode ? 0.06 : 0.3))),
-        child: Column(children: [
-          Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle),
-              child: Icon(Icons.receipt_long_outlined,
-                  size: 30, color: colorScheme.primary)),
-          const SizedBox(height: 16),
-          Text('No activity yet',
-              style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Start investing to see your\ntransactions here',
-              textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13)),
-          const SizedBox(height: 20),
-          SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onExplore,
-                icon: const Icon(Icons.storefront_outlined, size: 16),
-                label: const Text('Explore Marketplace'),
-                style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colorScheme.primary),
-                    foregroundColor: colorScheme.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12)),
-              )),
-        ]),
-      ),
-    );
-  }
 }

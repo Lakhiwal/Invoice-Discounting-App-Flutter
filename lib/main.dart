@@ -4,35 +4,29 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:invoice_discounting_app/utils/app_haptics.dart';
-import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
-import 'package:jailbreak_root_detection/jailbreak_root_detection.dart';
-import 'package:local_auth/local_auth.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:local_auth/local_auth.dart';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/unlock_screen.dart';
 import 'services/api_service.dart';
-import 'services/notification_provider.dart';
+import 'services/cache_service.dart';
 import 'services/notification_service.dart';
 import 'theme/theme_provider.dart';
 import 'utils/refresh_rate_controller.dart';
-import 'utils/smooth_page_route.dart';
+import 'utils/app_haptics.dart';
+import 'utils/no_glow_scroll.dart';
+import 'widgets/skeleton.dart';
 
 // ── Globals ───────────────────────────────────────────────────────────────────
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 final RouteObserver<ModalRoute<void>> routeObserver =
-RouteObserver<ModalRoute<void>>();
-
-// ── Predictive Back ───────────────────────────────────────────────────────────
-// Single instance shared by both light and dark themes.
-// On Android 14+ with enableOnBackInvokedCallback=true in manifest,
-// this enables the system predictive back gesture on all MaterialPageRoutes.
-// On older Android or other platforms, it falls back to FadeForwards.
+    RouteObserver<ModalRoute<void>>();
 
 const _pageTransitionsTheme = PageTransitionsTheme(
   builders: <TargetPlatform, PageTransitionsBuilder>{
@@ -41,16 +35,10 @@ const _pageTransitionsTheme = PageTransitionsTheme(
   },
 );
 
-// ── Refresh Rate ──────────────────────────────────────────────────────────────
-
 const String _prefKeyRefreshRate = 'preferred_refresh_rate';
 
 Future<void> applyRefreshRate(int hz) async {
-  if (hz == 60) {
-    await RefreshRateController.set60Hz();
-  } else {
-    await RefreshRateController.setMax();
-  }
+  await RefreshRateController.setMax();
 }
 
 Future<int> getSavedRefreshRate() async {
@@ -63,131 +51,109 @@ Future<void> saveRefreshRate(int hz) async {
   await prefs.setInt(_prefKeyRefreshRate, hz);
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   GestureBinding.instance.resamplingEnabled = true;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 220 << 20;
   PaintingBinding.instance.imageCache.maximumSize = 300;
 
+  await Hive.initFlutter();
+  await CacheService.initialize();
   await Firebase.initializeApp();
   await NotificationService.initialize();
+
+  await AppHaptics.loadPreference();
   final savedHz = await getSavedRefreshRate();
   await applyRefreshRate(savedHz);
-  await AppHaptics.loadPreference();
-
-  bool rooted = await JailbreakRootDetection.instance.isJailBroken;
-
-  if (rooted) {
-    SystemNavigator.pop();
-    return;
-  }
 
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
-      ],
-      child: const InvoFinApp(),
+    const ProviderScope(
+      child: InvoFinApp(),
     ),
   );
 }
 
-// ── App widget ────────────────────────────────────────────────────────────────
-
-class InvoFinApp extends StatelessWidget {
+class InvoFinApp extends ConsumerWidget {
   const InvoFinApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return Selector<ThemeProvider, AppThemeMode>(
-          selector: (_, provider) => provider.mode,
-          builder: (context, appMode, _) {
-            final themeProvider = context.read<ThemeProvider>();
-            final mode = themeProvider.flutterThemeMode;
-            final textTheme = GoogleFonts.dmSansTextTheme();
-            final isDark = mode == ThemeMode.dark ||
-                (mode == ThemeMode.system &&
-                    MediaQuery.platformBrightnessOf(context) ==
-                        Brightness.dark);
+      builder: (lightDynamic, darkDynamic) {
+        final themeProviderInst = ref.watch(themeProvider);
+        final mode = themeProviderInst.flutterThemeMode;
+        final textTheme = GoogleFonts.dmSansTextTheme();
+        final isDark = mode == ThemeMode.dark ||
+            (mode == ThemeMode.system &&
+                MediaQuery.platformBrightnessOf(context) == Brightness.dark);
 
-            return MaterialApp(
-              navigatorKey: navigatorKey,
-              title: 'Finworks360',
-              debugShowCheckedModeBanner: false,
-              navigatorObservers: [routeObserver],
-              themeAnimationDuration: Duration.zero,
-              scrollBehavior: const NoGlowScrollBehavior(),
-              builder: (context, child) {
-                final mediaData = MediaQuery.of(context);
-                final clampedScale =
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Finworks360',
+          debugShowCheckedModeBanner: false,
+          navigatorObservers: [routeObserver],
+          themeAnimationDuration: Duration.zero,
+          scrollBehavior: const NoGlowScrollBehavior(),
+          builder: (context, child) {
+            final mediaData = MediaQuery.of(context);
+            final clampedScale =
                 mediaData.textScaler.scale(1.0).clamp(0.85, 1.3);
-                return AnnotatedRegion<SystemUiOverlayStyle>(
-                  value: SystemUiOverlayStyle(
-                    statusBarColor: Colors.transparent,
-                    statusBarIconBrightness:
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness:
                     isDark ? Brightness.light : Brightness.dark,
-                    systemNavigationBarColor: Colors.transparent,
-                    systemNavigationBarIconBrightness:
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarIconBrightness:
                     isDark ? Brightness.light : Brightness.dark,
-                  ),
-                  child: MediaQuery(
-                    data: mediaData.copyWith(
-                      textScaler: TextScaler.linear(clampedScale),
-                    ),
-                    child: child!,
-                  ),
-                );
-              },
-              theme: buildLightTheme(lightDynamic).copyWith(
-                pageTransitionsTheme: _pageTransitionsTheme,
-                textTheme: textTheme.apply(
-                  bodyColor: const Color(0xFF0B1220),
-                  displayColor: const Color(0xFF0B1220),
-                ),
               ),
-              darkTheme: themeProvider.darkThemeFor(darkDynamic).copyWith(
+              child: MediaQuery(
+                data: mediaData.copyWith(
+                  textScaler: TextScaler.linear(clampedScale),
+                ),
+                child: child!,
+              ),
+            );
+          },
+          theme: buildLightTheme(lightDynamic).copyWith(
+            pageTransitionsTheme: _pageTransitionsTheme,
+            textTheme: textTheme.apply(
+              bodyColor: const Color(0xFF0B1220),
+              displayColor: const Color(0xFF0B1220),
+            ),
+          ),
+          darkTheme: themeProviderInst.darkThemeFor(darkDynamic).copyWith(
                 pageTransitionsTheme: _pageTransitionsTheme,
                 textTheme: textTheme.apply(
                   bodyColor: const Color(0xFFEFF4FF),
                   displayColor: const Color(0xFFEFF4FF),
                 ),
               ),
-                themeMode: mode,
-                home: const AppRoot(),
-              );
-            },
-          );
-        },
-      );
+          themeMode: mode,
+          home: const AppRoot(),
+        );
+      },
+    );
   }
 }
 
-// ── App root ──────────────────────────────────────────────────────────────────
-
-class AppRoot extends StatelessWidget {
+class AppRoot extends ConsumerWidget {
   const AppRoot({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return const SplashScreen();
   }
 }
 
-// ── Splash / auth gate ────────────────────────────────────────────────────────
-
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   DateTime? _pausedAt;
   bool _authInProgress = false;
@@ -203,9 +169,7 @@ class _SplashScreenState extends State<SplashScreen>
     WidgetsBinding.instance.addObserver(this);
 
     _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
+        vsync: this, duration: const Duration(milliseconds: 1200));
 
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
@@ -225,9 +189,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animCtrl.forward();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkAuth();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAuth());
   }
 
   @override
@@ -239,15 +201,11 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.paused) {
-      _pausedAt = DateTime.now();
-    }
+    if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
     if (state == AppLifecycleState.resumed) {
       if (_pausedAt == null) return;
       final diff = DateTime.now().difference(_pausedAt!);
-      if (diff.inSeconds > 30 && !_authInProgress) {
-        await _reauthenticate();
-      }
+      if (diff.inSeconds > 30 && !_authInProgress) await _reauthenticate();
     }
   }
 
@@ -258,19 +216,17 @@ class _SplashScreenState extends State<SplashScreen>
       final auth = LocalAuthentication();
       final success = await auth
           .authenticate(
-        localizedReason: 'Authenticate to open Finworks360',
-        biometricOnly: false,
-      )
+            localizedReason: 'Authenticate to open Finworks360',
+            biometricOnly: true,
+          )
           .timeout(const Duration(seconds: 10), onTimeout: () => false);
+
       if (!mounted) return;
       if (!success) {
         Navigator.of(context).pushReplacement(
-          SmoothPageRoute(builder: (_) => const UnlockScreen()),
-        );
+            MaterialPageRoute(builder: (_) => const UnlockScreen()));
       }
-    } catch (e) {
-      debugPrint('Re-auth error: $e');
-    }
+    } catch (_) {}
     _authInProgress = false;
   }
 
@@ -280,20 +236,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     try {
       if (!mounted) return;
-
       await precacheImage(
-        const AssetImage('assets/images/logo-colored.png'),
-        context,
-      );
+          const AssetImage('assets/images/logo-colored.png'), context);
 
       final isLoggedIn = await ApiService.isLoggedIn();
-
       if (!mounted) return;
 
       if (!isLoggedIn) {
         Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
         );
         return;
       }
@@ -305,35 +257,31 @@ class _SplashScreenState extends State<SplashScreen>
       if (!canAuth) {
         if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute(builder: (_) => const MainScreen()),
-              (route) => false,
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+          (route) => false,
         );
         return;
       }
 
       final success = await auth
           .authenticate(
-        localizedReason: 'Authenticate to open Finworks360',
-        biometricOnly: false,
-      )
+            localizedReason: 'Authenticate to open Finworks360',
+            biometricOnly: true,
+          )
           .timeout(const Duration(seconds: 10), onTimeout: () => false);
 
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
-        SmoothPageRoute(
-          builder: (_) =>
-          success ? const MainScreen() : const LoginScreen(),
-        ),
-            (route) => false,
+        MaterialPageRoute(
+            builder: (_) => success ? const MainScreen() : const LoginScreen()),
+        (route) => false,
       );
-    } catch (e) {
-      debugPrint('Biometric auth error: $e');
-
+    } catch (_) {
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
         );
       }
     } finally {
@@ -353,16 +301,12 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [
-              cs.surface,
-              cs.surfaceContainerLow,
-              cs.surface,
-            ]
+                ? [cs.surface, cs.surfaceContainerLow, cs.surface]
                 : [
-              cs.surface,
-              cs.primaryContainer.withValues(alpha: 0.15),
-              cs.surface,
-            ],
+                    cs.surface,
+                    cs.primaryContainer.withValues(alpha: 0.15),
+                    cs.surface
+                  ],
           ),
         ),
         child: Center(
@@ -377,8 +321,7 @@ class _SplashScreenState extends State<SplashScreen>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 28, vertical: 18),
                     decoration: BoxDecoration(
-                      color:
-                      isDark ? cs.surfaceContainerHigh : Colors.white,
+                      color: isDark ? cs.surfaceContainerHigh : Colors.white,
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
@@ -389,11 +332,8 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                       ],
                     ),
-                    child: Image.asset(
-                      'assets/images/logo-colored.png',
-                      height: 44,
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/images/logo-colored.png',
+                        height: 44, fit: BoxFit.contain),
                   ),
                 ),
               ),
@@ -401,24 +341,10 @@ class _SplashScreenState extends State<SplashScreen>
               FadeTransition(
                 opacity: _loaderFade,
                 child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(
-                    color: cs.primary,
-                    strokeWidth: 2.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              FadeTransition(
-                opacity: _loaderFade,
-                child: Text(
-                  'Smart Invoice Investing',
-                  style: TextStyle(
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
+                  height: MediaQuery.of(context).size.height * 0.6,
+                  child: const SingleChildScrollView(
+                    physics: NeverScrollableScrollPhysics(),
+                    child: SkeletonHomeContent(),
                   ),
                 ),
               ),
@@ -430,17 +356,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-
-// ── Refresh Rate Picker (used in ProfileScreen) ───────────────────────────────
-
-class RefreshRatePicker extends StatefulWidget {
+class RefreshRatePicker extends ConsumerStatefulWidget {
   const RefreshRatePicker({super.key});
 
   @override
-  State<RefreshRatePicker> createState() => _RefreshRatePickerState();
+  ConsumerState<RefreshRatePicker> createState() => _RefreshRatePickerState();
 }
 
-class _RefreshRatePickerState extends State<RefreshRatePicker> {
+class _RefreshRatePickerState extends ConsumerState<RefreshRatePicker> {
   static const List<({int hz, String label})> _options = [
     (hz: -1, label: 'Maximum (recommended)'),
     (hz: 60, label: '60 Hz'),
@@ -473,29 +396,22 @@ class _RefreshRatePickerState extends State<RefreshRatePicker> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Refresh Rate',
-          style: TextStyle(
-            color: AppColors.textPrimary(context),
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text('Refresh Rate',
+            style: TextStyle(
+                color: AppColors.textPrimary(context),
+                fontSize: 15,
+                fontWeight: FontWeight.w500)),
         DropdownButtonHideUnderline(
           child: DropdownButton<int>(
-            value:
-            _options.any((o) => o.hz == _selected) ? _selected : -1,
+            value: _options.any((o) => o.hz == _selected) ? _selected : -1,
             dropdownColor: AppColors.navyCard(context),
-            style: TextStyle(
-                color: AppColors.textPrimary(context), fontSize: 14),
+            style:
+                TextStyle(color: AppColors.textPrimary(context), fontSize: 14),
             borderRadius: BorderRadius.circular(12),
             items: _options
-                .map((o) => DropdownMenuItem(
-                value: o.hz, child: Text(o.label)))
+                .map((o) => DropdownMenuItem(value: o.hz, child: Text(o.label)))
                 .toList(),
-            onChanged: (hz) {
-              if (hz != null) _apply(hz);
-            },
+            onChanged: (hz) => hz != null ? _apply(hz) : null,
           ),
         ),
       ],

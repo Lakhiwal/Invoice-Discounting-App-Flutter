@@ -2,20 +2,22 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../utils/app_haptics.dart';
 import '../services/api_service.dart';
 import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../widgets/app_logo_header.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
+import '../widgets/skeleton.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PersonalDetailsScreen — Personal details page with crop & preview
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class PersonalDetailsScreen extends StatefulWidget {
+class PersonalDetailsScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? profile;
   final VoidCallback onProfileUpdated;
 
@@ -26,10 +28,10 @@ class PersonalDetailsScreen extends StatefulWidget {
   });
 
   @override
-  State<PersonalDetailsScreen> createState() => _PersonalDetailsScreenState();
+  ConsumerState<PersonalDetailsScreen> createState() => _PersonalDetailsScreenState();
 }
 
-class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
+class _PersonalDetailsScreenState extends ConsumerState<PersonalDetailsScreen> {
   late Map<String, dynamic>? _profile;
   bool _uploading = false;
 
@@ -42,8 +44,16 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   }
 
   Future<void> _load() async {
+    final startTime = DateTime.now();
     try {
-      final p = await ApiService.getProfile();
+      final p = await ApiService.getProfile(forceRefresh: true);
+      
+      // Ensure the "Syncing" state is visible for a premium feel
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 800) {
+        await Future.delayed(Duration(milliseconds: 800 - elapsed));
+      }
+
       if (p != null && mounted) {
         setState(() {
           _profile = Map<String, dynamic>.from(p);
@@ -506,6 +516,12 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
   // ── Build ───────────────────────────────────────────────────────────────
 
+  void _copyToClipboard(String text, String label) {
+    Clipboard.setData(ClipboardData(text: text));
+    AppHaptics.selection();
+    _snack('$label copied to clipboard', isError: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -519,147 +535,185 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
+      appBar: AppBar(
+        title: const Text('Personal Details',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        backgroundColor: cs.surface,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: LiquidityRefreshIndicator(
         onRefresh: _load,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
-          slivers: [
-            // ── App bar ──────────────────────────────────────────
-            AppLogoHeader(
-              title: 'Personal details',
-            ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: _profile == null
+              ? const SingleChildScrollView(
+                  padding: EdgeInsets.all(24),
+                  child: SkeletonPersonalDetails(),
+                )
+              : SingleChildScrollView(
+                  key: const ValueKey('personal_details_content'),
+                  physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics()),
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+              // ── Hero Card ──────────────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      cs.primary.withValues(alpha: 0.1),
+                      cs.primary.withValues(alpha: 0.02),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: cs.primary.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  children: [
+                    _buildAvatar(cs),
+                    const SizedBox(height: 16),
+                    Text(name,
+                        style: TextStyle(
+                            color: cs.onSurface,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(email,
+                        style: TextStyle(
+                            color: cs.onSurfaceVariant, fontSize: 14)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
 
-            // ── Avatar Section ──────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(100),
-                    onTap: _hasPicture ? _viewFullImage : _showPictureSheet,
-                    child: Hero(
-                      tag: 'profile-avatar',
-                      child: Stack(
-                        children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeOut,
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [
-                                  cs.primary.withValues(alpha: 0.9),
-                                  cs.primaryContainer,
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.15),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: _uploading
-                                ? Center(
-                                    child: SizedBox(
-                                      width: 32,
-                                      height: 32,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                        color: cs.onPrimary,
-                                      ),
-                                    ),
-                                  )
-                                : _hasPicture
-                                    ? CachedNetworkImage(
-                                        imageUrl: _pictureUrl!,
-                                        fit: BoxFit.cover,
-                                        width: 110,
-                                        height: 110,
-                                        placeholder: (_, __) => _initialsWidget(cs),
-                                        errorWidget: (_, __, ___) =>
-                                            _initialsWidget(cs),
-                                      )
-                                    : _initialsWidget(cs),
-                          ),
-                          if (!_uploading)
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: GestureDetector(
-                                  onTap: _showPictureSheet,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: cs.primary,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: cs.surface,
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                    child: const Icon(Icons.edit,
-                                        size: 14, color: Colors.white),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+              // ── Details Card ───────────────────────────────────
+              Container(
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.3)),
+                ),
+                child: Column(
+                  children: [
+                    _DetailTile(
+                      icon: Icons.person_outline_rounded,
+                      label: 'Full Name',
+                      value: name,
                     ),
+                    if (dob != null && dob.isNotEmpty)
+                      _DetailTile(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Date of Birth',
+                        value: _maskDob(dob),
+                        onLongPress: () => _copyToClipboard(dob, 'DOB'),
+                      ),
+                    if (mobile.isNotEmpty)
+                      _DetailTile(
+                        icon: Icons.phone_iphone_rounded,
+                        label: 'Mobile Number',
+                        value: _maskMobile(mobile),
+                        onLongPress: () =>
+                            _copyToClipboard(mobile, 'Mobile number'),
+                      ),
+                    if (email.isNotEmpty)
+                      _DetailTile(
+                        icon: Icons.mail_outline_rounded,
+                        label: 'Email Address',
+                        value: _maskEmail(email),
+                        onLongPress: () => _copyToClipboard(email, 'Email'),
+                      ),
+                    if (pan.isNotEmpty)
+                      _DetailTile(
+                        icon: Icons.credit_card_outlined,
+                        label: 'PAN Number',
+                        value: _maskPan(pan),
+                        onLongPress: () => _copyToClipboard(pan, 'PAN'),
+                      ),
+                    if (gender != null && gender.isNotEmpty)
+                      _DetailTile(
+                        icon: Icons.person_pin_outlined,
+                        label: 'Gender',
+                        value: gender[0].toUpperCase() + gender.substring(1),
+                        isLast: true,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Widget _buildAvatar(ColorScheme cs) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(100),
+      onTap: _hasPicture ? _viewFullImage : _showPictureSheet,
+      child: Hero(
+        tag: 'profile-avatar',
+        child: Stack(
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: cs.primary.withValues(alpha: 0.1),
+                border: Border.all(
+                    color: cs.primary.withValues(alpha: 0.2), width: 2),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _uploading
+                  ? Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cs.primary,
+                        ),
+                      ),
+                    )
+                  : _hasPicture
+                      ? CachedNetworkImage(
+                          imageUrl: _pictureUrl!,
+                          fit: BoxFit.cover,
+                          width: 90,
+                          height: 90,
+                          placeholder: (_, __) => _initialsWidget(cs),
+                          errorWidget: (_, __, ___) => _initialsWidget(cs),
+                        )
+                      : _initialsWidget(cs),
+            ),
+            if (!_uploading)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _showPictureSheet,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: cs.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: cs.surface, width: 2),
+                    ),
+                    child: const Icon(Icons.edit, size: 10, color: Colors.white),
                   ),
                 ),
               ),
-            ),
-
-            // ── Info fields ──
-            SliverList(
-              delegate: SliverChildListDelegate([
-                _InfoField(
-                  icon: Icons.person_outline_rounded,
-                  label: 'Full name (as on PAN card)',
-                  value: name,
-                ),
-                if (dob != null && dob.isNotEmpty)
-                  _InfoField(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Date of Birth',
-                    value: _maskDob(dob),
-                  ),
-                if (mobile.isNotEmpty)
-                  _InfoField(
-                    icon: Icons.phone_iphone_rounded,
-                    label: 'Mobile Number',
-                    value: _maskMobile(mobile),
-                  ),
-                if (email.isNotEmpty)
-                  _InfoField(
-                    icon: Icons.mail_outline_rounded,
-                    label: 'Email',
-                    value: _maskEmail(email),
-                  ),
-                if (pan.isNotEmpty)
-                  _InfoField(
-                    icon: Icons.credit_card_outlined,
-                    label: 'PAN number',
-                    value: _maskPan(pan),
-                  ),
-                if (gender != null && gender.isNotEmpty)
-                  _InfoField(
-                    icon: Icons.person_pin_outlined,
-                    label: 'Gender',
-                    value: gender[0].toUpperCase() + gender.substring(1),
-                  ),
-                const SizedBox(height: 60),
-              ]),
-            ),
           ],
         ),
       ),
@@ -667,87 +721,92 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   }
 
   Widget _initialsWidget(ColorScheme cs) => Center(
-      child: Text(_initials,
-          style: TextStyle(
-            color: cs.onPrimaryContainer,
-            fontSize: 48,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1,
-          )));
+          child: Text(
+        _initials,
+        style: TextStyle(
+            color: cs.primary,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1),
+      ));
 }
 
-class _InfoField extends StatelessWidget {
-  final String label, value;
+class _DetailTile extends ConsumerWidget {
   final IconData icon;
+  final String label, value;
+  final VoidCallback? onLongPress;
+  final bool isLast;
 
-  const _InfoField({
+  const _DetailTile({
+    required this.icon,
     required this.label,
     required this.value,
-    required this.icon,
+    this.onLongPress,
+    this.isLast = false,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onLongPress: onLongPress,
+      borderRadius: isLast
+          ? const BorderRadius.vertical(bottom: Radius.circular(20))
+          : null,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: cs.primary, size: 18),
                 ),
-                child: Icon(icon, color: cs.primary, size: 20),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: cs.onSurfaceVariant,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        color: cs.onSurface,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: TextStyle(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 2),
+                      Text(value,
+                          style: TextStyle(
+                              color: cs.onSurface,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (onLongPress != null)
+                  Icon(Icons.copy_rounded,
+                      size: 14, color: cs.onSurfaceVariant.withValues(alpha: 0.3)),
+              ],
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 84), // Align with text
-          child: Divider(
-            height: 1,
-            color: cs.outlineVariant.withValues(alpha: 0.15),
-          ),
-        ),
-      ],
+          if (!isLast)
+            Divider(
+              height: 1,
+              indent: 72,
+              endIndent: 20,
+              color: cs.outlineVariant.withValues(alpha: 0.15),
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _SheetOption extends StatelessWidget {
+class _SheetOption extends ConsumerWidget {
   final IconData icon;
   final Color iconColor;
   final String label;
@@ -755,12 +814,12 @@ class _SheetOption extends StatelessWidget {
 
   const _SheetOption(
       {required this.icon,
-        required this.iconColor,
-        required this.label,
-        required this.onTap});
+      required this.iconColor,
+      required this.label,
+      required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () async {

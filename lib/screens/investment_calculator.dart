@@ -6,8 +6,9 @@ import '../theme/theme_provider.dart';
 import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import '../utils/formatters.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class InvestmentCalculator extends StatefulWidget {
+class InvestmentCalculator extends ConsumerStatefulWidget {
   final double? maxAmount;
   final double? roi;
   final int? days;
@@ -26,10 +27,10 @@ class InvestmentCalculator extends StatefulWidget {
   });
 
   @override
-  State<InvestmentCalculator> createState() => _InvestmentCalculatorState();
+  ConsumerState<InvestmentCalculator> createState() => _InvestmentCalculatorState();
 }
 
-class _InvestmentCalculatorState extends State<InvestmentCalculator> {
+class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
   final _amountCtrl = TextEditingController();
   Timer? _debounce;
 
@@ -366,7 +367,7 @@ class _InvestmentCalculatorState extends State<InvestmentCalculator> {
   }
 }
 
-class _StatRow extends StatelessWidget {
+class _StatRow extends ConsumerWidget {
   final String label;
   final String value;
   final Color? valueColor;
@@ -380,7 +381,7 @@ class _StatRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

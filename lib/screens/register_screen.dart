@@ -8,15 +8,16 @@ import '../theme/ui_constants.dart';
 import '../utils/app_haptics.dart';
 import 'login_screen.dart';
 import 'verify_otp_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
+class _RegisterScreenState extends ConsumerState<RegisterScreen>
     with SingleTickerProviderStateMixin {
   // ── Controllers ──────────────────────────────────────────────────────────
   final _nameController = TextEditingController();
@@ -49,14 +50,14 @@ class _RegisterScreenState extends State<RegisterScreen>
     {
       'value': 'investor',
       'label': 'Investor',
-      'icon': Icons.trending_up_rounded
+      'icon': Icons.trending_up_rounded,
+      'desc': 'Invest in invoices',
     },
-    {'value': 'seller', 'label': 'Seller', 'icon': Icons.store_rounded},
-    {'value': 'debtor', 'label': 'Debtor', 'icon': Icons.receipt_long_rounded},
     {
       'value': 'business_partner',
       'label': 'Partner',
-      'icon': Icons.handshake_rounded
+      'icon': Icons.handshake_rounded,
+      'desc': 'Business collaboration',
     },
   ];
 
@@ -185,12 +186,12 @@ class _RegisterScreenState extends State<RegisterScreen>
       } else {
         await AppHaptics.error();
         setState(
-                () => _errorMessage = result['error'] ?? 'Registration failed.');
+            () => _errorMessage = result['error'] ?? 'Registration failed.');
       }
     } catch (_) {
       await AppHaptics.error();
       setState(() =>
-      _errorMessage = 'Cannot connect to server. Check your network.');
+          _errorMessage = 'Cannot connect to server. Check your network.');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -423,8 +424,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                               return Expanded(
                                 child: Container(
                                   height: 3,
-                                  margin:
-                                  EdgeInsets.only(right: i < 3 ? 4 : 0),
+                                  margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
                                   decoration: BoxDecoration(
                                     color: i < _passwordStrength
                                         ? _strengthColor()
@@ -511,7 +511,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                         child: Text(
                                           _errorMessage!,
                                           style: TextStyle(
-                                        color: AppColors.rose(context),
+                                              color: AppColors.rose(context),
                                               fontSize: 13),
                                         ),
                                       ),
@@ -552,14 +552,14 @@ class _RegisterScreenState extends State<RegisterScreen>
                           ),
                           child: _isLoading
                               ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white))
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5, color: Colors.white))
                               : const Text('Create Account',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700)),
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700)),
                         ),
                       ),
 
@@ -617,46 +617,57 @@ class _RegisterScreenState extends State<RegisterScreen>
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              margin: EdgeInsets.only(right: isLast ? 0 : 8),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              margin: EdgeInsets.only(right: isLast ? 0 : 12),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary(context)
                     : (isDark ? AppColors.navyCard(context) : Colors.white),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isSelected
                       ? AppColors.primary(context)
                       : AppColors.divider(context),
+                  width: isSelected ? 1.5 : 1,
                 ),
                 boxShadow: isSelected
                     ? [
-                  BoxShadow(
-                    color: AppColors.primary(context)
-                        .withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  )
-                ]
+                        BoxShadow(
+                          color: AppColors.primary(context)
+                              .withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        )
+                      ]
                     : [],
               ),
               child: Column(
                 children: [
                   Icon(
                     type['icon'] as IconData,
-                    size: 20,
+                    size: 26,
                     color: isSelected
                         ? Colors.white
                         : AppColors.textSecondary(context),
                   ),
-                  const SizedBox(height: UI.xs),
+                  const SizedBox(height: 8),
                   Text(
                     type['label'] as String,
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                       color: isSelected
                           ? Colors.white
+                          : AppColors.textPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    type['desc'] as String,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.8)
                           : AppColors.textSecondary(context),
                     ),
                   ),
@@ -691,7 +702,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         labelText: label,
         labelStyle: TextStyle(color: AppColors.textSecondary(context)),
         prefixIcon:
-        Icon(icon, color: AppColors.textSecondary(context), size: 20),
+            Icon(icon, color: AppColors.textSecondary(context), size: 20),
         counterText: '',
       ),
     );

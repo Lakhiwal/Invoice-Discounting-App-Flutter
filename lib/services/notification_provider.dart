@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ── Riverpod provider ─────────────────────────────────────────────────────────
+final notificationProvider =
+    ChangeNotifierProvider<NotificationProvider>((ref) => NotificationProvider());
 class NotificationProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
@@ -15,9 +19,13 @@ class NotificationProvider extends ChangeNotifier {
     loadNotifications();
   }
 
-  Future<void> loadNotifications() async {
-    _isLoading = true;
-    notifyListeners();
+  Future<void> loadNotifications({bool silent = false, bool isRefresh = false}) async {
+    final startTime = DateTime.now();
+
+    if (!silent) {
+      _isLoading = true;
+      notifyListeners();
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final List<String> saved =
@@ -26,7 +34,15 @@ class NotificationProvider extends ChangeNotifier {
     _notifications =
         saved.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
     _notifications
-        .sort((a, b) => b['timestamp'].compareTo(a['timestamp']));
+        .sort((a, b) => b['timestamp']?.compareTo(a['timestamp'] ?? '') ?? 0);
+
+    // Ensure the "Syncing" state is visible for a premium feel
+    if (isRefresh) {
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 800) {
+        await Future.delayed(Duration(milliseconds: 800 - elapsed));
+      }
+    }
 
     _isLoading = false;
     notifyListeners();

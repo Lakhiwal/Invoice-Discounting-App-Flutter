@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/api_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/notification_provider.dart';
 import '../theme/theme_provider.dart';
 import '../utils/app_haptics.dart';
@@ -8,6 +7,8 @@ import '../utils/smooth_page_route.dart';
 import '../widgets/liquidity_refresh_indicator.dart';
 import '../widgets/pressable.dart';
 import '../widgets/stagger_list.dart';
+import '../widgets/skeleton.dart';
+import '../theme/ui_constants.dart';
 import 'invoice_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,52 +20,49 @@ import 'invoice_detail_screen.dart';
 //  Unread dot synced via NotificationProvider.
 // ─────────────────────────────────────────────────────────────────────────────
 
-class NotificationCenterScreen extends StatefulWidget {
+class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
 
   @override
-  State<NotificationCenterScreen> createState() =>
+  ConsumerState<NotificationCenterScreen> createState() =>
       _NotificationCenterScreenState();
 }
 
-class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
+class _NotificationCenterScreenState extends ConsumerState<NotificationCenterScreen> {
   @override
   void initState() {
     super.initState();
     // Refresh on open
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotificationProvider>().loadNotifications();
+      ref.read(notificationProvider).loadNotifications();
     });
   }
 
   void _handleTap(
       BuildContext context, Map<String, dynamic> notification) async {
-    final provider = context.read<NotificationProvider>();
+    final provider = ref.read(notificationProvider);
     final id = notification['id']?.toString() ?? '';
-    if (id.isNotEmpty) provider.markAsRead(id);
 
-    final type = notification['type'] ?? '';
-    if (type == 'new_invoice' && notification['invoice_id'] != null) {
-      final invoiceId = int.tryParse(notification['invoice_id'].toString());
-      if (invoiceId != null) {
-        try {
-          final invoice = await ApiService.getInvoiceDetail(invoiceId);
-          if (invoice != null && mounted) {
-            Navigator.push(
-              context,
-              SmoothPageRoute(
-                  builder: (_) => InvoiceDetailScreen.fromMap(invoice)),
-            );
-          }
-        } catch (_) {}
-      }
+    // Premium UX: Navigate immediately to avoid wait-time, update status in background
+    Navigator.push(
+      context,
+      SmoothPageRoute(
+        builder: (_) => InvoiceDetailScreen.fromMap(
+          notification['invoice_data'] ?? {},
+        ),
+      ),
+    );
+
+    if (id.isNotEmpty) {
+      // Mark as read after starting navigation
+      provider.markAsRead(id);
     }
   }
 
   void _handleDismiss(
       BuildContext context, Map<String, dynamic> notification) async {
     await AppHaptics.selection();
-    final provider = context.read<NotificationProvider>();
+    final provider = ref.read(notificationProvider);
     final id = notification['id']?.toString() ?? '';
     if (id.isNotEmpty) provider.removeNotification(id);
   }
@@ -72,7 +70,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final provider = context.watch<NotificationProvider>();
+    final provider = ref.watch(notificationProvider);
     final notifications = provider.notifications;
     final isLoading = provider.isLoading;
     final unread = provider.unreadCount;
@@ -83,10 +81,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: LiquidityRefreshIndicator(
-        onRefresh: () async {
-          await AppHaptics.selection();
-          await provider.loadNotifications();
-        },
+        onRefresh: () => provider.loadNotifications(silent: true, isRefresh: true),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics()),
@@ -145,7 +140,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           if (!isLoading && unread > 0)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
+                padding: const EdgeInsets.fromLTRB(UI.lg, 4, UI.lg, 8),
                 child: Row(
                   children: [
                     Container(
@@ -171,8 +166,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
           // ── Loading state ───────────────────────────────────────────
           if (isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
+            const SliverToBoxAdapter(
+              child: SkeletonNotificationContent(),
             )
 
           // ── Empty state ─────────────────────────────────────────────
@@ -189,7 +184,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                   // Group header
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+                      padding: const EdgeInsets.fromLTRB(UI.lg, 20, UI.lg, 8),
                       child: Text(
                         label,
                         style: TextStyle(
@@ -203,7 +198,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                   ),
                   // Group items
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: UI.lg),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
                             (ctx, i) {
@@ -322,14 +317,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 //  Notification tile
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _NotificationTile extends StatelessWidget {
+class _NotificationTile extends ConsumerWidget {
   final Map<String, dynamic> notification;
   final VoidCallback onTap;
 
   const _NotificationTile({required this.notification, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final isRead = notification['is_read'] == true;
     final type = notification['type'] ?? 'system';
@@ -502,9 +497,9 @@ class _NotificationTile extends StatelessWidget {
 //  Empty state
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(

@@ -26,6 +26,48 @@ class SecureStorageService {
   // Legacy key — kept only for migration wipe on clearCredentials()
   static const _legacyPasswordKey = 'secure_password';
 
+  // ── JWT Token Keys (P0 security hardening) ───────────────────────────────
+  static const _accessTokenKey  = 'jwt_access_token';
+  static const _jwtRefreshKey   = 'jwt_refresh_token';
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // JWT TOKEN MANAGEMENT — used by ApiClient for all authenticated requests
+  // ════════════════════════════════════════════════════════════════════════════
+
+  /// Save both JWT tokens after login or token refresh.
+  static Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await _storage.write(key: _accessTokenKey, value: accessToken);
+    await _storage.write(key: _jwtRefreshKey, value: refreshToken);
+  }
+
+  /// Save only the access token (after a refresh).
+  static Future<void> saveAccessToken(String token) async {
+    await _storage.write(key: _accessTokenKey, value: token);
+  }
+
+  /// Read the current access token (may be null if not logged in).
+  static Future<String?> getAccessToken() async {
+    return _storage.read(key: _accessTokenKey);
+  }
+
+  /// Read the current refresh token.
+  static Future<String?> getRefreshToken() async {
+    return _storage.read(key: _jwtRefreshKey);
+  }
+
+  /// Clear JWT tokens on logout.
+  static Future<void> clearTokens() async {
+    await _storage.delete(key: _accessTokenKey);
+    await _storage.delete(key: _jwtRefreshKey);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BIOMETRIC CREDENTIALS — email hint + refresh token for biometric re-auth
+  // ════════════════════════════════════════════════════════════════════════════
+
   /// Save email (display hint) + refresh token after a successful login.
   static Future<void> saveCredentials({
     required String email,
@@ -49,5 +91,11 @@ class SecureStorageService {
     await _storage.delete(key: _emailKey);
     await _storage.delete(key: _refreshTokenKey);
     await _storage.delete(key: _legacyPasswordKey); // legacy wipe
+  }
+
+  /// Clear everything on full logout.
+  static Future<void> clearAll() async {
+    await clearTokens();
+    await clearCredentials();
   }
 }

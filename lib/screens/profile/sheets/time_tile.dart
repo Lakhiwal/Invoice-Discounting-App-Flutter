@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../theme/ui_constants.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ── Time tile (used in quiet hours picker) ──────────────────────────────────
 
-class ProfileTimeTile extends StatelessWidget {
+class ProfileTimeTile extends ConsumerWidget {
   final String label;
   final TimeOfDay? time;
   final VoidCallback onTap;
@@ -16,7 +17,7 @@ class ProfileTimeTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,

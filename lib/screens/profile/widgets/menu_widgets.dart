@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../utils/app_haptics.dart';
 import '../../../widgets/pressable.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Profile menu widgets — divider-based, no card borders
@@ -8,12 +9,12 @@ import '../../../widgets/pressable.dart';
 
 // ── Section header ──────────────────────────────────────────────────────────
 
-class ProfileSectionHeader extends StatelessWidget {
+class ProfileSectionHeader extends ConsumerWidget {
   final String label;
   const ProfileSectionHeader({super.key, required this.label});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
       child: Text(
@@ -31,12 +32,12 @@ class ProfileSectionHeader extends StatelessWidget {
 
 // ── Card group — subtle dividers, no border/card ────────────────────────────
 
-class ProfileCardGroup extends StatelessWidget {
+class ProfileCardGroup extends ConsumerWidget {
   final List<Widget> children;
   const ProfileCardGroup({super.key, required this.children});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: children.asMap().entries.map((entry) {
@@ -61,7 +62,7 @@ class ProfileCardGroup extends StatelessWidget {
 
 // ── Menu item ───────────────────────────────────────────────────────────────
 
-class ProfileMenuItem extends StatelessWidget {
+class ProfileMenuItem extends ConsumerWidget {
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
@@ -88,7 +89,7 @@ class ProfileMenuItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Pressable(
       onTap: onTap,
@@ -153,7 +154,7 @@ class ProfileMenuItem extends StatelessWidget {
 
 // ── Toggle item (tappable, not a switch — opens picker) ─────────────────────
 
-class ProfileToggleItem extends StatelessWidget {
+class ProfileToggleItem extends ConsumerWidget {
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
@@ -172,7 +173,7 @@ class ProfileToggleItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ProfileMenuItem(
       icon: icon,
       iconColor: iconColor,
@@ -186,7 +187,7 @@ class ProfileToggleItem extends StatelessWidget {
 
 // ── Switch item ─────────────────────────────────────────────────────────────
 
-class ProfileSwitchItem extends StatelessWidget {
+class ProfileSwitchItem extends ConsumerWidget {
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
@@ -207,7 +208,7 @@ class ProfileSwitchItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
     return Pressable(
       onTap: () async {
