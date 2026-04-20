@@ -1,19 +1,21 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../utils/smooth_page_route.dart';
-import 'login_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  ConsumerState<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
@@ -82,7 +84,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        await AppHaptics.success();
+        unawaited(AppHaptics.success());
         setState(() {
           _step = 1;
           _loading = false;
@@ -93,7 +95,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           if (mounted) _otpFocus.requestFocus();
         });
       } else {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         setState(() {
           _loading = false;
           _error = result['error'] as String? ?? 'Failed to send OTP.';
@@ -101,7 +103,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       setState(() {
         _loading = false;
         _error = 'Connection error. Please check your network.';
@@ -133,14 +135,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
 
     // Strong password check
-    final hasUpper = RegExp(r'[A-Z]').hasMatch(password);
-    final hasLower = RegExp(r'[a-z]').hasMatch(password);
-    final hasDigit = RegExp(r'[0-9]').hasMatch(password);
-    final hasSpecial = RegExp(r'[^A-Za-z0-9]').hasMatch(password);
+    final hasUpper = RegExp('[A-Z]').hasMatch(password);
+    final hasLower = RegExp('[a-z]').hasMatch(password);
+    final hasDigit = RegExp('[0-9]').hasMatch(password);
+    final hasSpecial = RegExp('[^A-Za-z0-9]').hasMatch(password);
 
     if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
-      setState(() => _error =
-      'Password needs uppercase, lowercase, number, and special character.');
+      setState(
+        () => _error =
+            'Password needs uppercase, lowercase, number, and special character.',
+      );
       return;
     }
 
@@ -163,7 +167,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       if (!mounted) return;
 
       if (result['success'] == true) {
-        await AppHaptics.success();
+        unawaited(AppHaptics.success());
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -173,12 +177,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           ),
         );
 
-        Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
+        unawaited(
+          Navigator.of(context).pushAndRemoveUntil(
+            SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+            (route) => false,
+          ),
         );
       } else {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         setState(() {
           _loading = false;
           _error = result['error'] as String? ?? 'Reset failed.';
@@ -186,7 +192,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       setState(() {
         _loading = false;
         _error = 'Connection error. Please check your network.';
@@ -220,12 +226,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     });
 
     try {
-      final result =
-      await ApiService.resendOtp(email: _emailCtrl.text.trim());
+      final result = await ApiService.resendOtp(email: _emailCtrl.text.trim());
       if (!mounted) return;
 
       if (result['success'] == true) {
-        await AppHaptics.selection();
+        unawaited(AppHaptics.selection());
         _startResendCooldown();
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -275,19 +280,22 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           leading: _loading
               ? null
               : IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded,
-                color: colorScheme.onSurface, size: 18),
-            onPressed: () {
-              if (_step > 0 && !_loading) {
-                setState(() {
-                  _step--;
-                  _error = null;
-                });
-              } else {
-                Navigator.pop(context);
-              }
-            },
-          ),
+                  icon: Icon(
+                    AppIcons.back,
+                    color: colorScheme.onSurface,
+                    size: 18,
+                  ),
+                  onPressed: () {
+                    if (_step > 0 && !_loading) {
+                      setState(() {
+                        _step--;
+                        _error = null;
+                      });
+                    } else {
+                      if (mounted) Navigator.pop(context);
+                    }
+                  },
+                ),
           title: Text(
             'Reset Password',
             style: TextStyle(
@@ -326,46 +334,56 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 curve: Curves.easeInOut,
                 child: _error != null
                     ? Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color:
-                          colorScheme.error.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 1),
-                          child: Icon(Icons.error_outline_rounded,
-                              color: colorScheme.error, size: 16),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(_error!,
-                              style: TextStyle(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colorScheme.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: colorScheme.error.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 1),
+                                child: Icon(
+                                  AppIcons.error,
                                   color: colorScheme.error,
-                                  fontSize: 13)),
+                                  size: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: TextStyle(
+                                    color: colorScheme.error,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _dismissError,
+                                child: Icon(
+                                  AppIcons.close,
+                                  color: colorScheme.error,
+                                  size: 16,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        GestureDetector(
-                          onTap: _dismissError,
-                          child: Icon(Icons.close_rounded,
-                              color: colorScheme.error, size: 16),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+                      )
                     : const SizedBox.shrink(),
               ),
 
-              SizedBox(
-                  height: MediaQuery.of(context).padding.bottom + 40),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 40),
             ],
           ),
         ),
@@ -375,271 +393,279 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   // ── Step 0: Email ──────────────────────────────────────────────────────
 
-  Widget _buildEmailStep(ColorScheme cs) {
-    return Column(
-      key: const ValueKey('email_step'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Forgot your password?',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: cs.onSurface,
-            letterSpacing: -0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter your registered email and we\'ll send you a verification code.',
-          style: TextStyle(
-            fontSize: 14,
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 28),
-        TextField(
-          controller: _emailCtrl,
-          focusNode: _emailFocus,
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.done,
-          enabled: !_loading,
-          onChanged: (_) {
-            if (_error != null) _dismissError();
-          },
-          onSubmitted: (_) => _requestOtp(),
-          style: TextStyle(color: cs.onSurface),
-          decoration: InputDecoration(
-            labelText: 'Email address',
-            labelStyle: TextStyle(color: cs.onSurfaceVariant),
-            prefixIcon: Icon(Icons.mail_outline_rounded,
-                color: cs.onSurfaceVariant, size: 20),
-          ),
-        ),
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _loading ? null : _requestOtp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
-              disabledBackgroundColor: cs.primary.withValues(alpha: 0.6),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
+  Widget _buildEmailStep(ColorScheme cs) => Column(
+        key: const ValueKey('email_step'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Forgot your password?',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+              letterSpacing: -0.5,
             ),
-            child: _loading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2.5, color: Colors.white),
-            )
-                : const Text('Send OTP',
-                style:
-                TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
-        ),
-      ],
-    );
-  }
+          const SizedBox(height: 8),
+          Text(
+            "Enter your registered email and we'll send you a verification code.",
+            style: TextStyle(
+              fontSize: 14,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 28),
+          TextField(
+            controller: _emailCtrl,
+            focusNode: _emailFocus,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            enabled: !_loading,
+            onChanged: (_) {
+              if (_error != null) _dismissError();
+            },
+            onSubmitted: (_) => _requestOtp(),
+            style: TextStyle(color: cs.onSurface),
+            decoration: InputDecoration(
+              labelText: 'Email address',
+              labelStyle: TextStyle(color: cs.onSurfaceVariant),
+              prefixIcon: Icon(
+                AppIcons.mail,
+                color: cs.onSurfaceVariant,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _requestOtp,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+                disabledBackgroundColor: cs.primary.withValues(alpha: 0.6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Send OTP',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+            ),
+          ),
+        ],
+      );
 
   // ── Step 1: OTP + New Password (combined) ──────────────────────────────
 
-  Widget _buildOtpAndPasswordStep(ColorScheme cs) {
-    return Column(
-      key: const ValueKey('otp_step'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Enter verification code',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: cs.onSurface,
-            letterSpacing: -0.5,
+  Widget _buildOtpAndPasswordStep(ColorScheme cs) => Column(
+        key: const ValueKey('otp_step'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter verification code',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: cs.onSurface,
+              letterSpacing: -0.5,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        RichText(
-          text: TextSpan(
-            style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-            children: [
-              const TextSpan(text: 'We sent a 6-digit code to '),
-              TextSpan(
-                text: _emailCtrl.text.trim(),
-                style: TextStyle(
-                    color: cs.onSurface, fontWeight: FontWeight.w600),
-              ),
-            ],
+          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+              children: [
+                const TextSpan(text: 'We sent a 6-digit code to '),
+                TextSpan(
+                  text: _emailCtrl.text.trim(),
+                  style: TextStyle(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 28),
+          const SizedBox(height: 28),
 
-        // OTP field
-        TextField(
-          controller: _otpCtrl,
-          focusNode: _otpFocus,
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.next,
-          enabled: !_loading,
-          maxLength: 6,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: (_) {
-            if (_error != null) _dismissError();
-          },
-          onSubmitted: (_) => _passFocus.requestFocus(),
-          style: TextStyle(
-            color: cs.onSurface,
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 12,
-          ),
-          textAlign: TextAlign.center,
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '000000',
-            hintStyle: TextStyle(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+          // OTP field
+          TextField(
+            controller: _otpCtrl,
+            focusNode: _otpFocus,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.next,
+            enabled: !_loading,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onChanged: (_) {
+              if (_error != null) _dismissError();
+            },
+            onSubmitted: (_) => _passFocus.requestFocus(),
+            style: TextStyle(
+              color: cs.onSurface,
               fontSize: 24,
               fontWeight: FontWeight.w800,
               letterSpacing: 12,
             ),
-          ),
-        ),
-
-        // Resend OTP
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed:
-            _resendCooldown > 0 || _loading ? null : _resendOtp,
-            style: TextButton.styleFrom(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Text(
-              _resendCooldown > 0
-                  ? 'Resend in ${_resendCooldown}s'
-                  : 'Resend OTP',
-              style: TextStyle(
-                fontSize: 13,
-                color: _resendCooldown > 0
-                    ? cs.onSurfaceVariant
-                    : cs.primary,
-                fontWeight: FontWeight.w600,
+            textAlign: TextAlign.center,
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: '000000',
+              hintStyle: TextStyle(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 12,
               ),
             ),
           ),
-        ),
 
-        const SizedBox(height: 16),
+          // Resend OTP
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _resendCooldown > 0 || _loading ? null : _resendOtp,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                _resendCooldown > 0
+                    ? 'Resend in ${_resendCooldown}s'
+                    : 'Resend OTP',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: _resendCooldown > 0 ? cs.onSurfaceVariant : cs.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
 
-        // New password
-        TextField(
-          controller: _passCtrl,
-          focusNode: _passFocus,
-          obscureText: _obscurePass,
-          textInputAction: TextInputAction.next,
-          enabled: !_loading,
-          onChanged: (_) {
-            if (_error != null) _dismissError();
-          },
-          onSubmitted: (_) => _confirmFocus.requestFocus(),
-          style: TextStyle(color: cs.onSurface),
-          decoration: InputDecoration(
-            labelText: 'New Password',
-            labelStyle: TextStyle(color: cs.onSurfaceVariant),
-            prefixIcon: Icon(Icons.lock_outline_rounded,
-                color: cs.onSurfaceVariant, size: 20),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePass
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+          const SizedBox(height: 16),
+
+          // New password
+          TextField(
+            controller: _passCtrl,
+            focusNode: _passFocus,
+            obscureText: _obscurePass,
+            textInputAction: TextInputAction.next,
+            enabled: !_loading,
+            onChanged: (_) {
+              if (_error != null) _dismissError();
+            },
+            onSubmitted: (_) => _confirmFocus.requestFocus(),
+            style: TextStyle(color: cs.onSurface),
+            decoration: InputDecoration(
+              labelText: 'New Password',
+              labelStyle: TextStyle(color: cs.onSurfaceVariant),
+              prefixIcon: Icon(
+                AppIcons.lock,
                 color: cs.onSurfaceVariant,
                 size: 20,
               ),
-              onPressed: _loading
-                  ? null
-                  : () => setState(() => _obscurePass = !_obscurePass),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePass ? AppIcons.eyeSlash : AppIcons.eye,
+                  color: cs.onSurfaceVariant,
+                  size: 20,
+                ),
+                onPressed: _loading
+                    ? null
+                    : () => setState(() => _obscurePass = !_obscurePass),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 14),
+          const SizedBox(height: 14),
 
-        // Confirm password
-        TextField(
-          controller: _confirmCtrl,
-          focusNode: _confirmFocus,
-          obscureText: _obscureConfirm,
-          textInputAction: TextInputAction.done,
-          enabled: !_loading,
-          onChanged: (_) {
-            if (_error != null) _dismissError();
-          },
-          onSubmitted: (_) => _resetPassword(),
-          style: TextStyle(color: cs.onSurface),
-          decoration: InputDecoration(
-            labelText: 'Confirm Password',
-            labelStyle: TextStyle(color: cs.onSurfaceVariant),
-            prefixIcon: Icon(Icons.check_circle_outline_rounded,
-                color: cs.onSurfaceVariant, size: 20),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirm
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+          // Confirm password
+          TextField(
+            controller: _confirmCtrl,
+            focusNode: _confirmFocus,
+            obscureText: _obscureConfirm,
+            textInputAction: TextInputAction.done,
+            enabled: !_loading,
+            onChanged: (_) {
+              if (_error != null) _dismissError();
+            },
+            onSubmitted: (_) => _resetPassword(),
+            style: TextStyle(color: cs.onSurface),
+            decoration: InputDecoration(
+              labelText: 'Confirm Password',
+              labelStyle: TextStyle(color: cs.onSurfaceVariant),
+              prefixIcon: Icon(
+                AppIcons.check,
                 color: cs.onSurfaceVariant,
                 size: 20,
               ),
-              onPressed: _loading
-                  ? null
-                  : () =>
-                  setState(() => _obscureConfirm = !_obscureConfirm),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscureConfirm ? AppIcons.eyeSlash : AppIcons.eye,
+                  color: cs.onSurfaceVariant,
+                  size: 20,
+                ),
+                onPressed: _loading
+                    ? null
+                    : () => setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
             ),
           ),
-        ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        // Password requirements hint
-        _PasswordHint(password: _passCtrl.text),
+          // Password requirements hint
+          _PasswordHint(password: _passCtrl.text),
 
-        const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _loading ? null : _resetPassword,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: cs.primary,
-              foregroundColor: cs.onPrimary,
-              disabledBackgroundColor: cs.primary.withValues(alpha: 0.6),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _resetPassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: cs.primary,
+                foregroundColor: cs.onPrimary,
+                disabledBackgroundColor: cs.primary.withValues(alpha: 0.6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                elevation: 0,
+              ),
+              child: _loading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Reset Password',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
             ),
-            child: _loading
-                ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2.5, color: Colors.white),
-            )
-                : const Text('Reset Password',
-                style:
-                TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -647,8 +673,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _StepIndicator extends ConsumerWidget {
-  final int currentStep;
   const _StepIndicator({required this.currentStep});
+
+  final int currentStep;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -656,7 +683,10 @@ class _StepIndicator extends ConsumerWidget {
     return Row(
       children: [
         _StepDot(
-            label: 'Email', active: currentStep >= 0, completed: currentStep > 0),
+          label: 'Email',
+          active: currentStep >= 0,
+          completed: currentStep > 0,
+        ),
         Expanded(
           child: Container(
             height: 2,
@@ -665,23 +695,22 @@ class _StepIndicator extends ConsumerWidget {
                 : cs.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
-        _StepDot(
-            label: 'Reset', active: currentStep >= 1, completed: false),
+        _StepDot(label: 'Reset', active: currentStep >= 1, completed: false),
       ],
     );
   }
 }
 
 class _StepDot extends ConsumerWidget {
-  final String label;
-  final bool active;
-  final bool completed;
-
   const _StepDot({
     required this.label,
     required this.active,
     required this.completed,
   });
+
+  final String label;
+  final bool active;
+  final bool completed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -695,20 +724,22 @@ class _StepDot extends ConsumerWidget {
             shape: BoxShape.circle,
             color: active ? cs.primary : cs.surfaceContainerHighest,
             border: Border.all(
-              color: active ? cs.primary : cs.outlineVariant.withValues(alpha: 0.3),
+              color: active
+                  ? cs.primary
+                  : cs.outlineVariant.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
           child: Center(
             child: completed
-                ? Icon(Icons.check_rounded, color: cs.onPrimary, size: 14)
+                ? Icon(AppIcons.check, color: cs.onPrimary, size: 14)
                 : Text(
-              active ? '●' : '○',
-              style: TextStyle(
-                color: active ? cs.onPrimary : cs.onSurfaceVariant,
-                fontSize: 8,
-              ),
-            ),
+                    active ? '●' : '○',
+                    style: TextStyle(
+                      color: active ? cs.onPrimary : cs.onSurfaceVariant,
+                      fontSize: 8,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(height: 4),
@@ -726,8 +757,9 @@ class _StepDot extends ConsumerWidget {
 }
 
 class _PasswordHint extends ConsumerWidget {
-  final String password;
   const _PasswordHint({required this.password});
+
+  final String password;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -735,11 +767,11 @@ class _PasswordHint extends ConsumerWidget {
     if (password.isEmpty) return const SizedBox.shrink();
 
     final checks = [
-      (RegExp(r'.{8,}').hasMatch(password), '8+ characters'),
-      (RegExp(r'[A-Z]').hasMatch(password), 'Uppercase'),
-      (RegExp(r'[a-z]').hasMatch(password), 'Lowercase'),
-      (RegExp(r'[0-9]').hasMatch(password), 'Number'),
-      (RegExp(r'[^A-Za-z0-9]').hasMatch(password), 'Special char'),
+      (RegExp('.{8,}').hasMatch(password), '8+ characters'),
+      (RegExp('[A-Z]').hasMatch(password), 'Uppercase'),
+      (RegExp('[a-z]').hasMatch(password), 'Lowercase'),
+      (RegExp('[0-9]').hasMatch(password), 'Number'),
+      (RegExp('[^A-Za-z0-9]').hasMatch(password), 'Special char'),
     ];
 
     return Wrap(
@@ -751,9 +783,7 @@ class _PasswordHint extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              passed
-                  ? Icons.check_circle_rounded
-                  : Icons.circle_outlined,
+              passed ? AppIcons.check : AppIcons.empty,
               size: 14,
               color: passed
                   ? AppColors.success(context)

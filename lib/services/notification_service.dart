@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:invoice_discounting_app/main.dart';
+import 'package:invoice_discounting_app/screens/invoice_detail_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../screens/invoice_detail_screen.dart';
-import 'api_service.dart';
-import '../main.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Background handler — top-level function, runs in a separate isolate.
@@ -38,8 +39,8 @@ Future<void> firebaseBackgroundHandler(RemoteMessage message) async {
     );
     await plugin.show(
       id: message.hashCode,
-      title: data['title'] ?? 'New Alert',
-      body: data['body'] ?? '',
+      title: (data['title'] ?? 'New Alert').toString(),
+      body: (data['body'] ?? '').toString(),
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'new_invoices',
@@ -86,7 +87,7 @@ class NotificationService {
 
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = IOSInitializationSettings();
+      const iosSettings = DarwinInitializationSettings();
       const initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
@@ -106,10 +107,12 @@ class NotificationService {
       try {
         final initialMessage = await _messaging.getInitialMessage();
         if (initialMessage != null) {
-          await Future.delayed(const Duration(milliseconds: 500));
+          await Future<void>.delayed(const Duration(milliseconds: 500));
           handleDeepLink(initialMessage.data);
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('NotificationService error: $e');
+      }
 
       FirebaseMessaging.onMessageOpenedApp.listen((message) {
         handleDeepLink(message.data);
@@ -122,34 +125,8 @@ class NotificationService {
           await ApiService.registerFcmToken(token);
         }
       });
-    } catch (e) {}
-  }
-
-  // ────────────────────────────── TOKEN ──────────────────────────────────
-
-  static Future<void> _registerToken() async {
-    try {
-      final token = await _messaging.getToken();
-
-      if (token == null) {
-        assert(() {
-          debugPrint('⚠️ FCM token null');
-          return true;
-        }());
-        return;
-      }
-
-      assert(() {
-        debugPrint("FCM TOKEN: $token");
-        return true;
-      }());
-
-      await ApiService.registerFcmToken(token);
     } catch (e) {
-      assert(() {
-        debugPrint('⚠️ FCM disabled on this device: $e');
-        return true;
-      }());
+      debugPrint('NotificationService error: $e');
     }
   }
 
@@ -167,9 +144,13 @@ class NotificationService {
         final invoice = await ApiService.getInvoiceDetail(invoiceId);
         if (invoice == null) return;
 
-        navigatorKey.currentState?.push(
-          SmoothPageRoute(
-            builder: (_) => InvoiceDetailScreen.fromMap(invoice),
+        unawaited(
+          navigatorKey.currentState?.push(
+            SmoothPageRoute<void>(
+              builder: (_) => InvoiceDetailScreen.fromMap(
+                invoice,
+              ),
+            ),
           ),
         );
       }
@@ -183,7 +164,7 @@ class NotificationService {
 
   // ────────────────────────── FOREGROUND ─────────────────────────────────
 
-  static void _handleForegroundMessage(RemoteMessage message) async {
+  static Future<void> _handleForegroundMessage(RemoteMessage message) async {
     try {
       if (!await isPushEnabled()) return;
 
@@ -198,9 +179,11 @@ class NotificationService {
       final type = message.data['type'] ?? '';
       final payload = '$type|$invoiceId';
 
-      final title =
-          message.notification?.title ?? message.data['title'] ?? 'New Alert';
-      final body = message.notification?.body ?? message.data['body'] ?? '';
+      final title = message.notification?.title ??
+          (message.data['title'] as String?) ??
+          'New Alert';
+      final body =
+          message.notification?.body ?? (message.data['body'] as String?) ?? '';
 
       const details = NotificationDetails(
         android: AndroidNotificationDetails(
@@ -226,7 +209,9 @@ class NotificationService {
         notificationDetails: details,
         payload: payload,
       );
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('NotificationService error: $e');
+    }
   }
 
   @pragma('vm:entry-point')
@@ -242,13 +227,16 @@ class NotificationService {
   static Future<void> saveNotificationLocally(RemoteMessage message) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final List<String> saved = prefs.getStringList(_prefKeyLocalStore) ?? [];
+      final saved = prefs.getStringList(_prefKeyLocalStore) ?? [];
 
       final notificationData = {
         'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'title':
-            message.notification?.title ?? message.data['title'] ?? 'New Alert',
-        'body': message.notification?.body ?? message.data['body'] ?? '',
+        'title': message.notification?.title ??
+            (message.data['title'] as String?) ??
+            'New Alert',
+        'body': message.notification?.body ??
+            (message.data['body'] as String?) ??
+            '',
         'type': message.data['type'] ?? 'system',
         'invoice_id': message.data['invoice_id'],
         'timestamp': DateTime.now().toIso8601String(),
@@ -263,18 +251,16 @@ class NotificationService {
       }
 
       await prefs.setStringList(_prefKeyLocalStore, saved);
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('NotificationService error: $e');
+    }
   }
 
   // ──────────────────────────── PERMISSION ───────────────────────────────
 
   static Future<bool> requestPermission() async {
     try {
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      final settings = await _messaging.requestPermission();
       return settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional;
     } catch (e) {
@@ -286,7 +272,9 @@ class NotificationService {
     try {
       await _messaging.unsubscribeFromTopic('investors');
       await _messaging.deleteToken();
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('NotificationService error: $e');
+    }
   }
 
   // ───────────────────────── PUSH TOGGLE ─────────────────────────────────
@@ -309,7 +297,9 @@ class NotificationService {
         await _messaging.subscribeToTopic('investors');
         final token = await _messaging.getToken();
         if (token != null) await ApiService.registerFcmToken(token);
-      } catch (e) {}
+      } catch (e) {
+        debugPrint('NotificationService error: $e');
+      }
     }
   }
 
@@ -330,13 +320,17 @@ class NotificationService {
       await prefs.remove(_prefKeyQuietEnd);
     } else {
       await prefs.setString(
-          _prefKeyQuietStart, '${start.hour}:${start.minute}');
+        _prefKeyQuietStart,
+        '${start.hour}:${start.minute}',
+      );
       await prefs.setString(_prefKeyQuietEnd, '${end.hour}:${end.minute}');
     }
 
     try {
       await ApiService.updateQuietHours(start, end);
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('NotificationService error: $e');
+    }
   }
 
   static Future<bool> isQuietHours() async {
@@ -363,5 +357,56 @@ class NotificationService {
       hour: int.tryParse(parts[0]) ?? 0,
       minute: int.tryParse(parts[1]) ?? 0,
     );
+  }
+
+  // ──────────────────────── SMART LIQUIDITY ──────────────────────────────
+
+  /// Simulates a smart liquidity alert for high-yield invoices matching
+  /// the user's historical investment patterns.
+  static Future<void> sendSmartLiquidityAlert({
+    required int invoiceId,
+    required String company,
+    required double annualReturn,
+  }) async {
+    try {
+      if (!await isPushEnabled() || await isQuietHours()) return;
+
+      final message = RemoteMessage(
+        data: {
+          'type': 'new_invoice',
+          'invoice_id': invoiceId.toString(),
+          'title': '⚡ Smart Match Found',
+          'body':
+              'A high-yield invoice from $company ($annualReturn% p.a.) matches your portfolio pattern. Invest now!',
+        },
+      );
+
+      // Save locally first
+      await saveNotificationLocally(message);
+
+      // Show local push
+      await _localNotifications.show(
+        id: invoiceId.hashCode,
+        title: '⚡ Smart Match Found',
+        body: 'Invest in $company at $annualReturn% p.a. - tailored for you.',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'smart_liquidity',
+            'Smart Liquidity Alerts',
+            channelDescription: 'Targeted high-yield invoice matches',
+            importance: Importance.max,
+            priority: Priority.max,
+            color: Color(0xFF6366F1), // Indigo primary
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.critical,
+          ),
+        ),
+        payload: 'new_invoice|$invoiceId',
+      );
+    } catch (e) {}
   }
 }

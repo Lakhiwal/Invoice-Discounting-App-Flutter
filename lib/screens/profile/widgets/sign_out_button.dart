@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../../theme/theme_provider.dart';
-import '../../../theme/ui_constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 // ── Sign out button ─────────────────────────────────────────────────────────
 
 class ProfileSignOutButton extends ConsumerWidget {
+  const ProfileSignOutButton({required this.onTap, super.key});
   final VoidCallback onTap;
-  const ProfileSignOutButton({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -15,7 +18,10 @@ class ProfileSignOutButton extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          unawaited(AppHaptics.navTap());
+          onTap();
+        },
         borderRadius: BorderRadius.circular(UI.radiusMd),
         child: Container(
           width: double.infinity,
@@ -28,7 +34,7 @@ class ProfileSignOutButton extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.logout_rounded, color: dangerColor, size: 18),
+              Icon(AppIcons.logout, color: dangerColor, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Sign Out',

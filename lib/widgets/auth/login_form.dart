@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../view_models/auth_view_model.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/view_models/auth_view_model.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
+  const LoginForm({required this.onForgotPassword, super.key});
   final VoidCallback onForgotPassword;
-
-  const LoginForm({super.key, required this.onForgotPassword});
 
   @override
   ConsumerState<LoginForm> createState() => _LoginFormState();
@@ -42,7 +42,14 @@ class _LoginFormState extends ConsumerState<LoginForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Email address
-        Text('Email address', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.w600)),
+        Text(
+          'Email address',
+          style: TextStyle(
+            color: cs.onSurfaceVariant,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _emailController,
@@ -52,9 +59,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
           decoration: InputDecoration(
             hintText: 'Enter your email',
-            prefixIcon: Icon(Icons.mail_outline_rounded, color: cs.primary, size: 20),
+            prefixIcon: Icon(AppIcons.mail, color: cs.primary, size: 20),
           ),
-          onSubmitted: (_) => FocusScope.of(context).requestFocus(_passwordFocusNode),
+          onSubmitted: (_) =>
+              FocusScope.of(context).requestFocus(_passwordFocusNode),
         ),
 
         const SizedBox(height: 20),
@@ -63,10 +71,24 @@ class _LoginFormState extends ConsumerState<LoginForm> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Password', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(
+              'Password',
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             GestureDetector(
               onTap: widget.onForgotPassword,
-              child: Text('Forgot Password?', style: TextStyle(color: cs.primary, fontSize: 13, fontWeight: FontWeight.w700)),
+              child: Text(
+                'Forgot Password?',
+                style: TextStyle(
+                  color: cs.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -79,10 +101,15 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
           decoration: InputDecoration(
             hintText: 'Enter your password',
-            prefixIcon: Icon(Icons.lock_outline_rounded, color: cs.primary, size: 20),
+            prefixIcon: Icon(AppIcons.lock, color: cs.primary, size: 20),
             suffixIcon: IconButton(
-              icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20, color: cs.onSurfaceVariant),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              icon: Icon(
+                _obscurePassword ? AppIcons.eyeSlash : AppIcons.eye,
+                size: 20,
+                color: cs.onSurfaceVariant,
+              ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
           onSubmitted: (_) => _handleLogin(),
@@ -97,8 +124,18 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           child: ElevatedButton(
             onPressed: auth.status == AuthStatus.loading ? null : _handleLogin,
             child: auth.status == AuthStatus.loading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: LoadingAnimationWidget.hexagonDots(
+                      color: cs.onPrimary,
+                      size: 20,
+                    ),
+                  )
+                : const Text(
+                    'Sign In',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
           ),
         ),
 
@@ -106,9 +143,17 @@ class _LoginFormState extends ConsumerState<LoginForm> {
           const SizedBox(height: 16),
           Center(
             child: TextButton.icon(
-              onPressed: auth.status == AuthStatus.loading ? null : auth.biometricLogin,
-              icon: Icon(Icons.face_unlock_rounded, color: cs.primary),
-              label: Text('Use Biometric Login', style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
+              onPressed: auth.status == AuthStatus.loading
+                  ? null
+                  : auth.biometricLogin,
+              icon: Icon(AppIcons.fingerPrint, color: cs.primary),
+              label: Text(
+                'Use Biometric Login',
+                style: TextStyle(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],

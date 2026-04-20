@@ -1,24 +1,26 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../services/api_service.dart';
-import '../../../theme/theme_provider.dart';
-import '../../../utils/app_haptics.dart';
-import '../../../widgets/skeleton.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
 
 class ShieldManagementSheet extends ConsumerStatefulWidget {
+  const ShieldManagementSheet({
+    required this.isEnabled,
+    required this.onChanged,
+    super.key,
+  });
   final bool isEnabled;
   final ValueChanged<bool> onChanged;
 
-  const ShieldManagementSheet({
-    super.key,
-    required this.isEnabled,
-    required this.onChanged,
-  });
-
   @override
-  ConsumerState<ShieldManagementSheet> createState() => _ShieldManagementSheetState();
+  ConsumerState<ShieldManagementSheet> createState() =>
+      _ShieldManagementSheetState();
 }
 
 class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
@@ -58,13 +60,13 @@ class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
     if (mounted) {
       if (res['success'] == true) {
         setState(() {
-          _qrCodeBase64 = res['qr_code'];
-          _secret = res['secret'];
+          _qrCodeBase64 = res['qr_code'] as String?;
+          _secret = res['secret'] as String?;
           _loading = false;
         });
       } else {
         setState(() {
-          _error = res['error'] ?? 'Failed to load setup data';
+          _error = (res['error'] as String?) ?? 'Failed to load setup data';
           _loading = false;
         });
       }
@@ -93,13 +95,13 @@ class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(res['message'] ?? 'Shield status updated'),
+            content: Text((res['message'] as String?) ?? 'Shield status updated'),
             backgroundColor: AppColors.success(context),
           ),
         );
       } else {
         setState(() {
-          _error = res['error'] ?? 'Action failed';
+          _error = (res['error'] as String?) ?? 'Action failed';
           _submitting = false;
         });
       }
@@ -116,12 +118,12 @@ class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
         left: 24,
         right: 24,
         top: 12,
-        bottom: 24 + bottomInset,
+        bottom: MediaQuery.paddingOf(context).bottom + 24 + bottomInset,
       ),
       decoration: BoxDecoration(
         color: cs.surface.withValues(alpha: 0.9),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -144,127 +146,127 @@ class _ShieldManagementSheetState extends ConsumerState<ShieldManagementSheet> {
     );
   }
 
-  Widget _buildHeader(ColorScheme cs) {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: cs.onSurface.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(2),
+  Widget _buildHeader(ColorScheme cs) => Column(
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: cs.onSurface.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        Icon(
-          widget.isEnabled ? Icons.shield : Icons.shield_outlined,
-          size: 48,
-          color: widget.isEnabled ? AppColors.success(context) : cs.primary,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          widget.isEnabled ? 'Deactivate Shield' : 'Activate Institutional Shield',
-          style: TextStyle(
-            color: cs.onSurface,
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 20),
+          Icon(
+            widget.isEnabled ? AppIcons.shieldBold : AppIcons.shield,
+            size: 48,
+            color: widget.isEnabled ? AppColors.success(context) : cs.primary,
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          widget.isEnabled
-              ? 'Disable 2FA security'
-              : 'Add an extra layer of protection to your account',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: cs.onSurface.withValues(alpha: 0.6),
-            fontSize: 14,
+          const SizedBox(height: 16),
+          Text(
+            widget.isEnabled
+                ? 'Deactivate Shield'
+                : 'Activate Institutional Shield',
+            style: TextStyle(
+              color: cs.onSurface,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
-    );
-  }
+          const SizedBox(height: 8),
+          Text(
+            widget.isEnabled
+                ? 'Disable 2FA security'
+                : 'Add an extra layer of protection to your account',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: cs.onSurface.withValues(alpha: 0.6),
+              fontSize: 14,
+            ),
+          ),
+        ],
+      );
 
-  Widget _buildActivationFlow(ColorScheme cs) {
-    return Column(
-      children: [
-        if (_qrCodeBase64 != null)
-           _StaggeredEntrance(
-             staggerIndex: 1,
-             child: Container(
-               padding: const EdgeInsets.all(16),
-               decoration: BoxDecoration(
-                 color: Colors.white,
-                 borderRadius: BorderRadius.circular(24),
-                 boxShadow: [
-                   BoxShadow(
-                     color: Colors.black.withValues(alpha: 0.1),
-                     blurRadius: 20,
-                     spreadRadius: 2,
-                   )
-                 ],
-               ),
-               child: Image.memory(
-                 base64Decode(_qrCodeBase64!),
-                 width: 160,
-                 height: 160,
-               ),
-             ),
-           ),
-        const SizedBox(height: 20),
-        if (_secret != null)
-          _StaggeredEntrance(staggerIndex: 2, child: _SecretBox(secret: _secret!)),
-        const SizedBox(height: 24),
-        _StaggeredEntrance(staggerIndex: 3, child: _OtpInput(controller: _otpController, error: _error)),
-        const SizedBox(height: 24),
-        _StaggeredEntrance(
-          staggerIndex: 4,
-          child: _ActionButton(
-            label: 'Activate Shield',
-            submitting: _submitting,
-            onPressed: _handleAction,
-            color: AppColors.emerald(context),
+  Widget _buildActivationFlow(ColorScheme cs) => Column(
+        children: [
+          if (_qrCodeBase64 != null)
+            _StaggeredEntrance(
+              staggerIndex: 1,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Image.memory(
+                  base64Decode(_qrCodeBase64!),
+                  width: 160,
+                  height: 160,
+                ),
+              ),
+            ),
+          const SizedBox(height: 20),
+          if (_secret != null)
+            _StaggeredEntrance(
+              staggerIndex: 2,
+              child: _SecretBox(secret: _secret!),
+            ),
+          const SizedBox(height: 24),
+          _StaggeredEntrance(
+            staggerIndex: 3,
+            child: _OtpInput(controller: _otpController, error: _error),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDeactivationFlow(ColorScheme cs) {
-    return Column(
-      children: [
-        _StaggeredEntrance(
-          staggerIndex: 1,
-          child: _OtpInput(controller: _otpController, error: _error),
-        ),
-        const SizedBox(height: 24),
-        _StaggeredEntrance(
-          staggerIndex: 2,
-          child: _ActionButton(
-            label: 'Deactivate Shield',
-            submitting: _submitting,
-            onPressed: _handleAction,
-            color: AppColors.rose(context),
+          const SizedBox(height: 24),
+          _StaggeredEntrance(
+            staggerIndex: 4,
+            child: _ActionButton(
+              label: 'Activate Shield',
+              submitting: _submitting,
+              onPressed: _handleAction,
+              color: AppColors.emerald(context),
+            ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 
-  Widget _buildErrorView(ColorScheme cs) {
-    return Column(
-      children: [
-        Text(_error!, style: TextStyle(color: AppColors.danger(context))),
-        const SizedBox(height: 16),
-        TextButton(onPressed: _loadSetupData, child: const Text('Retry')),
-      ],
-    );
-  }
+  Widget _buildDeactivationFlow(ColorScheme cs) => Column(
+        children: [
+          _StaggeredEntrance(
+            staggerIndex: 1,
+            child: _OtpInput(controller: _otpController, error: _error),
+          ),
+          const SizedBox(height: 24),
+          _StaggeredEntrance(
+            staggerIndex: 2,
+            child: _ActionButton(
+              label: 'Deactivate Shield',
+              submitting: _submitting,
+              onPressed: _handleAction,
+              color: AppColors.rose(context),
+            ),
+          ),
+        ],
+      );
+
+  Widget _buildErrorView(ColorScheme cs) => Column(
+        children: [
+          Text(_error!, style: TextStyle(color: AppColors.danger(context))),
+          const SizedBox(height: 16),
+          TextButton(onPressed: _loadSetupData, child: const Text('Retry')),
+        ],
+      );
 }
 
 class _SecretBox extends ConsumerWidget {
-  final String secret;
   const _SecretBox({required this.secret});
+  final String secret;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -273,7 +275,12 @@ class _SecretBox extends ConsumerWidget {
       children: [
         Text(
           'Manual Entry Key',
-          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.4), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+          style: TextStyle(
+            color: cs.onSurface.withValues(alpha: 0.4),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
         ),
         const SizedBox(height: 8),
         GestureDetector(
@@ -313,9 +320,9 @@ class _SecretBox extends ConsumerWidget {
 }
 
 class _OtpInput extends ConsumerWidget {
+  const _OtpInput({required this.controller, this.error});
   final TextEditingController controller;
   final String? error;
-  const _OtpInput({required this.controller, this.error});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -343,8 +350,9 @@ class _OtpInput extends ConsumerWidget {
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           textAlign: TextAlign.center,
           onChanged: (v) {
-             if (v.length == 6) AppHaptics.success();
-             else if (v.isNotEmpty) AppHaptics.selection();
+            if (v.length == 6) {
+              AppHaptics.success();
+            } else if (v.isNotEmpty) AppHaptics.selection();
           },
           style: TextStyle(
             fontSize: 28,
@@ -361,7 +369,8 @@ class _OtpInput extends ConsumerWidget {
             fillColor: cs.onSurface.withValues(alpha: 0.04),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
-              borderSide: BorderSide(color: cs.onSurface.withValues(alpha: 0.1)),
+              borderSide:
+                  BorderSide(color: cs.onSurface.withValues(alpha: 0.1)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
@@ -383,63 +392,72 @@ class _OtpInput extends ConsumerWidget {
 }
 
 class _StaggeredEntrance extends ConsumerWidget {
+  const _StaggeredEntrance({required this.child, required this.staggerIndex});
   final Widget child;
   final int staggerIndex;
 
-  const _StaggeredEntrance({required this.child, required this.staggerIndex});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
-      builder: (context, val, child) {
-        final double delay = staggerIndex * 0.1;
-        final double animValue = (val - delay).clamp(0.0, 1.0);
-        return Opacity(
-          opacity: animValue,
-          child: Transform.translate(
-            offset: Offset(0, 20 * (1 - animValue)),
-            child: child,
-          ),
-        );
-      },
-      child: child,
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) =>
+      TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+        builder: (context, val, child) {
+          final delay = staggerIndex * 0.1;
+          final animValue = (val - delay).clamp(0.0, 1.0);
+          return Opacity(
+            opacity: animValue,
+            child: Transform.translate(
+              offset: Offset(0, 20 * (1 - animValue)),
+              child: child,
+            ),
+          );
+        },
+        child: child,
+      );
 }
 
 class _ActionButton extends ConsumerWidget {
-  final String label;
-  final bool submitting;
-  final VoidCallback onPressed;
-  final Color color;
-
   const _ActionButton({
     required this.label,
     required this.submitting,
     required this.onPressed,
     required this.color,
   });
+  final String label;
+  final bool submitting;
+  final VoidCallback onPressed;
+  final Color color;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: submitting ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  Widget build(BuildContext context, WidgetRef ref) => SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: submitting ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: submitting
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
         ),
-        child: submitting
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-      ),
-    );
-  }
+      );
 }

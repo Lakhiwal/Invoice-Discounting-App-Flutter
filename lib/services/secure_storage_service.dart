@@ -20,15 +20,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorageService {
   static const _storage = FlutterSecureStorage();
 
-  static const _emailKey        = 'secure_email';
+  static const _emailKey = 'secure_email';
   static const _refreshTokenKey = 'secure_refresh_token';
 
   // Legacy key — kept only for migration wipe on clearCredentials()
   static const _legacyPasswordKey = 'secure_password';
 
   // ── JWT Token Keys (P0 security hardening) ───────────────────────────────
-  static const _accessTokenKey  = 'jwt_access_token';
-  static const _jwtRefreshKey   = 'jwt_refresh_token';
+  static const _accessTokenKey = 'jwt_access_token';
+  static const _jwtRefreshKey = 'jwt_refresh_token';
 
   // ════════════════════════════════════════════════════════════════════════════
   // JWT TOKEN MANAGEMENT — used by ApiClient for all authenticated requests
@@ -49,14 +49,12 @@ class SecureStorageService {
   }
 
   /// Read the current access token (may be null if not logged in).
-  static Future<String?> getAccessToken() async {
-    return _storage.read(key: _accessTokenKey);
-  }
+  static Future<String?> getAccessToken() async =>
+      _storage.read(key: _accessTokenKey);
 
   /// Read the current refresh token.
-  static Future<String?> getRefreshToken() async {
-    return _storage.read(key: _jwtRefreshKey);
-  }
+  static Future<String?> getRefreshToken() async =>
+      _storage.read(key: _jwtRefreshKey);
 
   /// Clear JWT tokens on logout.
   static Future<void> clearTokens() async {
@@ -82,7 +80,7 @@ class SecureStorageService {
   /// Returns the stored email hint and refresh token.
   /// Both may be null if nothing has been saved yet.
   static Future<Map<String, String?>> getCredentials() async {
-    final email        = await _storage.read(key: _emailKey);
+    final email = await _storage.read(key: _emailKey);
     final refreshToken = await _storage.read(key: _refreshTokenKey);
     return {'email': email, 'refreshToken': refreshToken};
   }

@@ -36,7 +36,7 @@ void main() {
     test('is a ChangeNotifier', () {
       final vm = AuthViewModel();
       // Verify it notifies listeners
-      int callCount = 0;
+      var callCount = 0;
       vm.addListener(() => callCount++);
       vm.resetStatus();
       expect(callCount, greaterThan(0));

@@ -1,31 +1,20 @@
-import 'dart:ui' show ImageFilter, FontFeature;
+import 'dart:ui' show FontFeature, ImageFilter;
 
 import 'package:flutter/material.dart';
-
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import 'pressable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/widgets/pressable.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// GlassCard
 /// ─────────────────────────────────────────────────────────
 
 class GlassCard extends ConsumerWidget {
-  final Widget child;
-  final double blur;
-  final double? opacity;
-  final double borderRadius;
-  final EdgeInsetsGeometry? padding;
-  final Border? border;
-  final List<BoxShadow>? boxShadow;
-  final Color? color;
-  final VoidCallback? onTap;
-
   const GlassCard({
-    super.key,
     required this.child,
+    super.key,
     this.blur = 14,
     this.opacity,
     this.borderRadius = UI.radiusMd,
@@ -35,6 +24,15 @@ class GlassCard extends ConsumerWidget {
     this.color,
     this.onTap,
   });
+  final Widget child;
+  final double blur;
+  final double? opacity;
+  final double borderRadius;
+  final EdgeInsetsGeometry? padding;
+  final Border? border;
+  final List<BoxShadow>? boxShadow;
+  final Color? color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -50,26 +48,24 @@ class GlassCard extends ConsumerWidget {
     final effectiveBorder = border ??
         Border.all(
           color: colorScheme.outline.withValues(alpha: isDark ? 0.25 : 0.18),
-          width: 1,
         );
 
     final effectiveShadow = boxShadow ??
         (isDark
             ? [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          )
-        ]
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ]
             : [
-          BoxShadow(
-            color:
-            AppColors.primary(context).withValues(alpha: 0.07),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          )
-        ]);
+                BoxShadow(
+                  color: AppColors.primary(context).withValues(alpha: 0.07),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
+                ),
+              ]);
 
     final radius = BorderRadius.circular(borderRadius);
 
@@ -88,18 +84,16 @@ class GlassCard extends ConsumerWidget {
 
     final card = RepaintBoundary(
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
+        tween: Tween(begin: 0, end: 1),
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeOutCubic,
-        builder: (context, value, child) {
-          return Opacity(
-            opacity: value,
-            child: Transform.scale(
-              scale: 0.95 + (0.05 * value),
-              child: child,
-            ),
-          );
-        },
+        builder: (context, value, child) => Opacity(
+          opacity: value,
+          child: Transform.scale(
+            scale: 0.95 + (0.05 * value),
+            child: child,
+          ),
+        ),
         child: ClipRRect(
           borderRadius: radius,
           child: ClipRect(
@@ -140,6 +134,15 @@ class GlassCard extends ConsumerWidget {
 /// ─────────────────────────────────────────────────────────
 
 class GlassStatCard extends ConsumerWidget {
+  const GlassStatCard({
+    required this.label,
+    required this.value,
+    super.key,
+    this.customValue,
+    this.valueColor,
+    this.icon,
+    this.staggerIndex = 0,
+  });
   final String label;
   final String value;
   final Widget? customValue;
@@ -147,30 +150,19 @@ class GlassStatCard extends ConsumerWidget {
   final IconData? icon;
   final int staggerIndex;
 
-  const GlassStatCard({
-    super.key,
-    required this.label,
-    required this.value,
-    this.customValue,
-    this.valueColor,
-    this.icon,
-    this.staggerIndex = 0,
-  });
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
+      tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOutCubic,
       builder: (context, val, child) {
-        final double delay = staggerIndex * 0.1;
-        final double animValue = (val - delay).clamp(0.0, 1.0);
-        
+        final delay = staggerIndex * 0.1;
+        final animValue = (val - delay).clamp(0.0, 1.0);
+
         return Opacity(
           opacity: animValue,
           child: Transform.translate(
@@ -183,7 +175,7 @@ class GlassStatCard extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: isDark ? 0.08 : 0.18),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(UI.radiusMd),
           border: Border.all(
             color: Colors.white.withValues(alpha: 0.25),
           ),
@@ -224,7 +216,6 @@ class GlassStatCard extends ConsumerWidget {
                 fontSize: 11,
               ),
             ),
-
           ],
         ),
       ),

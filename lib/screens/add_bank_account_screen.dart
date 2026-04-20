@@ -1,20 +1,22 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../utils/bank_resolver.dart';
-import '../widgets/app_logo_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/bank_resolver.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 
 class AddBankAccountScreen extends ConsumerStatefulWidget {
+  const AddBankAccountScreen({required this.existingCount, super.key});
   final int existingCount;
 
-  const AddBankAccountScreen({super.key, required this.existingCount});
-
   @override
-  ConsumerState<AddBankAccountScreen> createState() => _AddBankAccountScreenState();
+  ConsumerState<AddBankAccountScreen> createState() =>
+      _AddBankAccountScreenState();
 }
 
 class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
@@ -85,24 +87,29 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
       );
       if (!mounted) return;
       if (result['success'] == true) {
-        await AppHaptics.success();
+        unawaited(AppHaptics.success());
         if (!mounted) return;
         navigator.pop(true);
       } else {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         if (!mounted) return;
-        messenger.showSnackBar(SnackBar(
-          content: Text(result['error'] ?? 'Failed to add account'),
-          backgroundColor: AppColors.danger(context),
-          behavior: SnackBarBehavior.floating,
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content:
+                Text((result['error'] as String?) ?? 'Failed to add account'),
+            backgroundColor: AppColors.danger(context),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (_) {
       if (!mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Connection error'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Connection error'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -116,7 +123,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
       backgroundColor: cs.surface,
       body: CustomScrollView(
         slivers: [
-          AppLogoHeader(title: 'Add Bank'),
+          const AppLogoHeader(title: 'Add Bank'),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -137,7 +144,8 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Provide your bank information for fast and reliable payouts.',
-                      style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+                      style:
+                          TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                     ),
                     const SizedBox(height: 32),
 
@@ -150,13 +158,15 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _ifscCtrl,
                       'IFSC Code',
-                      Icons.qr_code_rounded,
+                      AppIcons.barcode,
                       capitalization: TextCapitalization.characters,
                       maxLength: 11,
                       hint: 'e.g. HDFC0001234',
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Required';
-                        if (v.trim().length != 11) return 'Must be 11 characters';
+                        if (v.trim().length != 11) {
+                          return 'Must be 11 characters';
+                        }
                         return null;
                       },
                     ),
@@ -164,7 +174,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _bankNameCtrl,
                       'Bank Name',
-                      Icons.account_balance_rounded,
+                      AppIcons.bank,
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
@@ -172,7 +182,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _accountNumberCtrl,
                       'Account Number',
-                      Icons.numbers_rounded,
+                      AppIcons.hashtag,
                       keyboard: TextInputType.number,
                       formatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) {
@@ -185,7 +195,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _confirmAccountCtrl,
                       'Confirm Account Number',
-                      Icons.verified_user_rounded,
+                      AppIcons.verifiedUser,
                       keyboard: TextInputType.number,
                       formatters: [FilteringTextInputFormatter.digitsOnly],
                       validator: (v) {
@@ -200,7 +210,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _beneficiaryCtrl,
                       'Beneficiary Name',
-                      Icons.person_rounded,
+                      AppIcons.user,
                       capitalization: TextCapitalization.words,
                       hint: 'Name as in bank records',
                       validator: (v) =>
@@ -210,7 +220,7 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                     _field(
                       _branchCtrl,
                       'Branch Address',
-                      Icons.location_on_rounded,
+                      AppIcons.location,
                       capitalization: TextCapitalization.sentences,
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Required' : null,
@@ -219,24 +229,39 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
 
                     if (widget.existingCount > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: cs.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.1)),
+                          border: Border.all(
+                            color: cs.outlineVariant.withValues(alpha: 0.1),
+                          ),
                         ),
                         child: SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: Text('Primary Account',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: cs.onSurface)),
-                          subtitle: Text('Used for all withdrawals',
-                              style: TextStyle(
-                                  fontSize: 12, color: cs.onSurfaceVariant)),
+                          title: Text(
+                            'Primary Account',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Used for all withdrawals',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
                           value: _isPrimary,
-                          onChanged: (v) => setState(() => _isPrimary = v),
+                          onChanged: (v) {
+                            unawaited(AppHaptics.selection());
+                            setState(() => _isPrimary = v);
+                          },
                           activeThumbColor: cs.primary,
                         ),
                       ),
@@ -247,7 +272,12 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: _saving ? null : _submit,
+                        onPressed: _saving
+                            ? null
+                            : () {
+                                unawaited(AppHaptics.buttonPress());
+                                _submit();
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: cs.primary,
                           foregroundColor: cs.onPrimary,
@@ -316,9 +346,8 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
 }
 
 class _BankPreviewCard extends ConsumerWidget {
-  final BankInfo info;
-
   const _BankPreviewCard({required this.info});
+  final BankInfo info;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -352,12 +381,12 @@ class _BankPreviewCard extends ConsumerWidget {
                 ? SvgPicture.network(
                     info.logoUrl!,
                     placeholderBuilder: (_) => Icon(
-                      Icons.account_balance_rounded,
+                      AppIcons.bank,
                       color: info.brandColor,
                       size: 24,
                     ),
                   )
-                : Icon(Icons.account_balance_rounded, color: info.brandColor),
+                : Icon(AppIcons.bank, color: info.brandColor),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -383,7 +412,7 @@ class _BankPreviewCard extends ConsumerWidget {
               ],
             ),
           ),
-          Icon(Icons.verified_rounded, color: info.brandColor, size: 24),
+          Icon(AppIcons.check, color: info.brandColor, size: 24),
         ],
       ),
     );

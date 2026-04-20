@@ -1,4 +1,4 @@
-import 'api_service.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PortfolioCache  — fixes applied:
@@ -19,21 +19,40 @@ class PortfolioCache {
 
   static const Duration cacheDuration = Duration(hours: 4);
 
-  static Future<Map<String, dynamic>> getPortfolio({bool forceRefresh = false}) async {
-    // Serve from cache if still fresh and NOT forced
+  static Future<Map<String, dynamic>> getPortfolio({
+    bool forceRefresh = false,
+    int page = 1,
+    int limit = 20,
+    String type = 'all',
+    bool? isSecondary,
+  }) async {
+    // Serve from cache if still fresh and NOT forced (only for page 1 and 'all')
     if (!forceRefresh &&
+        page == 1 &&
+        type == 'all' &&
+        isSecondary == null &&
         _portfolio != null &&
         _lastFetch != null &&
         DateTime.now().difference(_lastFetch!) < cacheDuration) {
       return _portfolio!;
     }
 
-    if (forceRefresh) invalidate();
+    if (forceRefresh && page == 1 && type == 'all' && isSecondary == null) {
+      invalidate();
+    }
 
-    // FIX #4: if a fetch is already in progress, return that same future
+    // In-flight logic per-request type/page/secondary
+    // Note: for simplicity in this facade, we don't fully key the in-flight
+    // but the domain service will handle it.
     if (_inflight != null) return _inflight!;
 
-    _inflight = _fetch(forceRefresh: forceRefresh);
+    _inflight = _fetch(
+      forceRefresh: forceRefresh,
+      page: page,
+      limit: limit,
+      type: type,
+      isSecondary: isSecondary,
+    );
     try {
       return await _inflight!;
     } finally {
@@ -41,11 +60,25 @@ class PortfolioCache {
     }
   }
 
-  static Future<Map<String, dynamic>> _fetch({bool forceRefresh = false}) async {
-    final data = await ApiService.getPortfolio(forceRefresh: forceRefresh);
+  static Future<Map<String, dynamic>> _fetch({
+    bool forceRefresh = false,
+    int page = 1,
+    int limit = 20,
+    String type = 'all',
+    bool? isSecondary,
+  }) async {
+    final data = await ApiService.getPortfolio(
+      forceRefresh: forceRefresh,
+      page: page,
+      limit: limit,
+      type: type,
+      isSecondary: isSecondary,
+    );
     if (data == null) return {};
-    _portfolio = data;
-    _lastFetch = DateTime.now();
+    if (page == 1 && type == 'all' && isSecondary == null) {
+      _portfolio = data;
+      _lastFetch = DateTime.now();
+    }
     return data;
   }
 

@@ -1,17 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../utils/formatters.dart';
-import '../widgets/app_logo_header.dart';
-import '../widgets/animated_amount_text.dart';
-import '../widgets/glass_card.dart';
-import '../widgets/liquidity_refresh_indicator.dart';
-import '../widgets/pressable.dart';
-import '../widgets/skeleton.dart';
-import '../widgets/stagger_list.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/services/pdf_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
+import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:invoice_discounting_app/widgets/glass_card.dart';
+import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
+import 'package:invoice_discounting_app/widgets/pressable.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:invoice_discounting_app/widgets/stagger_list.dart';
 
 // ── Masked amount constant ────────────────────────────────────────────────────
 const String _kMaskedShort = '● ● ●';
@@ -19,9 +23,8 @@ const String _kMaskedShort = '● ● ●';
 /// Result object returned when user taps "Retry Payment" on a failed transaction.
 /// The home screen receives this via Navigator.pop() and auto-opens add funds.
 class RetryPaymentRequest {
-  final double amount;
-
   const RetryPaymentRequest({required this.amount});
+  final double amount;
 }
 
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
@@ -32,7 +35,8 @@ class TransactionHistoryScreen extends ConsumerStatefulWidget {
       _TransactionHistoryScreenState();
 }
 
-class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScreen>
+class _TransactionHistoryScreenState
+    extends ConsumerState<TransactionHistoryScreen>
     with SingleTickerProviderStateMixin {
   List<dynamic> _all = [];
   List<dynamic> _filtered = [];
@@ -69,7 +73,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
   // ── Data ───────────────────────────────────────────────────────────────────
 
-  Future<void> _loadTransactions({bool forceRefresh = false, bool silent = false}) async {
+  Future<void> _loadTransactions({
+    bool forceRefresh = false,
+    bool silent = false,
+  }) async {
     if (!mounted) return;
     final startTime = DateTime.now();
 
@@ -82,23 +89,27 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
     // Defer heavy data assembly until route transition completes
     if (!forceRefresh) {
-      await Future.delayed(const Duration(milliseconds: 250));
+      await Future<void>.delayed(const Duration(milliseconds: 250));
     }
 
     try {
-      final data = await ApiService.getWalletHistory(forceRefresh: forceRefresh);
-      
+      final data =
+          await ApiService.getWalletHistory(forceRefresh: forceRefresh);
+
       // Ensure the "Syncing" state is visible for a premium feel
       if (forceRefresh) {
         final elapsed = DateTime.now().difference(startTime).inMilliseconds;
         if (elapsed < 800) {
-          await Future.delayed(Duration(milliseconds: 800 - elapsed));
+          await Future<void>.delayed(Duration(milliseconds: 800 - elapsed));
         }
       }
 
       if (mounted) {
         setState(() {
-          _all = (data['transactions'] as List?) ?? [];
+          _all = (data['transactions'] as List?)
+                  ?.map((e) => e as Map<String, dynamic>)
+                  .toList() ??
+              [];
           _isLoading = false;
           _applyFilters();
         });
@@ -118,25 +129,38 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
     final query = _searchCtrl.text.toLowerCase().trim();
     setState(() {
       _filtered = _all.where((tx) {
-        final desc = (tx['description'] ?? '').toString().toLowerCase();
+        final t = tx as Map<String, dynamic>;
+        final desc = (t['description'] ?? '').toString().toLowerCase();
         if (query.isNotEmpty && !desc.contains(query)) return false;
-        if (_typeFilter == 'Credit' && tx['type'] != 'credit') return false;
-        if (_typeFilter == 'Debit' && tx['type'] != 'debit') return false;
+        if (_typeFilter == 'Credit' && t['type'] != 'credit') return false;
+        if (_typeFilter == 'Debit' && t['type'] != 'debit') return false;
         if (_typeFilter == 'Failed') {
-          final s = tx['status']?.toString() ?? '';
+          final s = t['status']?.toString() ?? '';
           if (s != 'failed' && s != 'expired') return false;
         }
         if (_fromDate != null || _toDate != null) {
-          final txDate = DateTime.tryParse(tx['date']?.toString() ?? '');
+          final txDate = DateTime.tryParse(t['date']?.toString() ?? '');
           if (txDate == null) return false;
           if (_fromDate != null &&
               txDate.isBefore(
-                  DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))) {
+                DateTime(
+                  _fromDate!.year,
+                  _fromDate!.month,
+                  _fromDate!.day,
+                ),
+              )) {
             return false;
           }
           if (_toDate != null &&
-              txDate.isAfter(DateTime(
-                  _toDate!.year, _toDate!.month, _toDate!.day, 23, 59))) {
+              txDate.isAfter(
+                DateTime(
+                  _toDate!.year,
+                  _toDate!.month,
+                  _toDate!.day,
+                  23,
+                  59,
+                ),
+              )) {
             return false;
           }
         }
@@ -147,24 +171,37 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
   // ── Summary calculations ──────────────────────────────────────────────────
 
-  double get _totalCredits =>
-      _filtered.where((tx) => tx['type'] == 'credit').fold(
-          0.0,
-          (sum, tx) =>
-              sum + (double.tryParse(tx['amount']?.toString() ?? '0') ?? 0));
+  double get _totalCredits => _filtered
+      .where((tx) => (tx as Map<String, dynamic>)['type'] == 'credit')
+      .fold<double>(
+        0,
+        (sum, tx) =>
+            sum +
+            (double.tryParse(
+                    (tx as Map<String, dynamic>)['amount']?.toString() ??
+                        '0',) ??
+                0),
+      );
 
-  double get _totalDebits => _filtered
-      .where((tx) =>
-          tx['type'] == 'debit' &&
-          tx['status'] != 'failed' &&
-          tx['status'] != 'expired')
-      .fold(
-          0.0,
-          (sum, tx) =>
-              sum + (double.tryParse(tx['amount']?.toString() ?? '0') ?? 0));
+  double get _totalDebits => _filtered.where(
+        (tx) {
+          final t = tx as Map<String, dynamic>;
+          return t['type'] == 'debit' &&
+              t['status'] != 'failed' &&
+              t['status'] != 'expired';
+        },
+      ).fold<double>(
+        0,
+        (sum, tx) =>
+            sum +
+            (double.tryParse(
+                    (tx as Map<String, dynamic>)['amount']?.toString() ??
+                        '0',) ??
+                0),
+      );
 
   int get _failedCount => _filtered.where((tx) {
-        final s = tx['status']?.toString() ?? '';
+        final s = (tx as Map<String, dynamic>)['status']?.toString() ?? '';
         return s == 'failed' || s == 'expired';
       }).length;
 
@@ -176,13 +213,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
     switch (preset) {
       case 'today':
         from = DateTime(now.year, now.month, now.day);
-        break;
       case 'week':
         from = now.subtract(const Duration(days: 7));
-        break;
       case 'month':
-        from = DateTime(now.year, now.month, 1);
-        break;
+        from = DateTime(now.year, now.month);
       default:
         return;
     }
@@ -253,9 +287,29 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
     AppHaptics.selection();
 
-    // Pop back to home screen with the retry request.
-    // Home screen catches this and auto-opens the add funds sheet.
     Navigator.of(context).pop(RetryPaymentRequest(amount: amount));
+  }
+
+  // ── Export ────────────────────────────────────────────────────────────────
+
+  Future<void> _handleExport() async {
+    unawaited(AppHaptics.selection());
+    if (_isLoading || _all.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No transactions to export')),
+        );
+      }
+      return;
+    }
+
+    final dateLabel = _hasAnyDateFilter ? _customDateLabel() : 'All Time';
+
+    await PdfService.generateAndShareTaxStatement(
+      name: 'Investor',
+      transactions: _all.cast<Map<String, dynamic>>(),
+      dateRange: dateLabel,
+    );
   }
 
   // ── Transaction detail sheet ──────────────────────────────────────────────
@@ -273,7 +327,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             ? colorScheme.error
             : AppColors.success(context);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       backgroundColor: colorScheme.surface,
@@ -292,10 +346,10 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               ),
               child: Icon(
                 isFailed
-                    ? Icons.error_outline_rounded
+                    ? AppIcons.error
                     : isDebit
-                        ? Icons.arrow_upward_rounded
-                        : Icons.arrow_downward_rounded,
+                        ? AppIcons.arrowUp
+                        : AppIcons.arrowDown,
                 color: accentColor,
                 size: 24,
               ),
@@ -317,7 +371,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
             // Description
             Text(
-              tx['description'] ?? 'Transaction',
+              (tx['description'] as String?) ?? 'Transaction',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: colorScheme.onSurface,
@@ -332,7 +386,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  tx['date'] ?? '',
+                  (tx['date'] as String?) ?? '',
                   style: TextStyle(
                     color: colorScheme.onSurfaceVariant,
                     fontSize: 13,
@@ -345,7 +399,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(UI.radiusSm),
                     ),
                     child: Text(
                       status == 'failed' ? 'Failed' : 'Expired',
@@ -363,45 +417,58 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 
             // Details
             _DetailRow(
-                label: 'Type',
-                value: tx['type'] == 'credit' ? 'Credit' : 'Debit'),
+              label: 'Type',
+              value: tx['type'] == 'credit' ? 'Credit' : 'Debit',
+            ),
             _DetailRow(label: 'Status', value: _statusLabel(status)),
             if (tx['id'] != null)
               _DetailRow(label: 'Reference', value: tx['id'].toString()),
 
+            // ── Withdrawal Stepper ──────────────────────────────────────
+            if (tx['description'] != null &&
+                tx['description']
+                    .toString()
+                    .toLowerCase()
+                    .contains('withdraw')) ...[
+              const SizedBox(height: 24),
+              _WithdrawalStepper(status: status),
+            ],
+
             // ── Retry button for failed payments ────────────────────────
-                if (isFailed) ...[
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // Close the bottom sheet first, then retry
-                        Navigator.of(sheetContext).pop();
-                        _retryPayment(tx);
-                      },
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text('Retry ₹${fmtAmount(amount)}'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
+            if (isFailed) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Close the bottom sheet first, then retry
+                    Navigator.of(sheetContext).pop();
+                    _retryPayment(tx);
+                  },
+                  icon: Icon(AppIcons.refresh, size: 18),
+                  label: Text('Retry ₹${fmtAmount(amount)}'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-              ],
-            ),
-          ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
-  String _statusLabel(String status) =>
-      switch (status) {
+  String _statusLabel(String status) => switch (status) {
         'completed' => 'Completed',
         'failed' => 'Failed',
         'expired' => 'Expired',
@@ -421,19 +488,32 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
         onRefresh: () => _loadTransactions(forceRefresh: true, silent: true),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),
+          ),
           slivers: [
             // ── App bar ─────────────────────────────────────────────────
             AppLogoHeader(
               title: 'Transactions',
               actions: [
+                IconButton(
+                  icon: Icon(
+                    AppIcons.export,
+                    color: colorScheme.onSurfaceVariant,
+                    size: 20,
+                  ),
+                  onPressed: _handleExport,
+                  tooltip: 'Export Tax Statement',
+                ),
                 if (_hasAnyFilter)
                   IconButton(
                     icon: Badge(
                       smallSize: 6,
                       backgroundColor: colorScheme.error,
-                      child: Icon(Icons.filter_alt_off_rounded,
-                          color: colorScheme.onSurfaceVariant, size: 20),
+                      child: Icon(
+                        AppIcons.filterOff,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 20,
+                      ),
                     ),
                     onPressed: () {
                       AppHaptics.selection();
@@ -471,31 +551,44 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   decoration: InputDecoration(
                     hintText: 'Search transactions…',
                     hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                    prefixIcon: Icon(Icons.search_rounded,
-                        color: colorScheme.onSurfaceVariant, size: 20),
+                    prefixIcon: Icon(
+                      AppIcons.search,
+                      color: colorScheme.onSurfaceVariant,
+                      size: 20,
+                    ),
                     suffixIcon: _searchCtrl.text.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.close_rounded,
-                                color: colorScheme.onSurfaceVariant, size: 18),
-                            onPressed: () => _searchCtrl.clear(),
+                            icon: Icon(
+                              AppIcons.close,
+                              color: colorScheme.onSurfaceVariant,
+                              size: 18,
+                            ),
+                            onPressed: _searchCtrl.clear,
                           )
                         : null,
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3))),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.2))),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                    ),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            BorderSide(color: colorScheme.primary, width: 1.5)),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide:
+                          BorderSide(color: colorScheme.primary, width: 1.5),
+                    ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
@@ -507,51 +600,56 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    _FilterChip(
+                  child: Row(
+                    children: [
+                      _FilterChip(
                         label: 'Today',
                         active: _activePreset == 'today',
-                        onTap: () => _applyPreset('today')),
-                    const SizedBox(width: 8),
-                    _FilterChip(
+                        onTap: () => _applyPreset('today'),
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
                         label: 'This Week',
                         active: _activePreset == 'week',
-                        onTap: () => _applyPreset('week')),
-                    const SizedBox(width: 8),
-                    _FilterChip(
+                        onTap: () => _applyPreset('week'),
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
                         label: 'This Month',
                         active: _activePreset == 'month',
-                        onTap: () => _applyPreset('month')),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: _hasCustomRange ? _customDateLabel() : 'Custom',
-                      active: _hasCustomRange,
-                      icon: Icons.calendar_today_outlined,
-                      onTap: _pickDateRange,
-                    ),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 180),
-                      curve: Curves.easeOut,
-                      child: _hasAnyDateFilter
-                          ? Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: _FilterChip(
-                                label: 'Clear dates',
-                                active: false,
-                                isDestructive: true,
-                                onTap: () {
-                                  setState(() {
-                                    _activePreset = null;
-                                    _fromDate = null;
-                                    _toDate = null;
-                                  });
-                                  _applyFilters();
-                                },
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ]),
+                        onTap: () => _applyPreset('month'),
+                      ),
+                      const SizedBox(width: 8),
+                      _FilterChip(
+                        label: _hasCustomRange ? _customDateLabel() : 'Custom',
+                        active: _hasCustomRange,
+                        icon: AppIcons.calendar,
+                        onTap: _pickDateRange,
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOut,
+                        child: _hasAnyDateFilter
+                            ? Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: _FilterChip(
+                                  label: 'Clear dates',
+                                  active: false,
+                                  isDestructive: true,
+                                  onTap: () {
+                                    setState(() {
+                                      _activePreset = null;
+                                      _fromDate = null;
+                                      _toDate = null;
+                                    });
+                                    _applyFilters();
+                                  },
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -588,12 +686,14 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
             // ── Content area with smooth loading ───────────────────
             if (_isLoading)
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 sliver: SkeletonTheme(
                   child: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          const SkeletonListTile(margin: EdgeInsets.only(bottom: 10)),
+                      (context, index) => const SkeletonListTile(
+                        margin: EdgeInsets.only(bottom: 10),
+                      ),
                       childCount: 8,
                     ),
                   ),
@@ -606,19 +706,25 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.wifi_off_rounded,
-                          size: 48,
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                      Icon(
+                        AppIcons.wifiOff,
+                        size: 48,
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(height: 16),
-                      Text('Couldn\'t load transactions',
-                          style: TextStyle(
-                              color: colorScheme.onSurface,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        "Couldn't load transactions",
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       TextButton.icon(
                         onPressed: _loadTransactions,
-                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        icon: Icon(AppIcons.refresh, size: 16),
                         label: const Text('Retry'),
                       ),
                     ],
@@ -632,18 +738,22 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.receipt_long_outlined,
-                          size: 48,
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.2)),
+                      Icon(
+                        AppIcons.receipt,
+                        size: 48,
+                        color:
+                            colorScheme.onSurfaceVariant.withValues(alpha: 0.2),
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         _all.isEmpty
                             ? 'No transactions yet'
                             : 'No transactions match filters',
                         style: TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500),
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       if (_hasAnyFilter) ...[
                         const SizedBox(height: 12),
@@ -662,7 +772,7 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
-                      final tx = _filtered[i];
+                      final tx = _filtered[i] as Map<String, dynamic>;
                       return StaggerItem(
                         index: i,
                         child: RepaintBoundary(
@@ -689,26 +799,25 @@ class _TransactionHistoryScreenState extends ConsumerState<TransactionHistoryScr
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _PremiumSummary extends ConsumerWidget {
-  final double credits, debits;
-  final int failedCount;
-
   const _PremiumSummary({
     required this.credits,
     required this.debits,
     required this.failedCount,
   });
+  final double credits;
+  final double debits;
+  final int failedCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassCard(
       blur: 20,
       opacity: isDark ? 0.08 : 0.85,
       padding: const EdgeInsets.all(20),
-      borderRadius: 24,
+      borderRadius: UI.radiusLg,
       child: Column(
         children: [
           Row(
@@ -718,7 +827,7 @@ class _PremiumSummary extends ConsumerWidget {
                   label: 'Total Inflow',
                   value: credits,
                   color: AppColors.success(context),
-                  icon: Icons.add_circle_outline_rounded,
+                  icon: AppIcons.addCircle,
                 ),
               ),
               Container(
@@ -732,7 +841,7 @@ class _PremiumSummary extends ConsumerWidget {
                   label: 'Total Outflow',
                   value: debits,
                   color: colorScheme.error,
-                  icon: Icons.remove_circle_outline_rounded,
+                  icon: AppIcons.remove,
                 ),
               ),
             ],
@@ -743,12 +852,16 @@ class _PremiumSummary extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
                 color: colorScheme.errorContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(UI.radiusMd),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.report_problem_rounded, color: colorScheme.error, size: 14),
+                  Icon(
+                    AppIcons.warning,
+                    color: colorScheme.error,
+                    size: 14,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '$failedCount failed transaction${failedCount > 1 ? 's' : ''}',
@@ -769,17 +882,16 @@ class _PremiumSummary extends ConsumerWidget {
 }
 
 class _SumItem extends ConsumerWidget {
-  final String label;
-  final double value;
-  final Color color;
-  final IconData icon;
-
   const _SumItem({
     required this.label,
     required this.value,
     required this.color,
     required this.icon,
   });
+  final String label;
+  final double value;
+  final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -805,38 +917,33 @@ class _SumItem extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 4),
-        hideBalance
-            ? Text(
-                '₹$_kMaskedShort',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              )
-            : AnimatedAmountText(
-                value: value,
-                prefix: '₹',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
+        if (hideBalance)
+          Text(
+            '₹$_kMaskedShort',
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          )
+        else
+          AnimatedAmountText(
+            value: value,
+            prefix: '₹',
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
       ],
     );
   }
 }
 
 class _FilterChip extends ConsumerWidget {
-  final String label;
-  final bool active;
-  final bool isDestructive;
-  final IconData? icon;
-  final VoidCallback onTap;
-
   const _FilterChip({
     required this.label,
     required this.active,
@@ -844,6 +951,11 @@ class _FilterChip extends ConsumerWidget {
     this.isDestructive = false,
     this.icon,
   });
+  final String label;
+  final bool active;
+  final bool isDestructive;
+  final IconData? icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -862,59 +974,68 @@ class _FilterChip extends ConsumerWidget {
           color: active
               ? color.withValues(alpha: 0.12)
               : colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(UI.radiusLg),
           border: Border.all(
-              color: active
-                  ? color
-                  : colorScheme.outlineVariant.withValues(alpha: 0.3)),
+            color: active
+                ? color
+                : colorScheme.outlineVariant.withValues(alpha: 0.3),
+          ),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (icon != null) ...[
-            Icon(icon,
-                size: 13, color: active ? color : colorScheme.onSurfaceVariant),
-            const SizedBox(width: 5),
-          ],
-          Text(label,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 13,
+                color: active ? color : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
               style: TextStyle(
-                  color: active ? color : colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                  fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-        ]),
+                color: active ? color : colorScheme.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _TxTile extends ConsumerWidget {
-  final Map<String, dynamic> tx;
-  final VoidCallback? onTap;
-
   const _TxTile({
     required this.tx,
     this.onTap,
   });
+  final Map<String, dynamic> tx;
+  final VoidCallback? onTap;
 
-  static const _iconMap = {
-    'invest': Icons.trending_up_rounded,
-    'investment': Icons.trending_up_rounded,
-    'return': Icons.receipt_long_outlined,
-    'repay': Icons.receipt_long_outlined,
-    'settlement': Icons.receipt_long_outlined,
-    'withdraw': Icons.south_rounded,
-    'add': Icons.north_rounded,
-    'deposit': Icons.north_rounded,
-    'credit': Icons.north_rounded,
-    'top-up': Icons.north_rounded,
+  static final Map<String, IconData> _iconMap = {
+    'invest': AppIcons.analytics,
+    'investment': AppIcons.analytics,
+    'return': AppIcons.receipt,
+    'repay': AppIcons.receipt,
+    'settlement': AppIcons.receipt,
+    'withdraw': AppIcons.export,
+    'add': AppIcons.addCircle,
+    'deposit': AppIcons.addCircle,
+    'credit': AppIcons.addCircle,
+    'top-up': AppIcons.addCircle,
   };
 
   IconData _resolveIcon(String desc, String status, bool isCredit) {
-    if (status == 'failed') return Icons.error_outline_rounded;
-    if (status == 'expired') return Icons.timer_off_rounded;
+    if (status == 'failed') return AppIcons.error;
+    if (status == 'expired') return AppIcons.timer;
     final lower = desc.toLowerCase();
     for (final entry in _iconMap.entries) {
       if (lower.contains(entry.key)) return entry.value;
     }
-    return isCredit ? Icons.south_west_rounded : Icons.north_east_rounded;
+    return isCredit ? AppIcons.arrowDown : AppIcons.arrowUp;
   }
 
   @override
@@ -942,108 +1063,376 @@ class _TxTile extends ConsumerWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: ElevationOverlay.applySurfaceTint(
-              colorScheme.surfaceContainerHigh, colorScheme.primary, 2),
-          borderRadius: BorderRadius.circular(18),
+            colorScheme.surfaceContainerHigh,
+            colorScheme.primary,
+            2,
+          ),
+          borderRadius: BorderRadius.circular(UI.radiusLg),
           border:
               Border.all(color: colorScheme.outline.withValues(alpha: 0.06)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 3)),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
-        child: Row(children: [
-          Container(
+        child: Row(
+          children: [
+            Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14)),
-              child: Icon(icon, color: accentColor, size: 19)),
-          const SizedBox(width: 14),
-          Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(desc,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isFailed
-                        ? colorScheme.onSurfaceVariant
-                        : colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    decoration: isFailed ? TextDecoration.lineThrough : null,
-                    decorationColor:
-                        colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  )),
-              const SizedBox(height: 3),
-              Row(children: [
-                Text(tx['date'] ?? '',
+                color: accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(UI.radiusMd),
+              ),
+              child: Icon(icon, color: accentColor, size: 19),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    desc,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        color: colorScheme.onSurfaceVariant, fontSize: 12)),
-                if (isFailed) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: txStatus == 'failed'
-                          ? colorScheme.error.withValues(alpha: 0.1)
-                          : AppColors.warning(context).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      txStatus == 'failed' ? 'Failed' : 'Expired',
-                      style: TextStyle(
-                        color: txStatus == 'failed'
-                            ? colorScheme.error
-                            : AppColors.warning(context),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      color: isFailed
+                          ? colorScheme.onSurfaceVariant
+                          : colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      decoration: isFailed ? TextDecoration.lineThrough : null,
+                      decorationColor:
+                          colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                     ),
                   ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Text(
+                        (tx['date'] as String?) ?? '',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (isFailed) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: txStatus == 'failed'
+                                ? colorScheme.error.withValues(alpha: 0.1)
+                                : AppColors.warning(context)
+                                    .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(UI.radiusSm),
+                          ),
+                          child: Text(
+                            txStatus == 'failed' ? 'Failed' : 'Expired',
+                            style: TextStyle(
+                              color: txStatus == 'failed'
+                                  ? colorScheme.error
+                                  : AppColors.warning(context),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
-              ]),
-            ]),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                hideBalance
-                    ? '${isDebit ? '-' : '+'}₹$_kMaskedShort'
-                    : '${isDebit ? '-' : '+'}₹${fmtAmount(amount)}',
-                style: TextStyle(
-                  color: isFailed
-                      ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
-                      : accentColor,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  decoration: isFailed ? TextDecoration.lineThrough : null,
-                  decorationColor:
-                      colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
               ),
-              const SizedBox(height: 2),
-              Icon(Icons.chevron_right_rounded,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
-            ],
-          ),
-        ]),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  hideBalance
+                      ? '${isDebit ? '-' : '+'}₹$_kMaskedShort'
+                      : '${isDebit ? '-' : '+'}₹${fmtAmount(amount)}',
+                  style: TextStyle(
+                    color: isFailed
+                        ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
+                        : accentColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    decoration: isFailed ? TextDecoration.lineThrough : null,
+                    decorationColor:
+                        colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(height: 2),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DetailRow extends ConsumerWidget {
-  final String label, value;
+// ── Withdrawal Stepper ──────────────────────────────────────────────────────
 
+class _WithdrawalStepper extends StatelessWidget {
+  const _WithdrawalStepper({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final s = status.toLowerCase();
+
+    // Determine current index based on status
+    final currentStep = switch (s) {
+      'pending' => 0,
+      'verified' => 1,
+      'processing' => 2,
+      'completed' => 3,
+      'failed' => 0,
+      _ => 3,
+    };
+
+    final steps = [
+      (
+        'Requested',
+        'User initiated withdrawal',
+        'System detected request',
+        Icon(AppIcons.document, size: 10)
+      ),
+      (
+        'Risk Verified',
+        'FinOps automated check',
+        'System audit successful',
+        Icon(AppIcons.shield, size: 10)
+      ),
+      (
+        'Banking Node',
+        'HDFC/ICICI Settlement',
+        'Batched for transfer',
+        Icon(AppIcons.bank, size: 10)
+      ),
+      (
+        'Completed',
+        'Funds credited',
+        'Reference ID: WIN-${(DateTime.now().millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}',
+        Icon(AppIcons.check, size: 10)
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                'WITHDRAWAL TRACKING',
+                style: TextStyle(
+                  color: cs.onSurfaceVariant,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: cs.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(UI.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  Icon(AppIcons.shieldBold, color: cs.primary, size: 12),
+                  const SizedBox(width: 4),
+                  Text(
+                    'SECURE TRANSFER',
+                    style: TextStyle(
+                      color: cs.primary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ...List.generate(steps.length, (i) {
+          final isCompleted = i < currentStep || s == 'completed';
+          final isCurrent = i == currentStep && s != 'completed';
+          final isLast = i == steps.length - 1;
+
+          final color = isCompleted
+              ? AppColors.success(context)
+              : isCurrent
+                  ? cs.primary
+                  : cs.outlineVariant;
+
+          final item = steps[i];
+
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isCompleted || isCurrent
+                            ? color.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: color,
+                          width: isCurrent ? 2 : 1.5,
+                        ),
+                      ),
+                      child: isCompleted
+                          ? Icon(AppIcons.check, size: 12, color: color)
+                          : isCurrent
+                              ? Center(
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    '${i + 1}',
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                    ),
+                    if (!isLast)
+                      Expanded(
+                        child: Container(
+                          width: 1.5,
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                color,
+                                if (i + 1 < currentStep || s == 'completed') AppColors.success(context) else cs.outlineVariant.withValues(alpha: 0.3),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            item.$1,
+                            style: TextStyle(
+                              color: isCompleted || isCurrent
+                                  ? cs.onSurface
+                                  : cs.onSurfaceVariant,
+                              fontSize: 14,
+                              fontWeight:
+                                  isCurrent ? FontWeight.w800 : FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (isCompleted || isCurrent)
+                            Text(
+                              isCompleted ? 'Done' : 'Processing',
+                              style: TextStyle(
+                                color: color.withValues(alpha: 0.8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.$2,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                      if (isCompleted || isCurrent) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(UI.radiusSm),
+                            border: Border.all(
+                              color: cs.outlineVariant.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Opacity(
+                                opacity: 0.7,
+                                child: item.$4,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.$3,
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends ConsumerWidget {
   const _DetailRow({required this.label, required this.value});
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1053,14 +1442,18 @@ class _DetailRow extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style:
-                  TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13)),
-          Text(value,
-              style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: colorScheme.onSurface,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
-import '../utils/formatters.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
 
 class AnimatedAmountText extends ConsumerStatefulWidget {
+  const AnimatedAmountText({
+    required this.value,
+    required this.style,
+    super.key,
+    this.prefix = '',
+    this.suffix = '',
+    this.hideValue = false,
+    this.onCompleted,
+  });
   final double value;
   final TextStyle style;
   final String prefix;
   final String suffix;
   final bool hideValue;
   final VoidCallback? onCompleted;
-
-  const AnimatedAmountText({
-    super.key,
-    required this.value,
-    required this.style,
-    this.prefix = '',
-    this.suffix = '',
-    this.hideValue = false,
-    this.onCompleted,
-  });
 
   @override
   ConsumerState<AnimatedAmountText> createState() => _AnimatedAmountTextState();
@@ -28,27 +27,29 @@ class _AnimatedAmountTextState extends ConsumerState<AnimatedAmountText>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
-  
-  // 10/10 FIX: cache the last value globally per widget key to prevent 
+
+  // 10/10 FIX: cache the last value globally per widget key to prevent
   // "counting from zero" when slivers are rebuilt during scroll.
   static final Map<Key?, double> _lastSeenValues = {};
-  
+
   static const String _kMasked = '● ●,● ● ●';
 
   @override
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     final lastValue = _lastSeenValues[widget.key] ?? 0.0;
-    
+
     _anim = Tween<double>(begin: lastValue, end: widget.value).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutExpo),
     );
-    
+
     _lastSeenValues[widget.key] = widget.value;
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _ctrl.addStatusListener((status) {

@@ -1,15 +1,18 @@
+import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:invoice_discounting_app/screens/unlock_screen.dart';
-import '../utils/app_haptics.dart';
-
-import '../utils/smooth_page_route.dart';
-import 'analytics_screen.dart';
-import 'home_screen.dart';
-import 'marketplace_screen.dart';
-import 'portfolio_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/analytics_screen.dart';
+import 'package:invoice_discounting_app/screens/e_collect_screen.dart';
+import 'package:invoice_discounting_app/screens/home_screen.dart';
+import 'package:invoice_discounting_app/screens/portfolio_screen.dart';
+import 'package:invoice_discounting_app/screens/unlock_screen.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:invoice_discounting_app/widgets/back_gesture_handler.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -22,9 +25,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const platform = MethodChannel('widget_navigation');
 
-  static const int _tabCount = 4;
+  static const int _tabCount = 3;
   int _currentIndex = 0;
-  late final List<Widget> _tabs;
+
+  /// Tab history for back-navigation. Only stores unique consecutive entries.
+  /// Max depth of 10 to prevent unbounded growth.
+  final List<int> _tabHistory = [];
+  static const int _maxHistoryDepth = 10;
+
   DateTime? _backgroundTime;
   static const _lockTimeout = Duration(seconds: 300);
 
@@ -33,44 +41,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     (_) => GlobalKey<NavigatorState>(),
   );
 
-  final List<AnimationController> _tabControllers = [];
-  final List<Animation<double>> _tabFades = [];
-  final List<Animation<Offset>> _tabSlides = [];
-
-  // Tab observers to trigger rebuilds for Predictive Back canPop state
-  late final List<NavigatorObserver> _observers;
-
   @override
   void initState() {
     super.initState();
-    _currentIndex = 0;
-    _observers = List.generate(
-        _tabCount,
-        (_) => _TabNavigatorObserver(() {
-              if (mounted) setState(() {});
-            }));
     WidgetsBinding.instance.addObserver(this);
-    _tabs = List.generate(_tabCount, _buildTabNavigator);
-
-    for (int i = 0; i < _tabCount; i++) {
-      final ctrl = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 220),
-      );
-      _tabFades.add(
-        Tween<double>(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: ctrl, curve: Curves.easeOut),
-        ),
-      );
-      _tabSlides.add(
-        Tween<Offset>(
-          begin: const Offset(0, 0.035),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut)),
-      );
-      _tabControllers.add(ctrl);
-    }
-    _tabControllers[0].value = 1.0;
 
     platform.setMethodCallHandler((call) async {
       if (call.method == 'openTab' && call.arguments == 'marketplace') {
@@ -82,9 +56,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    for (final ctrl in _tabControllers) {
-      ctrl.dispose();
-    }
     super.dispose();
   }
 
@@ -98,156 +69,241 @@ class _MainScreenState extends ConsumerState<MainScreen>
       if (_backgroundTime == null) return;
       final difference = DateTime.now().difference(_backgroundTime!);
       if (difference > _lockTimeout) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          SmoothPageRoute(builder: (_) => const UnlockScreen()),
-          (route) => false,
+        unawaited(
+          Navigator.pushAndRemoveUntil<void>(
+            context,
+            SmoothPageRoute<void>(builder: (_) => const UnlockScreen()),
+            (route) => false,
+          ),
         );
       }
     }
   }
 
-  void _changeTab(int index) {
-    if (_currentIndex == index) return;
+  // ─────────────────────── Tab switching via bottom nav ──────────────────────
 
+  void _changeTab(int index) {
+    if (_currentIndex == index) {
+      // If tapping the current tab, pop to root of that tab's navigator
+      _navigatorKeys[index].currentState?.popUntil((route) => route.isFirst);
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     final previousIndex = _currentIndex;
-    setState(() => _currentIndex = index);
 
-    _tabControllers[previousIndex].reverse();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _tabControllers[index].forward(from: 0);
+    setState(() {
+      // Push previous index to history, avoiding consecutive duplicates
+      if (_tabHistory.isEmpty || _tabHistory.last != previousIndex) {
+        _tabHistory.add(previousIndex);
+        // Trim history to prevent unbounded growth
+        if (_tabHistory.length > _maxHistoryDepth) {
+          _tabHistory.removeAt(0);
+        }
+      }
+      _currentIndex = index;
     });
   }
+
+  // ──────────────────────── Nested tab navigators ──────────────────────────
 
   Widget _buildTabNavigator(int index) {
     const screens = [
       HomeScreen(),
-      MarketplaceScreen(),
+      ECollectScreen(),
       PortfolioScreen(),
-      AnalyticsScreen(),
     ];
 
+    // No NavigatorPopHandler — we handle pops manually in _handleBackPressed.
+    // This avoids the NavigationNotification + IndexedStack conflict that
+    // caused blank screens. Each Navigator has its own key for direct access.
     return Navigator(
       key: _navigatorKeys[index],
-      observers: [_observers[index]],
-      onGenerateRoute: (settings) => SmoothPageRoute(
+      onGenerateRoute: (settings) => SmoothPageRoute<void>(
         builder: (_) => screens[index],
         settings: settings,
       ),
     );
   }
 
+  // ────────────────── Back navigation ──────────────────
+
+  /// Called by [RootBackHandler] on every back gesture.
+  /// Returns true if handled, false for exit-toast.
+  Future<bool> _handleBackPressed() async {
+    // 1. If current tab's navigator has pushed routes, pop them.
+    final currentNav = _navigatorKeys[_currentIndex].currentState;
+    if (currentNav != null && currentNav.canPop()) {
+      currentNav.pop();
+      unawaited(AppHaptics.selection());
+      return true;
+    }
+
+    // 2. Navigate back through tab history.
+    if (_tabHistory.isNotEmpty) {
+      final prevIndex = _tabHistory.removeLast();
+      _switchToTab(prevIndex);
+      unawaited(AppHaptics.selection());
+      return true;
+    }
+
+    // 3. If not on Home, go to Home first.
+    if (_currentIndex != 0) {
+      _switchToTab(0);
+      _tabHistory.clear();
+      unawaited(AppHaptics.selection());
+      return true;
+    }
+
+    // 4. At root of Home tab with no history → show exit toast.
+    return false;
+  }
+
+  /// Switch to [index] via back-navigation (no history push).
+  void _switchToTab(int index) {
+    if (_currentIndex == index) return;
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    setState(() => _currentIndex = index);
+  }
+
+  // ───────────────────────────── Build ──────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    final currentNav = _navigatorKeys[_currentIndex].currentState;
-    final bool canPopNested = currentNav?.canPop() ?? false;
-    final bool isHome = _currentIndex == 0;
-    final bool canExit = !canPopNested && isHome;
-
-    return PopScope(
-      canPop: canExit,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-
-        if (canPopNested) {
-          currentNav?.pop();
-        } else if (!isHome) {
-          _changeTab(0);
-        }
-      },
+    return RootBackHandler(
+      onBackPressed: _handleBackPressed,
       child: Scaffold(
-        extendBody: true,
+        backgroundColor: cs.surface,
         body: Stack(
-          children: List.generate(_tabCount, (i) {
-            final active = i == _currentIndex;
-            return IgnorePointer(
-              ignoring: !active,
-              child: TickerMode(
-                enabled: active || _tabControllers[i].value > 0,
-                child: RepaintBoundary(
-                  child: FadeTransition(
-                    opacity: _tabFades[i],
-                    child: SlideTransition(
-                      position: _tabSlides[i],
-                      child: _tabs[i],
-                    ),
-                  ),
+          children: [
+            // 1. Content Area (IndexedStack)
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 74),
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: List.generate(_tabCount, _buildTabNavigator),
                 ),
               ),
-            );
-          }),
-        ),
-        bottomNavigationBar: ClipRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-            child: Material(
-              color: cs.surfaceContainer.withValues(alpha: 0.8),
-              elevation: 0,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: cs.outlineVariant.withValues(alpha: 0.2),
+            ),
+
+            // 2. Fixed Bottom Navigation Bar
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: RepaintBoundary(
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainer.withValues(alpha: 0.8),
+                        border: Border(
+                          top: BorderSide(
+                            color: cs.outlineVariant.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 8),
+                          child: SizedBox(
+                            height: 64,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                // Shared Sliding Indicator
+                                AnimatedAlign(
+                                  duration: const Duration(milliseconds: 400),
+                                  curve: Curves.elasticOut,
+                                  alignment: Alignment(
+                                    -1.0 +
+                                        (_currentIndex *
+                                            (2.0 / (_tabCount - 1))),
+                                    0,
+                                  ),
+                                  child: FractionallySizedBox(
+                                    widthFactor: 1 / _tabCount,
+                                    child: Container(
+                                      alignment: const Alignment(0, -0.28),
+                                      child: Container(
+                                        width: 56,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: cs.primary
+                                              .withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: cs.primary
+                                                .withValues(alpha: 0.15),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    Expanded(
+                                      child: _NavItem(
+                                        icon: AppIcons.home,
+                                        activeIcon: AppIcons.homeBold,
+                                        label: 'Home',
+                                        index: 0,
+                                        current: _currentIndex,
+                                        onTap: _changeTab,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _NavItem(
+                                        icon: AppIcons.bank,
+                                        activeIcon: AppIcons.bank,
+                                        label: 'E-Collect',
+                                        index: 1,
+                                        current: _currentIndex,
+                                        onTap: _changeTab,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _NavItem(
+                                        icon: AppIcons.portfolio,
+                                        activeIcon: AppIcons.portfolioBold,
+                                        label: 'Portfolio',
+                                        index: 2,
+                                        current: _currentIndex,
+                                        onTap: _changeTab,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    0,
-                    2,
-                    0,
-                    MediaQuery.of(context).padding.bottom,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: _NavItem(
-                            icon: Icons.home_outlined,
-                            activeIcon: Icons.home_rounded,
-                            label: 'Home',
-                            index: 0,
-                            current: _currentIndex,
-                            onTap: _changeTab),
-                      ),
-                      Expanded(
-                        child: _NavItem(
-                            icon: Icons.storefront_outlined,
-                            activeIcon: Icons.storefront_rounded,
-                            label: 'Market',
-                            index: 1,
-                            current: _currentIndex,
-                            onTap: _changeTab),
-                      ),
-                      Expanded(
-                        child: _NavItem(
-                            icon: Icons.pie_chart_outline_rounded,
-                            activeIcon: Icons.pie_chart_rounded,
-                            label: 'Portfolio',
-                            index: 2,
-                            current: _currentIndex,
-                            onTap: _changeTab),
-                      ),
-                      Expanded(
-                        child: _NavItem(
-                            icon: Icons.bar_chart_outlined,
-                            activeIcon: Icons.bar_chart_rounded,
-                            label: 'Analytics',
-                            index: 3,
-                            current: _currentIndex,
-                            onTap: _changeTab),
-                      ),
-                    ],
                   ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -260,13 +316,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _NavItem extends ConsumerStatefulWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final int index;
-  final int current;
-  final Function(int) onTap;
-
   const _NavItem({
     required this.icon,
     required this.activeIcon,
@@ -275,12 +324,19 @@ class _NavItem extends ConsumerStatefulWidget {
     required this.current,
     required this.onTap,
   });
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final int index;
+  final int current;
+  final ValueChanged<int> onTap;
 
   @override
   ConsumerState<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixin {
+class _NavItemState extends ConsumerState<_NavItem>
+    with TickerProviderStateMixin {
   // ── Main activation controller (pill + crossfade) ──
   late final AnimationController _ctrl;
   late final CurvedAnimation _curve;
@@ -291,7 +347,7 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
 
   void _showLabel(BuildContext context) {
     final overlay = Overlay.of(context);
-    final renderBox = context.findRenderObject() as RenderBox;
+    final renderBox = context.findRenderObject()! as RenderBox;
     final position = renderBox.localToGlobal(Offset.zero);
     final size = renderBox.size;
 
@@ -327,29 +383,30 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
   void initState() {
     super.initState();
 
-    // Main activation animation (drives pill width + crossfade + colors)
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 350));
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
     if (widget.index == widget.current) _ctrl.value = 1.0;
 
-    // Bounce: quick scale pop using a spring-like sequence
-    // 1.0 → 1.18 → 0.95 → 1.0  (overshoot then settle)
     _bounceCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _bounceAnim = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.18)
+        tween: Tween<double>(begin: 1.0, end: 1.18)
             .chain(CurveTween(curve: Curves.easeOut)),
         weight: 30,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.18, end: 0.95)
+        tween: Tween<double>(begin: 1.18, end: 0.95)
             .chain(CurveTween(curve: Curves.easeInOut)),
         weight: 30,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.95, end: 1.0)
+        tween: Tween<double>(begin: 0.95, end: 1.0)
             .chain(CurveTween(curve: Curves.easeOut)),
         weight: 40,
       ),
@@ -361,12 +418,10 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
     super.didUpdateWidget(old);
     if (old.current != widget.current) {
       if (widget.index == widget.current) {
-        // Becoming active: play both activation + bounce
-        _ctrl.forward(from: 0.0);
-        _bounceCtrl.forward(from: 0.0);
+        unawaited(_ctrl.forward(from: 0));
+        unawaited(_bounceCtrl.forward(from: 0));
       } else if (widget.index == old.current) {
-        // Becoming inactive: reverse activation, no bounce
-        _ctrl.reverse();
+        unawaited(_ctrl.reverse());
       }
     }
   }
@@ -408,10 +463,6 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
             Curves.easeOut.transform(t),
           )!;
 
-          // Pill width: 0 → 64 driven by t
-          final pillWidth = 64.0 * t;
-
-          // Icon vertical shift: nudge up 2px when active
           final iconYOffset = -1.0 * t;
 
           return Semantics(
@@ -420,10 +471,10 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
             selected: active,
             child: GestureDetector(
               onTapDown: (_) {
-                _bounceCtrl.forward(from: 0.0);
+                unawaited(_bounceCtrl.forward(from: 0));
               },
               onTap: () async {
-                await AppHaptics.navTap();
+                unawaited(AppHaptics.navTap());
                 widget.onTap(widget.index);
               },
               onLongPress: () => _showLabel(context),
@@ -435,29 +486,29 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
                   mainAxisAlignment: MainAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ── Icon + pill container ──
                     SizedBox(
                       width: 64,
                       height: 28,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Pill indicator with width animation
                           if (t > 0)
-                            Opacity(
-                              opacity: t.clamp(0.0, 1.0),
-                              child: Container(
-                                width: pillWidth,
-                                height: 26,
-                                decoration: BoxDecoration(
-                                  color: Color.lerp(cs.secondaryContainer,
-                                      cs.onSurface, 0.08),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: cs.primary.withValues(
+                                      alpha: 0.15 * t.clamp(0.0, 1.0),
+                                    ),
+                                    blurRadius: 12,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
                               ),
                             ),
-
-                          // Icon with bounce scale + vertical shift
                           Transform.translate(
                             offset: Offset(0, iconYOffset),
                             child: Transform.scale(
@@ -468,23 +519,19 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
                                 child: Stack(
                                   alignment: Alignment.center,
                                   children: [
-                                    // Outlined icon (fades out)
-                                    Opacity(
-                                      opacity: (1.0 - t).clamp(0.0, 1.0),
-                                      child: Icon(
-                                        widget.icon,
-                                        color: iconColor,
-                                        size: 24,
+                                    Icon(
+                                      widget.icon,
+                                      color: iconColor.withValues(
+                                        alpha: (1.0 - t).clamp(0.0, 1.0),
                                       ),
+                                      size: 24,
                                     ),
-                                    // Filled icon (fades in)
-                                    Opacity(
-                                      opacity: t.clamp(0.0, 1.0),
-                                      child: Icon(
-                                        widget.activeIcon,
-                                        color: iconColor,
-                                        size: 24,
+                                    Icon(
+                                      widget.activeIcon,
+                                      color: iconColor.withValues(
+                                        alpha: t.clamp(0.0, 1.0),
                                       ),
+                                      size: 24,
                                     ),
                                   ],
                                 ),
@@ -495,7 +542,6 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
                       ),
                     ),
                     const SizedBox(height: 2),
-                    // ── Label ──
                     AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 200),
                       style: TextStyle(
@@ -514,21 +560,4 @@ class _NavItemState extends ConsumerState<_NavItem> with TickerProviderStateMixi
       ),
     );
   }
-}
-
-class _TabNavigatorObserver extends NavigatorObserver {
-  final VoidCallback onStateChange;
-  _TabNavigatorObserver(this.onStateChange);
-
-  @override
-  void didPush(Route route, Route? previousRoute) => onStateChange();
-
-  @override
-  void didPop(Route route, Route? previousRoute) => onStateChange();
-
-  @override
-  void didRemove(Route route, Route? previousRoute) => onStateChange();
-
-  @override
-  void didReplace({Route? newRoute, Route? oldRoute}) => onStateChange();
 }

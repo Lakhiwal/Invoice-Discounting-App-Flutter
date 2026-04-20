@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
-
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import 'login_screen.dart';
-import 'verify_otp_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/screens/verify_otp_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -38,25 +39,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
   // ── Animation ─────────────────────────────────────────────────────────────
   late AnimationController _animController;
-  late CurvedAnimation _fadeCurve;
-  late CurvedAnimation _slideCurve;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
   // ── Password strength (0–4) ───────────────────────────────────────────────
   int _passwordStrength = 0;
 
-  final _userTypes = [
+  final List<Map<String, Object>> _userTypes = [
     {
       'value': 'investor',
       'label': 'Investor',
-      'icon': Icons.trending_up_rounded,
+      'icon': AppIcons.trendingUp,
       'desc': 'Invest in invoices',
     },
     {
       'value': 'business_partner',
       'label': 'Partner',
-      'icon': Icons.handshake_rounded,
+      'icon': AppIcons.partner,
       'desc': 'Business collaboration',
     },
   ];
@@ -65,32 +64,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   void initState() {
     super.initState();
     _animController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
-    _fadeCurve =
-        CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _fadeAnim = _fadeCurve;
-    _slideCurve =
-        CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.07),
       end: Offset.zero,
-    ).animate(_slideCurve);
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+
     _animController.forward();
     _passwordController.addListener(_evaluatePassword);
     _signInRecognizer = TapGestureRecognizer()
       ..onTap = () async {
-        await AppHaptics.selection();
+        unawaited(AppHaptics.selection());
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          SmoothPageRoute(builder: (_) => const LoginScreen()),
+        Navigator.pushAndRemoveUntil(
+          context,
+          SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+          (route) => false,
         );
       };
   }
 
   @override
   void dispose() {
-    _fadeCurve.dispose();
-    _slideCurve.dispose();
     _animController.dispose();
     _nameController.dispose();
     _emailController.dispose();
@@ -105,12 +105,42 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   // ── Password strength ─────────────────────────────────────────────────────
   void _evaluatePassword() {
     final p = _passwordController.text;
-    int score = 0;
+    var score = 0;
     if (p.length >= 8) score++;
-    if (p.contains(RegExp(r'[A-Z]'))) score++;
-    if (p.contains(RegExp(r'[0-9]'))) score++;
-    if (p.contains(RegExp(r'[^A-Za-z0-9]'))) score++;
+    if (p.contains(RegExp('[A-Z]'))) score++;
+    if (p.contains(RegExp('[0-9]'))) score++;
+    if (p.contains(RegExp('[^A-Za-z0-9]'))) score++;
     setState(() => _passwordStrength = score);
+  }
+
+  Color _strengthColor() {
+    switch (_passwordStrength) {
+      case 1:
+        return AppColors.rose(context);
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.amber;
+      case 4:
+        return AppColors.success(context);
+      default:
+        return Colors.transparent;
+    }
+  }
+
+  String _strengthLabel() {
+    switch (_passwordStrength) {
+      case 1:
+        return 'Weak';
+      case 2:
+        return 'Fair';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Strong';
+      default:
+        return '';
+    }
   }
 
   // ── Validation ────────────────────────────────────────────────────────────
@@ -134,11 +164,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       return 'Enter a valid PAN number (e.g. ABCDE1234F).';
     }
     if (password.length < 8) return 'Password must be at least 8 characters.';
-    if (!password.contains(RegExp(r'[A-Z]'))) {
+    if (!password.contains(RegExp('[A-Z]'))) {
       return 'Password needs an uppercase letter.';
     }
-    if (!password.contains(RegExp(r'[0-9]'))) return 'Password needs a number.';
-    if (!password.contains(RegExp(r'[^A-Za-z0-9]'))) {
+    if (!password.contains(RegExp('[0-9]'))) return 'Password needs a number.';
+    if (!password.contains(RegExp('[^A-Za-z0-9]'))) {
       return 'Password needs a special character.';
     }
     if (password != confirm) return 'Passwords do not match.';
@@ -173,9 +203,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       if (!mounted) return;
 
       if (result['success'] == true) {
-        await AppHaptics.success();
+        unawaited(AppHaptics.success());
         Navigator.of(context).push(
-          SmoothPageRoute(
+          SmoothPageRoute<void>(
             builder: (_) => VerifyOtpScreen(
               email: _emailController.text.trim(),
               name: _nameController.text.trim(),
@@ -184,14 +214,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
           ),
         );
       } else {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         setState(
-            () => _errorMessage = result['error'] ?? 'Registration failed.');
+          () => _errorMessage =
+              (result['error'] as String?) ?? 'Registration failed.',
+        );
       }
     } catch (_) {
-      await AppHaptics.error();
-      setState(() =>
-          _errorMessage = 'Cannot connect to server. Check your network.');
+      unawaited(AppHaptics.error());
+      setState(
+        () => _errorMessage = 'Cannot connect to server. Check your network.',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -199,79 +232,38 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
   void _dismissError() => setState(() => _errorMessage = null);
 
-  // ── Strength helpers ──────────────────────────────────────────────────────
-  Color _strengthColor() {
-    switch (_passwordStrength) {
-      case 1:
-        return AppColors.rose(context);
-      case 2:
-        return Colors.orange;
-      case 3:
-        return Colors.amber;
-      case 4:
-        return AppColors.success(context);
-      default:
-        return Colors.transparent;
-    }
-  }
-
-  String _strengthLabel() {
-    switch (_passwordStrength) {
-      case 1:
-        return 'Weak';
-      case 2:
-        return 'Fair';
-      case 3:
-        return 'Good';
-      case 4:
-        return 'Strong';
-      default:
-        return '';
-    }
-  }
-
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
-      resizeToAvoidBottomInset: true,
-      body: Stack(
-        children: [
-          // ── Background gradient (matches login) ─────────────────────────
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    scheme.surface,
-                    scheme.surfaceContainerLowest,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Decorative glow (matches login: 520px + IgnorePointer) ──────
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: UI.authGradient(isDark),
+        ),
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: true,
+        body: Stack(
+          children: [
+            // ── Decorative glow (matches login) ─────────────────────────────
           Positioned(
             top: -80,
             right: -80,
             child: IgnorePointer(
               child: Container(
-                width: 520,
-                height: 520,
+                width: 480,
+                height: 480,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    radius: 0.85,
                     colors: [
                       AppColors.blue(context)
-                          .withValues(alpha: isDark ? 0.18 : 0.10),
+                          .withValues(alpha: isDark ? 0.15 : 0.08),
                       Colors.transparent,
                     ],
                   ),
@@ -286,311 +278,379 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
               opacity: _fadeAnim,
               child: SlideTransition(
                 position: _slideAnim,
-                child: SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 40),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints:
+                          BoxConstraints(minHeight: constraints.maxHeight),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 40),
 
-                      // ── Logo (matches login: dark-mode aware) ───────────
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.navyCard(context)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.blue(context)
-                                    .withValues(alpha: 0.12),
-                                blurRadius: 24,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Image.asset(
-                            'assets/images/logo-colored.png',
-                            height: 48,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 36),
-
-                      // ── Heading ─────────────────────────────────────────
-                      Text('Create account.',
-                          style: TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary(context),
-                            height: 1.15,
-                          )),
-                      const SizedBox(height: 8),
-                      Text('Join Finworks360 as an investor or partner',
-                          style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary(context))),
-
-                      const SizedBox(height: 28),
-
-                      // ── Account type ────────────────────────────────────
-                      Text('Account type',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary(context))),
-                      const SizedBox(height: 10),
-                      _buildUserTypeSelector(isDark),
-
-                      const SizedBox(height: 20),
-
-                      // ── Form fields ─────────────────────────────────────
-                      _buildField(
-                        controller: _nameController,
-                        label: 'Full name',
-                        icon: Icons.person_outline_rounded,
-                        inputType: TextInputType.name,
-                        capitalization: TextCapitalization.words,
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildField(
-                        controller: _emailController,
-                        label: 'Email address',
-                        icon: Icons.mail_outline_rounded,
-                        inputType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildField(
-                        controller: _mobileController,
-                        label: 'Mobile number',
-                        icon: Icons.phone_outlined,
-                        inputType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildField(
-                        controller: _panController,
-                        label: 'PAN number',
-                        icon: Icons.credit_card_outlined,
-                        capitalization: TextCapitalization.characters,
-                        maxLength: 10,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // ── Password ────────────────────────────────────────
-                      TextField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        style: TextStyle(color: AppColors.textPrimary(context)),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          labelStyle: TextStyle(
-                              color: AppColors.textSecondary(context)),
-                          prefixIcon: Icon(Icons.lock_outline_rounded,
-                              color: AppColors.textSecondary(context),
-                              size: 20),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: AppColors.textSecondary(context),
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              await AppHaptics.selection();
-                              setState(
-                                  () => _obscurePassword = !_obscurePassword);
-                            },
-                          ),
-                        ),
-                      ),
-
-                      // ── Password strength bar ──────────────────────────
-                      if (_passwordController.text.isNotEmpty) ...[
-                        const SizedBox(height: UI.sm),
-                        Row(
-                          children: [
-                            ...List.generate(4, (i) {
-                              return Expanded(
-                                child: Container(
-                                  height: 3,
-                                  margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
-                                  decoration: BoxDecoration(
-                                    color: i < _passwordStrength
-                                        ? _strengthColor()
-                                        : AppColors.divider(context),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              );
-                            }),
-                            const SizedBox(width: UI.sm),
-                            Text(_strengthLabel(),
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    color: _strengthColor(),
-                                    fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ],
-
-                      const SizedBox(height: 14),
-
-                      // ── Confirm Password ───────────────────────────────
-                      TextField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirm,
-                        style: TextStyle(color: AppColors.textPrimary(context)),
-                        onSubmitted: (_) => _handleRegister(),
-                        decoration: InputDecoration(
-                          labelText: 'Confirm password',
-                          labelStyle: TextStyle(
-                              color: AppColors.textSecondary(context)),
-                          prefixIcon: Icon(Icons.lock_outline_rounded,
-                              color: AppColors.textSecondary(context),
-                              size: 20),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirm
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: AppColors.textSecondary(context),
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              await AppHaptics.selection();
-                              setState(
-                                  () => _obscureConfirm = !_obscureConfirm);
-                            },
-                          ),
-                        ),
-                      ),
-
-                      // ── Error banner (matches login: AnimatedSize + dismiss) ──
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeInOut,
-                        child: _errorMessage != null
-                            ? Padding(
-                                padding: const EdgeInsets.only(top: 12),
+                              // ── Logo (matches login: dark-mode aware) ───────────
+                              Center(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.rose(context)
-                                        .withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: AppColors.rose(context)
-                                            .withValues(alpha: 0.3)),
+                                    horizontal: 24,
+                                    vertical: 16,
                                   ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 1),
-                                        child: Icon(
-                                          Icons.error_outline_rounded,
-                                          color: AppColors.rose(context),
-                                          size: 16,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppColors.navyCard(context)
+                                        : Colors.white,
+                                    borderRadius: BorderRadius.circular(UI.radiusLg),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppColors.blue(context)
+                                            .withValues(alpha: 0.12),
+                                        blurRadius: 24,
+                                        spreadRadius: 2,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Image.asset(
+                                    'assets/images/logo-colored.png',
+                                    height: 48,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 36),
+
+                              // ── Heading ─────────────────────────────────────────
+                              Text(
+                                'Create account.',
+                                style: TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary(context),
+                                  height: 1.15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Join Finworks360 as an investor or partner',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary(context),
+                                ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // ── Account type ────────────────────────────────────
+                              Text(
+                                'Account type',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildUserTypeSelector(isDark),
+
+                              const SizedBox(height: 20),
+
+                              // ── Form fields ─────────────────────────────────────
+                              _buildField(
+                                controller: _nameController,
+                                label: 'Full name',
+                                icon: AppIcons.user,
+                                inputType: TextInputType.name,
+                                capitalization: TextCapitalization.words,
+                              ),
+                              const SizedBox(height: 14),
+
+                              _buildField(
+                                controller: _emailController,
+                                label: 'Email address',
+                                icon: AppIcons.mail,
+                                inputType: TextInputType.emailAddress,
+                              ),
+                              const SizedBox(height: 14),
+
+                              _buildField(
+                                controller: _mobileController,
+                                label: 'Mobile number',
+                                icon: AppIcons.phone,
+                                inputType: TextInputType.phone,
+                              ),
+                              const SizedBox(height: 14),
+
+                              _buildField(
+                                controller: _panController,
+                                label: 'PAN number',
+                                icon: AppIcons.card,
+                                capitalization: TextCapitalization.characters,
+                                maxLength: 10,
+                              ),
+                              const SizedBox(height: 14),
+
+                              // ── Password ────────────────────────────────────────
+                              TextField(
+                                controller: _passwordController,
+                                obscureText: _obscurePassword,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary(context),
+                                ),
+                                decoration: InputDecoration(
+                                  labelText: 'Password',
+                                  labelStyle: TextStyle(
+                                    color: AppColors.textSecondary(context),
+                                  ),
+                                  prefixIcon: Icon(
+                                    AppIcons.lock,
+                                    color: AppColors.textSecondary(context),
+                                    size: 20,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? AppIcons.eyeSlash
+                                          : AppIcons.eye,
+                                      color: AppColors.textSecondary(context),
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      unawaited(AppHaptics.selection());
+                                      setState(
+                                        () => _obscurePassword =
+                                            !_obscurePassword,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              // ── Password strength bar ──────────────────────────
+                              if (_passwordController.text.isNotEmpty) ...[
+                                const SizedBox(height: UI.sm),
+                                Row(
+                                  children: [
+                                    ...List.generate(
+                                      4,
+                                      (i) => Expanded(
+                                        child: Container(
+                                          height: 3,
+                                          margin: EdgeInsets.only(
+                                            right: i < 3 ? 4 : 0,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: i < _passwordStrength
+                                                ? _strengthColor()
+                                                : AppColors.divider(context),
+                                            borderRadius:
+                                                BorderRadius.circular(2),
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _errorMessage!,
+                                    ),
+                                    const SizedBox(width: UI.sm),
+                                    Text(
+                                      _strengthLabel(),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _strengthColor(),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+
+                              const SizedBox(height: 14),
+
+                              // ── Confirm Password ───────────────────────────────
+                              TextField(
+                                controller: _confirmPasswordController,
+                                obscureText: _obscureConfirm,
+                                style: TextStyle(
+                                  color: AppColors.textPrimary(context),
+                                ),
+                                onSubmitted: (_) => _handleRegister(),
+                                decoration: InputDecoration(
+                                  labelText: 'Confirm password',
+                                  labelStyle: TextStyle(
+                                    color: AppColors.textSecondary(context),
+                                  ),
+                                  prefixIcon: Icon(
+                                    AppIcons.lock,
+                                    color: AppColors.textSecondary(context),
+                                    size: 20,
+                                  ),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirm
+                                          ? AppIcons.eyeSlash
+                                          : AppIcons.eye,
+                                      color: AppColors.textSecondary(context),
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      unawaited(AppHaptics.selection());
+                                      setState(
+                                        () =>
+                                            _obscureConfirm = !_obscureConfirm,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+
+                              // ── Error banner ──────────────────────────────────
+                              AnimatedSize(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                                child: _errorMessage != null
+                                    ? Padding(
+                                        padding: const EdgeInsets.only(top: 12),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.rose(context)
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(UI.radiusSm),
+                                            border: Border.all(
+                                              color: AppColors.rose(context)
+                                                  .withValues(alpha: 0.3),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  top: 1,
+                                                ),
+                                                child: Icon(
+                                                  AppIcons.error,
+                                                  color:
+                                                      AppColors.rose(context),
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  _errorMessage!,
+                                                  style: TextStyle(
+                                                    color: AppColors.rose(
+                                                      context,
+                                                    ),
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () async {
+                                                  unawaited(
+                                                      AppHaptics.selection(),);
+                                                  _dismissError();
+                                                },
+                                                child: Icon(
+                                                  AppIcons.close,
+                                                  color:
+                                                      AppColors.rose(context),
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+
+                              const Spacer(),
+                              const SizedBox(height: 32),
+
+                              // ── Create Account button ──────────────────────────
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      _isLoading ? null : _handleRegister,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary(context),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor:
+                                        AppColors.primary(context)
+                                            .withValues(alpha: 0.6),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Create Account',
                                           style: TextStyle(
-                                              color: AppColors.rose(context),
-                                              fontSize: 13),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                          ),
                                         ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // ── Sign in link ───────────────────────────────────
+                              Center(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                    children: [
+                                      const TextSpan(
+                                        text: 'Already have an account? ',
                                       ),
-                                      GestureDetector(
-                                        onTap: () async {
-                                          await AppHaptics.selection();
-                                          _dismissError();
-                                        },
-                                        child: Icon(
-                                          Icons.close_rounded,
-                                          color: AppColors.rose(context),
-                                          size: 16,
+                                      TextSpan(
+                                        text: 'Sign in',
+                                        style: TextStyle(
+                                          color: AppColors.primary(context),
+                                          fontWeight: FontWeight.w700,
                                         ),
+                                        recognizer: _signInRecognizer,
                                       ),
                                     ],
                                   ),
                                 ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
+                              ),
 
-                      const SizedBox(height: 28),
-
-                      // ── Create Account button ──────────────────────────
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary(context),
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: AppColors.primary(context)
-                                .withValues(alpha: 0.6),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2.5, color: Colors.white))
-                              : const Text('Create Account',
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700)),
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // ── Sign in link ───────────────────────────────────
-                      Center(
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: AppColors.textSecondary(context)),
-                            children: [
-                              const TextSpan(text: 'Already have an account? '),
-                              TextSpan(
-                                text: 'Sign in',
-                                style: TextStyle(
-                                  color: AppColors.primary(context),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                recognizer: _signInRecognizer,
+                              // ── Bottom padding ─────────────────────────────────
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).padding.bottom + 24,
                               ),
                             ],
                           ),
                         ),
                       ),
-
-                      // ── Bottom padding ─────────────────────────────────
-                      SizedBox(
-                          height: MediaQuery.of(context).padding.bottom + 24),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -598,87 +658,87 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
           ),
         ],
       ),
+    ),
     );
   }
 
   // ── Account type pill selector ────────────────────────────────────────────
-  Widget _buildUserTypeSelector(bool isDark) {
-    return Row(
-      children: _userTypes.asMap().entries.map((entry) {
-        final type = entry.value;
-        final isLast = entry.key == _userTypes.length - 1;
-        final isSelected = _selectedUserType == type['value'];
+  Widget _buildUserTypeSelector(bool isDark) => Row(
+        children: _userTypes.asMap().entries.map((entry) {
+          final type = entry.value;
+          final isLast = entry.key == _userTypes.length - 1;
+          final isSelected = _selectedUserType == type['value'];
 
-        return Expanded(
-          child: GestureDetector(
-            onTap: () async {
-              await AppHaptics.selection();
-              setState(() => _selectedUserType = type['value'] as String);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: EdgeInsets.only(right: isLast ? 0 : 12),
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary(context)
-                    : (isDark ? AppColors.navyCard(context) : Colors.white),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
+          return Expanded(
+            child: GestureDetector(
+              onTap: () async {
+                unawaited(AppHaptics.selection());
+                setState(() => _selectedUserType = type['value']! as String);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: EdgeInsets.only(right: isLast ? 0 : 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary(context)
-                      : AppColors.divider(context),
-                  width: isSelected ? 1.5 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: AppColors.primary(context)
-                              .withValues(alpha: 0.25),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        )
-                      ]
-                    : [],
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    type['icon'] as IconData,
-                    size: 26,
+                      : (isDark ? AppColors.navyCard(context) : Colors.white),
+                  borderRadius: BorderRadius.circular(UI.radiusMd),
+                  border: Border.all(
                     color: isSelected
-                        ? Colors.white
-                        : AppColors.textSecondary(context),
+                        ? AppColors.primary(context)
+                        : AppColors.divider(context),
+                    width: isSelected ? 1.5 : 1,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    type['label'] as String,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary(context)
+                                .withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [],
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      type['icon']! as IconData,
+                      size: 26,
                       color: isSelected
                           ? Colors.white
-                          : AppColors.textPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    type['desc'] as String,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isSelected
-                          ? Colors.white.withValues(alpha: 0.8)
                           : AppColors.textSecondary(context),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      type['label']! as String,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.textPrimary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      type['desc']! as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : AppColors.textSecondary(context),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      }).toList(),
-    );
-  }
+          );
+        }).toList(),
+      );
 
   // ── Reusable text field ───────────────────────────────────────────────────
   Widget _buildField({
@@ -688,23 +748,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     TextInputType inputType = TextInputType.text,
     TextCapitalization capitalization = TextCapitalization.none,
     int? maxLength,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: inputType,
-      textCapitalization: capitalization,
-      maxLength: maxLength,
-      style: TextStyle(color: AppColors.textPrimary(context)),
-      onChanged: (_) {
-        if (_errorMessage != null) _dismissError();
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: AppColors.textSecondary(context)),
-        prefixIcon:
-            Icon(icon, color: AppColors.textSecondary(context), size: 20),
-        counterText: '',
-      ),
-    );
-  }
+  }) =>
+      TextField(
+        controller: controller,
+        keyboardType: inputType,
+        textCapitalization: capitalization,
+        maxLength: maxLength,
+        style: TextStyle(color: AppColors.textPrimary(context)),
+        onChanged: (_) {
+          if (_errorMessage != null) _dismissError();
+        },
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: AppColors.textSecondary(context)),
+          prefixIcon:
+              Icon(icon, color: AppColors.textSecondary(context), size: 20),
+          counterText: '',
+        ),
+      );
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'app_haptics.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 /// ─────────────────────────────────────────────────────────
 /// VibeHapticsController
@@ -17,7 +17,7 @@ class VibeHaptics {
   static Future<void> successThud() async {
     if (!AppHaptics.enabled) return;
     await HapticFeedback.mediumImpact();
-    await Future.delayed(const Duration(milliseconds: 100));
+    await Future<void>.delayed(const Duration(milliseconds: 100));
     await HapticFeedback.lightImpact();
   }
 
@@ -25,16 +25,16 @@ class VibeHaptics {
   static Future<void> errorAlert() async {
     if (!AppHaptics.enabled) return;
     await HapticFeedback.heavyImpact();
-    await Future.delayed(const Duration(milliseconds: 150));
+    await Future<void>.delayed(const Duration(milliseconds: 150));
     await HapticFeedback.heavyImpact();
   }
 
   /// A "cascading" haptic for progress or loading completion.
   static Future<void> ripple() async {
     if (!AppHaptics.enabled) return;
-    for (int i = 0; i < 3; i++) {
-        await HapticFeedback.lightImpact();
-        await Future.delayed(Duration(milliseconds: 50 + (i * 20)));
+    for (var i = 0; i < 3; i++) {
+      await HapticFeedback.lightImpact();
+      await Future<void>.delayed(Duration(milliseconds: 50 + (i * 20)));
     }
   }
 

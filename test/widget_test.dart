@@ -4,7 +4,7 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  testWidgets('App launches smoke test', (WidgetTester tester) async {
+  testWidgets('App launches smoke test', (tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => ThemeProvider(),

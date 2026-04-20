@@ -1,33 +1,34 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import '../utils/formatters.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
 
 class InvestmentCalculator extends ConsumerStatefulWidget {
-  final double? maxAmount;
-  final double? roi;
-  final int? days;
-  final Function(double)? onInvest;
-  final double? walletBalance;
-  final int invoiceId;
-
   const InvestmentCalculator({
-    super.key,
     required this.invoiceId,
+    super.key,
     this.maxAmount,
     this.roi,
     this.days,
     this.onInvest,
-    this.walletBalance,
+    this.eCollectBalance,
   });
+  final double? maxAmount;
+  final double? roi;
+  final int? days;
+  final Function(double)? onInvest;
+  final double? eCollectBalance;
+  final int invoiceId;
 
   @override
-  ConsumerState<InvestmentCalculator> createState() => _InvestmentCalculatorState();
+  ConsumerState<InvestmentCalculator> createState() =>
+      _InvestmentCalculatorState();
 }
 
 class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
@@ -45,7 +46,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
   double _annualReturn = 0;
 
   bool _exceedsMax = false;
-  bool _exceedsWallet = false;
+  bool _exceedsECollect = false;
 
   @override
   void initState() {
@@ -72,18 +73,17 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final input = double.tryParse(_amountCtrl.text.trim()) ?? 0;
 
-      final exceedsMax =
-          widget.maxAmount != null && input > widget.maxAmount!;
-      final exceedsWallet =
-          widget.walletBalance != null && input > widget.walletBalance!;
+      final exceedsMax = widget.maxAmount != null && input > widget.maxAmount!;
+      final exceedsECollect =
+          widget.eCollectBalance != null && input > widget.eCollectBalance!;
 
-      if ((exceedsMax && !_exceedsMax) || (exceedsWallet && !_exceedsWallet)) {
+      if ((exceedsMax && !_exceedsMax) || (exceedsECollect && !_exceedsECollect)) {
         AppHaptics.error();
       }
 
       setState(() {
         _exceedsMax = exceedsMax;
-        _exceedsWallet = exceedsWallet;
+        _exceedsECollect = exceedsECollect;
       });
 
       if (input <= 0) {
@@ -112,9 +112,9 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
 
       setState(() {
         _amount = input;
-        _profit = double.parse(result['expected_profit']);
-        _maturity = double.parse(result['maturity_value']);
-        _annualReturn = double.parse(result['investor_rate']);
+        _profit = double.parse(result['expected_profit'] as String);
+        _maturity = double.parse(result['maturity_value'] as String);
+        _annualReturn = double.parse(result['investor_rate'] as String);
       });
     });
   }
@@ -126,12 +126,18 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.scaffold(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(UI.radiusLg)),
       ),
       padding:
-      EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          16,
+          24,
+          MediaQuery.paddingOf(context).bottom + 32,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -162,7 +168,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
             TextField(
               controller: _amountCtrl,
               keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
+                  const TextInputType.numberWithOptions(decimal: true),
               autofocus: true,
               style: TextStyle(
                 color: _exceedsMax
@@ -176,7 +182,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
                 filled: true,
                 fillColor: AppColors.navyCard(context),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(UI.radiusMd),
                   borderSide: BorderSide(
                     color: _exceedsMax
                         ? AppColors.rose(context)
@@ -184,7 +190,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(UI.radiusMd),
                   borderSide: BorderSide(
                     color: _exceedsMax
                         ? AppColors.rose(context)
@@ -192,7 +198,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(UI.radiusMd),
                   borderSide: BorderSide(
                     color: _exceedsMax
                         ? AppColors.rose(context)
@@ -207,60 +213,60 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
               ),
             ),
 
-            // ── Max / wallet info + warnings ──────────────────────────────
-            if (max > 0 || widget.walletBalance != null) ...[
+            // ── Max / E-Collect info + warnings ──────────────────────────────
+            if (max > 0 || widget.eCollectBalance != null) ...[
               const SizedBox(height: UI.sm),
               if (max > 0)
-                Row(children: [
-                  Icon(
-                    _exceedsMax
-                        ? Icons.warning_amber_rounded
-                        : Icons.info_outline_rounded,
-                    size: 13,
-                    color: _exceedsMax
-                        ? AppColors.rose(context)
-                        : AppColors.textSecondary(context),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _exceedsMax
-                        ? 'Exceeds max available (₹${fmtAmount(max)})'
-                        : 'Max available: ₹${fmtAmount(max)}',
-                    style: TextStyle(
+                Row(
+                  children: [
+                    Icon(
+                      _exceedsMax ? AppIcons.warning : AppIcons.info,
+                      size: 13,
                       color: _exceedsMax
                           ? AppColors.rose(context)
                           : AppColors.textSecondary(context),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ]),
-              if (widget.walletBalance != null) ...[
+                    const SizedBox(width: 5),
+                    Text(
+                      _exceedsMax
+                          ? 'Exceeds max available (₹${fmtAmount(max)})'
+                          : 'Max available: ₹${fmtAmount(max)}',
+                      style: TextStyle(
+                        color: _exceedsMax
+                            ? AppColors.rose(context)
+                            : AppColors.textSecondary(context),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              if (widget.eCollectBalance != null) ...[
                 const SizedBox(height: UI.xs),
-                Row(children: [
-                  Icon(
-                    _exceedsWallet
-                        ? Icons.account_balance_wallet
-                        : Icons.account_balance_wallet_outlined,
-                    size: 13,
-                    color: _exceedsWallet
-                        ? AppColors.rose(context)
-                        : AppColors.textSecondary(context),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    _exceedsWallet
-                        ? 'Insufficient wallet balance (₹${fmtAmount(widget.walletBalance!)})'
-                        : 'Wallet balance: ₹${fmtAmount(widget.walletBalance!)}',
-                    style: TextStyle(
-                      color: _exceedsWallet
+                Row(
+                  children: [
+                    Icon(
+                      _exceedsECollect ? AppIcons.bank : AppIcons.bank,
+                      size: 13,
+                      color: _exceedsECollect
                           ? AppColors.rose(context)
                           : AppColors.textSecondary(context),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 5),
+                    Text(
+                      _exceedsECollect
+                          ? 'Insufficient E-Collect balance (₹${fmtAmount(widget.eCollectBalance)})'
+                          : 'E-Collect balance: ₹${fmtAmount(widget.eCollectBalance)}',
+                      style: TextStyle(
+                        color: _exceedsECollect
+                            ? AppColors.rose(context)
+                            : AppColors.textSecondary(context),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ],
 
@@ -277,131 +283,128 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
             // (Pressable.onTap + ElevatedButton.onPressed both called onInvest)
             if (widget.onInvest != null)
               SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _amount > 0 &&
-                        !_exceedsMax &&
-                        !_exceedsWallet &&
-                        widget.onInvest != null
-                        ? () async {
-                      await AppHaptics.investmentConfirm();
-                      widget.onInvest!(_amount);
-                    }
-                        : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary(context),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                      AppColors.primary(context).withValues(alpha: 0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _amount > 0 &&
+                          !_exceedsMax &&
+                          !_exceedsECollect &&
+                          widget.onInvest != null
+                      ? () async {
+                          unawaited(AppHaptics.investmentConfirm());
+                          widget.onInvest!(_amount);
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary(context),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.primary(context).withValues(alpha: 0.4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
                     ),
-                    child: Text(
-                      _exceedsMax
-                          ? 'Amount exceeds available limit'
-                          : _exceedsWallet
-                          ? 'Insufficient wallet balance'
-                          : _amount > 0
-                          ? 'Invest ₹${_amount.toStringAsFixed(0)}'
-                          : 'Enter amount to invest',
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                  child: Text(
+                    _exceedsMax
+                        ? 'Amount exceeds available limit'
+                        : _exceedsECollect
+                            ? 'Insufficient E-Collect balance'
+                            : _amount > 0
+                                ? 'Invest ₹${_amount.toStringAsFixed(0)}'
+                                : 'Enter amount to invest',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _resultSection(BuildContext context) {
-    return Column(
-      key: ValueKey(_amount),
-      children: [
-        _StatRow(
-          label: 'Expected Profit',
-          value: '₹${_profit.toStringAsFixed(2)}',
-          valueColor: AppColors.emerald(context),
-        ),
-        const SizedBox(height: UI.md),
-        _StatRow(
-          label: 'Maturity Amount',
-          value: '₹${_maturity.toStringAsFixed(2)}',
-          valueColor: AppColors.textPrimary(context),
-          bold: true,
-        ),
-        const SizedBox(height: UI.md),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '${_annualReturn.toStringAsFixed(1)}% ',
-              style: TextStyle(
-                color: AppColors.primary(context),
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
+  Widget _resultSection(BuildContext context) => Column(
+        key: ValueKey(_amount),
+        children: [
+          _StatRow(
+            label: 'Expected Profit',
+            value: '₹${_profit.toStringAsFixed(2)}',
+            valueColor: AppColors.emerald(context),
+          ),
+          const SizedBox(height: UI.md),
+          _StatRow(
+            label: 'Maturity Amount',
+            value: '₹${_maturity.toStringAsFixed(2)}',
+            valueColor: AppColors.textPrimary(context),
+            bold: true,
+          ),
+          const SizedBox(height: UI.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${_annualReturn.toStringAsFixed(1)}% ',
+                style: TextStyle(
+                  color: AppColors.primary(context),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
-            Text(
-              'annualized return',
-              style: TextStyle(
-                color: AppColors.textSecondary(context),
-                fontSize: 15,
+              Text(
+                'annualized return',
+                style: TextStyle(
+                  color: AppColors.textSecondary(context),
+                  fontSize: 15,
+                ),
               ),
+            ],
+          ),
+          if (_amount == 0) ...[
+            const SizedBox(height: UI.lg),
+            Text(
+              'Enter amount above to see returns',
+              style: TextStyle(color: AppColors.textSecondary(context)),
             ),
           ],
-        ),
-        if (_amount == 0) ...[
-          const SizedBox(height: UI.lg),
-          Text(
-            'Enter amount above to see returns',
-            style: TextStyle(color: AppColors.textSecondary(context)),
-          ),
         ],
-      ],
-    );
-  }
+      );
 }
 
 class _StatRow extends ConsumerWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-  final bool bold;
-
   const _StatRow({
     required this.label,
     required this.value,
     this.valueColor,
     this.bold = false,
   });
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool bold;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textSecondary(context),
-            fontSize: 15,
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: AppColors.textSecondary(context),
+              fontSize: 15,
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor ?? AppColors.textPrimary(context),
-            fontSize: 17,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? AppColors.textPrimary(context),
+              fontSize: 17,
+              fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-      ],
-    );
-  }
+        ],
+      );
 }

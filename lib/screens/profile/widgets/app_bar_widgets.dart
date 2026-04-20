@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 // ── Back button ─────────────────────────────────────────────────────────────
 
@@ -32,8 +33,8 @@ class ProfileBackButton extends ConsumerWidget {
                 ),
               ),
               child: Icon(
-                Icons.chevron_left_rounded,
-                size: 22,
+                AppIcons.back,
+                size: 18,
                 color: colorScheme.onSurface,
               ),
             ),
@@ -47,8 +48,8 @@ class ProfileBackButton extends ConsumerWidget {
 // ── Edit button ─────────────────────────────────────────────────────────────
 
 class ProfileEditButton extends ConsumerWidget {
+  const ProfileEditButton({required this.onTap, super.key});
   final VoidCallback onTap;
-  const ProfileEditButton({super.key, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

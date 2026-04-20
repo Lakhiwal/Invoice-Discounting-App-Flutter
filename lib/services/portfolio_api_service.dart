@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'api_client.dart';
-import 'cache_service.dart';
+import 'package:invoice_discounting_app/services/api_client.dart';
+import 'package:invoice_discounting_app/services/cache_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PortfolioApiService — Portfolio, Invoices, Investments
@@ -9,11 +9,6 @@ import 'cache_service.dart';
 
 /// Cursor pagination result for invoice lists.
 class InvoicePage {
-  final List<Map<String, dynamic>> items;
-  final String? nextCursor;
-  final bool isFromCache;
-  bool get hasMore => nextCursor != null;
-
   const InvoicePage({
     required this.items,
     required this.nextCursor,
@@ -24,6 +19,10 @@ class InvoicePage {
       : items = const [],
         nextCursor = null,
         isFromCache = false;
+  final List<Map<String, dynamic>> items;
+  final String? nextCursor;
+  final bool isFromCache;
+  bool get hasMore => nextCursor != null;
 }
 
 class PortfolioApiService {
@@ -31,27 +30,38 @@ class PortfolioApiService {
 
   // ── Portfolio ──────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>?> getPortfolio(
-      {bool forceRefresh = false}) async {
-    const cacheKey = 'portfolio_data';
+  static Future<Map<String, dynamic>?> getPortfolio({
+    bool forceRefresh = false,
+    int page = 1,
+    int limit = 20,
+    String type = 'all',
+    bool? isSecondary,
+  }) async {
+    final cacheKey = 'portfolio_data_${type}_${isSecondary}_${page}_$limit';
 
-    if (!forceRefresh) {
+    if (!forceRefresh && page == 1) {
       final cached = CacheService.get(cacheKey);
       if (cached != null) return cached['data'] as Map<String, dynamic>;
     }
 
     try {
-      final response = await ApiClient.get('$_base/portfolio/');
+      var url = '$_base/portfolio/?page=$page&limit=$limit&type=$type';
+      if (isSecondary != null) url += '&is_secondary=$isSecondary';
+      final response = await ApiClient.get(url);
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        await CacheService.save(cacheKey, data);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (page == 1) {
+          await CacheService.save(cacheKey, data);
+        }
         return data;
       }
     } on UnauthorizedException {
       rethrow;
     } catch (_) {
-      final cached = CacheService.get(cacheKey);
-      if (cached != null) return cached['data'] as Map<String, dynamic>;
+      if (page == 1) {
+        final cached = CacheService.get(cacheKey);
+        if (cached != null) return cached['data'] as Map<String, dynamic>;
+      }
     }
     return null;
   }
@@ -65,6 +75,10 @@ class PortfolioApiService {
   }) async {
     final cacheKey = 'invoices_${afterCursor ?? "first"}_$limit';
 
+    if (forceRefresh && afterCursor == null) {
+      await CacheService.clear(cacheKey);
+    }
+
     if (!forceRefresh && afterCursor == null) {
       final cached = CacheService.get(cacheKey);
       if (cached != null) {
@@ -73,7 +87,10 @@ class PortfolioApiService {
             (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
         final nextCursor = data['next_cursor'] as String?;
         return InvoicePage(
-            items: rawList, nextCursor: nextCursor, isFromCache: true);
+          items: rawList,
+          nextCursor: nextCursor,
+          isFromCache: true,
+        );
       }
     }
 
@@ -105,7 +122,10 @@ class PortfolioApiService {
               (data['results'] as List? ?? []).cast<Map<String, dynamic>>();
           final nextCursor = data['next_cursor'] as String?;
           return InvoicePage(
-              items: rawList, nextCursor: nextCursor, isFromCache: true);
+            items: rawList,
+            nextCursor: nextCursor,
+            isFromCache: true,
+          );
         }
       }
     }
@@ -118,22 +138,31 @@ class PortfolioApiService {
     int page = 1,
     int limit = 50,
     bool forceRefresh = false,
+    String? status,
+    bool unfundedOnly = false,
   }) async {
-    final cacheKey = 'invoices_page_${page}_$limit';
+    final cacheKey =
+        'invoices_page_${page}_${limit}_${status ?? "default"}_$unfundedOnly';
+    if (forceRefresh && page == 1) {
+      await CacheService.clear(cacheKey);
+    }
     if (!forceRefresh && page == 1) {
       final cached = CacheService.get(cacheKey);
-      if (cached != null) return cached['data'] ?? [];
+      if (cached != null) return (cached['data'] as List?) ?? [];
     }
 
     try {
-      final response =
-          await ApiClient.get('$_base/invoices/?page=$page&limit=$limit');
+      var url = '$_base/invoices/?page=$page&limit=$limit';
+      if (status != null) url += '&status=$status';
+      if (unfundedOnly) url += '&unfunded_only=true';
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
-        List<dynamic> results = [];
+        var results = <dynamic>[];
         if (decoded is Map) {
-          results = decoded['results'] ?? decoded['data'] ?? [];
+          results =
+              (decoded['results'] as List?) ?? (decoded['data'] as List?) ?? [];
         } else if (decoded is List) {
           results = decoded;
         }
@@ -148,7 +177,7 @@ class PortfolioApiService {
     } catch (_) {
       if (page == 1) {
         final cached = CacheService.get(cacheKey);
-        if (cached != null) return cached['data'] ?? [];
+        if (cached != null) return (cached['data'] as List?) ?? [];
       }
     }
 
@@ -158,7 +187,9 @@ class PortfolioApiService {
   static Future<Map<String, dynamic>?> getInvoiceDetail(int id) async {
     try {
       final response = await ApiClient.get('$_base/invoices/$id/');
-      if (response.statusCode == 200) return jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
     } on UnauthorizedException {
       rethrow;
     } catch (_) {}
@@ -168,21 +199,23 @@ class PortfolioApiService {
   // ── Invest ─────────────────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>> invest(
-      int invoiceId, double amount) async {
+    int invoiceId,
+    double amount,
+  ) async {
     try {
       final response = await ApiClient.post('$_base/invest/', {
         'invoice_id': invoiceId,
         'amount': amount.toString(),
       });
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
-        return {'success': true, ...data};
+        return {
+          'success': true,
+          ...data,
+        };
       }
-      return {
-        'success': false,
-        'error': data['error'] ?? 'Investment failed'
-      };
+      return {'success': false, 'error': data['error'] ?? 'Investment failed'};
     } on UnauthorizedException {
       return {
         'success': false,
@@ -207,7 +240,7 @@ class PortfolioApiService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        return jsonDecode(response.body) as Map<String, dynamic>;
       }
     } on UnauthorizedException {
       rethrow;

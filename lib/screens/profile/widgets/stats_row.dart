@@ -1,24 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../theme/theme_provider.dart';
-import '../../../theme/ui_constants.dart';
-import '../../../widgets/animated_amount_text.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Stats Row — Invested · Avg Return · Active Deals
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class ProfileStatsRow extends ConsumerWidget {
-  final double totalInvested;
-  final double avgReturn;
-  final int activeCount;
-
   const ProfileStatsRow({
-    super.key,
     required this.totalInvested,
     required this.avgReturn,
     required this.activeCount,
+    super.key,
   });
+  final double totalInvested;
+  final double avgReturn;
+  final int activeCount;
 
   static const String _masked = '● ● ●';
 
@@ -64,7 +63,6 @@ class ProfileStatsRow extends ConsumerWidget {
               value: activeCount.toDouble(),
               label: 'Active',
               valueColor: AppColors.warning(context),
-              isAmount: false,
               suffix: ' deals',
             ),
           ),
@@ -75,13 +73,6 @@ class ProfileStatsRow extends ConsumerWidget {
 }
 
 class _StatCard extends ConsumerWidget {
-  final double value;
-  final String label;
-  final Color valueColor;
-  final bool isAmount;
-  final String prefix;
-  final String suffix;
-
   const _StatCard({
     required this.value,
     required this.label,
@@ -90,46 +81,77 @@ class _StatCard extends ConsumerWidget {
     this.prefix = '',
     this.suffix = '',
   });
+  final double value;
+  final String label;
+  final Color valueColor;
+  final bool isAmount;
+  final String prefix;
+  final String suffix;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final hideBalance = ref.watch(themeProvider.select((p) => p.hideBalance));
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(UI.radiusSm),
+        color: colorScheme.surface.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.3)),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: valueColor.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getIconForLabel(label),
+              size: 14,
+              color: valueColor,
+            ),
+          ),
+          const SizedBox(height: 8),
           AnimatedAmountText(
             value: value,
             prefix: prefix,
             suffix: suffix,
             hideValue: hideBalance,
             style: TextStyle(
-              color: valueColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
               fontFeatures: const [FontFeature.tabularFigures()],
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.3,
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
         ],
       ),
     );
   }
+
+  IconData _getIconForLabel(String label) => switch (label.toLowerCase()) {
+      'invested' => AppIcons.bank,
+      'avg return' => AppIcons.trendingUp,
+      'active' => AppIcons.layers,
+      _ => AppIcons.info,
+    };
 }

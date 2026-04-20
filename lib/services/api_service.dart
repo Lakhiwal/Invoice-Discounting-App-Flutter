@@ -6,7 +6,7 @@
 //   • ApiClient       — Core HTTP plumbing (token management, auto-refresh)
 //   • AuthApiService  — Login, Register, OTP, Password, 2FA
 //   • PortfolioApiService — Portfolio, Invoices, Investments
-//   • WalletApiService    — Wallet, Payments
+//   • ECollectApiService    — E-Collect Account, Payments
 //   • ProfileApiService   — Profile, Bank Accounts, Nominee
 //   • NotificationApiService — FCM, Quiet Hours
 //
@@ -17,13 +17,12 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
-import 'api_client.dart';
-import 'auth_api_service.dart';
-import 'portfolio_api_service.dart';
-import 'wallet_api_service.dart';
-import 'profile_api_service.dart';
-import 'notification_api_service.dart';
+import 'package:invoice_discounting_app/services/api_client.dart';
+import 'package:invoice_discounting_app/services/auth_api_service.dart';
+import 'package:invoice_discounting_app/services/notification_api_service.dart';
+import 'package:invoice_discounting_app/services/portfolio_api_service.dart';
+import 'package:invoice_discounting_app/services/profile_api_service.dart';
+import 'package:invoice_discounting_app/services/e_collect_api_service.dart';
 
 // Re-export so existing `import 'api_service.dart'` still finds these types
 export 'api_client.dart' show UnauthorizedException;
@@ -68,8 +67,7 @@ class ApiService {
   static Future<Map<String, dynamic>> resendOtp({required String email}) =>
       AuthApiService.resendOtp(email: email);
 
-  static Future<Map<String, dynamic>> forgotPassword(
-          {required String email}) =>
+  static Future<Map<String, dynamic>> forgotPassword({required String email}) =>
       AuthApiService.forgotPassword(email: email);
 
   static Future<Map<String, dynamic>> resetPassword({
@@ -78,10 +76,15 @@ class ApiService {
     required String newPassword,
   }) =>
       AuthApiService.resetPassword(
-          email: email, otp: otp, newPassword: newPassword);
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
 
   static Future<Map<String, dynamic>> changePassword(
-          String currentPassword, String newPassword) =>
+    String currentPassword,
+    String newPassword,
+  ) =>
       AuthApiService.changePassword(currentPassword, newPassword);
 
   static Future<Map<String, dynamic>> get2FAStatus() =>
@@ -96,7 +99,9 @@ class ApiService {
       AuthApiService.disable2FA(token);
 
   static Future<Map<String, dynamic>> verify2FALogin(
-          String preAuthToken, String token) =>
+    String preAuthToken,
+    String token,
+  ) =>
       AuthApiService.verify2FALogin(preAuthToken, token);
 
   static Future<void> logout() => AuthApiService.logout();
@@ -113,9 +118,20 @@ class ApiService {
   // PORTFOLIO / INVOICES / INVEST
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>?> getPortfolio(
-          {bool forceRefresh = false}) =>
-      PortfolioApiService.getPortfolio(forceRefresh: forceRefresh);
+  static Future<Map<String, dynamic>?> getPortfolio({
+    bool forceRefresh = false,
+    int page = 1,
+    int limit = 20,
+    String type = 'all',
+    bool? isSecondary,
+  }) =>
+      PortfolioApiService.getPortfolio(
+        forceRefresh: forceRefresh,
+        page: page,
+        limit: limit,
+        type: type,
+        isSecondary: isSecondary,
+      );
 
   static Future<InvoicePage> getInvoicesCursor({
     String? afterCursor,
@@ -123,15 +139,25 @@ class ApiService {
     bool forceRefresh = false,
   }) =>
       PortfolioApiService.getInvoicesCursor(
-          afterCursor: afterCursor, limit: limit, forceRefresh: forceRefresh);
+        afterCursor: afterCursor,
+        limit: limit,
+        forceRefresh: forceRefresh,
+      );
 
   static Future<List<dynamic>> getInvoices({
     int page = 1,
     int limit = 50,
     bool forceRefresh = false,
+    String? status,
+    bool unfundedOnly = false,
   }) =>
       PortfolioApiService.getInvoices(
-          page: page, limit: limit, forceRefresh: forceRefresh);
+        page: page,
+        limit: limit,
+        forceRefresh: forceRefresh,
+        status: status,
+        unfundedOnly: unfundedOnly,
+      );
 
   static Future<Map<String, dynamic>?> getInvoiceDetail(int id) =>
       PortfolioApiService.getInvoiceDetail(id);
@@ -140,52 +166,68 @@ class ApiService {
       PortfolioApiService.invest(invoiceId, amount);
 
   static Future<Map<String, dynamic>?> calculateInvestment(
-          int invoiceId, double amount) =>
+    int invoiceId,
+    double amount,
+  ) =>
       PortfolioApiService.calculateInvestment(invoiceId, amount);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // WALLET / PAYMENTS
+  // E-COLLECT / PAYMENTS
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>?> getWallet(
-          {bool forceRefresh = false}) =>
-      WalletApiService.getWallet(forceRefresh: forceRefresh);
+  static Future<Map<String, dynamic>?> getWallet({bool forceRefresh = false}) =>
+      ECollectApiService.getWallet(forceRefresh: forceRefresh);
 
   static Future<void> addFunds(double amount, String paymentMethod) =>
-      WalletApiService.addFunds(amount, paymentMethod);
+      ECollectApiService.addFunds(amount, paymentMethod);
 
   static Future<void> withdrawFunds(double amount) =>
-      WalletApiService.withdrawFunds(amount);
+      ECollectApiService.withdrawFunds(amount);
 
-  static Future<Map<String, dynamic>> getWalletHistory(
-          {bool forceRefresh = false}) =>
-      WalletApiService.getWalletHistory(forceRefresh: forceRefresh);
+  static Future<Map<String, dynamic>> getWalletHistory({
+    bool forceRefresh = false,
+  }) =>
+      ECollectApiService.getWalletHistory(forceRefresh: forceRefresh);
 
   static Future<Map<String, dynamic>> createCashfreeOrder(double amount) =>
-      WalletApiService.createCashfreeOrder(amount);
+      ECollectApiService.createCashfreeOrder(amount);
 
-  static Future<Map<String, dynamic>> verifyCashfreePayment(
-          {required String orderId}) =>
-      WalletApiService.verifyCashfreePayment(orderId: orderId);
+  static Future<Map<String, dynamic>> verifyCashfreePayment({
+    required String orderId,
+  }) =>
+      ECollectApiService.verifyCashfreePayment(orderId: orderId);
 
   static Future<Map<String, dynamic>> createRazorpayOrder(double amount) =>
-      WalletApiService.createRazorpayOrder(amount);
+      ECollectApiService.createRazorpayOrder(amount);
 
   static Future<Map<String, dynamic>> verifyPayment({
     required String paymentId,
     required String orderId,
     required String signature,
   }) =>
-      WalletApiService.verifyPayment(
-          paymentId: paymentId, orderId: orderId, signature: signature);
+      ECollectApiService.verifyPayment(
+        paymentId: paymentId,
+        orderId: orderId,
+        signature: signature,
+      );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PROFILE / BANK / NOMINEE
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static Future<Map<String, dynamic>?> getProfile(
-          {bool forceRefresh = false}) =>
+  static Future<Map<String, dynamic>?> getProfile({
+    bool forceRefresh = false,
+  }) =>
       ProfileApiService.getProfile(forceRefresh: forceRefresh);
+
+  static Future<Map<String, dynamic>> updateBasicInfo({
+    required String dob,
+    required String gender,
+  }) =>
+      ProfileApiService.updateBasicInfo(
+        dob: dob,
+        gender: gender,
+      );
 
   static Future<Map<String, dynamic>?> getCachedUser() =>
       ProfileApiService.getCachedUser();
@@ -196,8 +238,9 @@ class ApiService {
   static Future<Map<String, dynamic>> deleteProfilePicture() =>
       ProfileApiService.deleteProfilePicture();
 
-  static Future<List<Map<String, dynamic>>> getBankAccounts(
-          {bool forceRefresh = false}) =>
+  static Future<List<Map<String, dynamic>>> getBankAccounts({
+    bool forceRefresh = false,
+  }) =>
       ProfileApiService.getBankAccounts(forceRefresh: forceRefresh);
 
   static Future<Map<String, dynamic>> addBankAccount({
@@ -223,8 +266,9 @@ class ApiService {
   static Future<Map<String, dynamic>> deleteBankAccount(int accountId) =>
       ProfileApiService.deleteBankAccount(accountId);
 
-  static Future<Map<String, dynamic>?> getNominee(
-          {bool forceRefresh = false}) =>
+  static Future<Map<String, dynamic>?> getNominee({
+    bool forceRefresh = false,
+  }) =>
       ProfileApiService.getNominee(forceRefresh: forceRefresh);
 
   static Future<Map<String, dynamic>> saveNominee({

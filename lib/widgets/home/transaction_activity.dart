@@ -1,44 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../theme/theme_provider.dart';
-import '../../utils/formatters.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
 
 const String _kMaskedShort = '● ● ●';
 
 class TransactionActivityTile extends ConsumerWidget {
+  const TransactionActivityTile({
+    required this.tx,
+    super.key,
+  });
   final Map<String, dynamic> tx;
 
-  const TransactionActivityTile({
-    super.key,
-    required this.tx,
-  });
-
-  static const _iconMap = {
-    'invest': (Icons.trending_up_rounded, false),
-    'investment': (Icons.trending_up_rounded, false),
-    'return': (Icons.receipt_long_outlined, true),
-    'repay': (Icons.receipt_long_outlined, true),
-    'settlement': (Icons.receipt_long_outlined, true),
-    'withdraw': (Icons.south_rounded, false),
-    'add': (Icons.north_rounded, true),
-    'deposit': (Icons.north_rounded, true),
-    'credit': (Icons.north_rounded, true),
-    'top-up': (Icons.north_rounded, true),
-    'failed': (Icons.error_outline_rounded, false),
-    'expired': (Icons.timer_off_rounded, false),
+  static final Map<String, (IconData, bool)> _iconMap = {
+    'invest': (AppIcons.trendingUp, false),
+    'investment': (AppIcons.trendingUp, false),
+    'return': (AppIcons.receipt, true),
+    'repay': (AppIcons.receipt, true),
+    'settlement': (AppIcons.receipt, true),
+    'withdraw': (AppIcons.arrowDown, false),
+    'add': (AppIcons.arrowUp, true),
+    'deposit': (AppIcons.arrowUp, true),
+    'credit': (AppIcons.arrowUp, true),
+    'top-up': (AppIcons.arrowUp, true),
+    'failed': (AppIcons.error, false),
+    'expired': (AppIcons.timer, false),
   };
 
   (IconData, bool) _resolveIcon(String desc, String status, bool isCredit) {
-    if (status == 'failed') return (Icons.error_outline_rounded, false);
-    if (status == 'expired') return (Icons.timer_off_rounded, false);
+    if (status == 'failed') return (AppIcons.error, false);
+    if (status == 'expired') return (AppIcons.timer, false);
 
     final lower = desc.toLowerCase();
     for (final entry in _iconMap.entries) {
       if (lower.contains(entry.key)) return entry.value;
     }
     return isCredit
-        ? (Icons.south_west_rounded, true)
-        : (Icons.north_east_rounded, false);
+        ? (AppIcons.trendingDown, true)
+        : (AppIcons.trendingUp, false);
   }
 
   static ({String title, String? interestLabel}) _parseSettlement(String desc) {
@@ -79,86 +80,107 @@ class TransactionActivityTile extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(children: [
-        Container(
+      child: Row(
+        children: [
+          Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: accentColor, size: 18)),
-        const SizedBox(width: 14),
-        Expanded(
+              color: accentColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(UI.radiusSm),
+            ),
+            child: Icon(icon, color: accentColor, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
             child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Text(parsed.title,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parsed.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: isFailed
-                          ? colorScheme.onSurfaceVariant
-                          : colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      decoration: isFailed
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                      decorationColor: colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.4))),
-              const SizedBox(height: 2),
-              Row(children: [
-                Text(tx['date'] ?? '',
-                    style: TextStyle(
-                        color: colorScheme.onSurfaceVariant, fontSize: 12)),
-                if (parsed.interestLabel != null &&
-                    !isFailed &&
-                    !hideBalance) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(parsed.interestLabel!,
-                        style: const TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
+                    color: isFailed
+                        ? colorScheme.onSurfaceVariant
+                        : colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    decoration: isFailed
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                    decorationColor:
+                        colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
                   ),
-                ],
-                if (isFailed) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: txStatus == 'failed'
-                          ? colorScheme.error.withValues(alpha: 0.1)
-                          : const Color(0xFFF59E0B).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      txStatus == 'failed' ? 'Failed' : 'Expired',
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(
+                      (tx['date'] as String?) ?? '',
                       style: TextStyle(
-                        color: txStatus == 'failed'
-                            ? colorScheme.error
-                            : const Color(0xFFF59E0B),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurfaceVariant,
+                        fontSize: 12,
                       ),
                     ),
-                  ),
-                ],
-              ]),
-            ])),
-        Text(
-          hideBalance
-              ? '${isDebit ? '-' : '+'}₹$_kMaskedShort'
-              : '${isDebit ? '-' : '+'}₹${fmtAmount(amount)}',
-          style: TextStyle(
+                    if (parsed.interestLabel != null &&
+                        !isFailed &&
+                        !hideBalance) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(UI.radiusSm),
+                        ),
+                        child: Text(
+                          parsed.interestLabel!,
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (isFailed) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: txStatus == 'failed'
+                              ? colorScheme.error.withValues(alpha: 0.1)
+                              : const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(UI.radiusSm),
+                        ),
+                        child: Text(
+                          txStatus == 'failed' ? 'Failed' : 'Expired',
+                          style: TextStyle(
+                            color: txStatus == 'failed'
+                                ? colorScheme.error
+                                : const Color(0xFFF59E0B),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Text(
+            hideBalance
+                ? '${isDebit ? '-' : '+'}₹$_kMaskedShort'
+                : '${isDebit ? '-' : '+'}₹${fmtAmount(amount)}',
+            style: TextStyle(
               color: isFailed
                   ? colorScheme.onSurfaceVariant.withValues(alpha: 0.5)
                   : accentColor,
@@ -168,22 +190,23 @@ class TransactionActivityTile extends ConsumerWidget {
                   isFailed ? TextDecoration.lineThrough : TextDecoration.none,
               decorationColor:
                   colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-              fontFeatures: const [FontFeature.tabularFigures()]),
-        ),
-      ]),
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class EmptyActivityPlaceholder extends ConsumerWidget {
-  final bool isBlackMode;
-  final VoidCallback onExplore;
-  
   const EmptyActivityPlaceholder({
+    required this.onExplore,
     super.key,
     this.isBlackMode = false,
-    required this.onExplore,
   });
+  final bool isBlackMode;
+  final VoidCallback onExplore;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -193,48 +216,64 @@ class EmptyActivityPlaceholder extends ConsumerWidget {
       child: Container(
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-            color: isBlackMode
-                ? const Color(0xFF0A0A0A)
-                : colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: colorScheme.outlineVariant
-                    .withValues(alpha: isBlackMode ? 0.06 : 0.3))),
-        child: Column(children: [
-          Container(
+          color: isBlackMode
+              ? const Color(0xFF0A0A0A)
+              : colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(UI.radiusMd),
+          border: Border.all(
+            color: colorScheme.outlineVariant
+                .withValues(alpha: isBlackMode ? 0.06 : 0.3),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                  color: colorScheme.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle),
-              child: Icon(Icons.receipt_long_outlined,
-                  size: 30, color: colorScheme.primary)),
-          const SizedBox(height: 16),
-          Text('No activity yet',
+                borderRadius: BorderRadius.circular(UI.radiusMd),
+              ),
+              child: Icon(
+                AppIcons.receipt,
+                size: 30,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No activity yet',
               style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Start investing to see your\ntransactions here',
+                color: colorScheme.onSurface,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Start investing to see your\ntransactions here',
               textAlign: TextAlign.center,
               style:
-                  TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13)),
-          const SizedBox(height: 20),
-          SizedBox(
+                  TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: onExplore,
-                icon: const Icon(Icons.storefront_outlined, size: 16),
+                icon: Icon(AppIcons.market, size: 16),
                 label: const Text('Explore Marketplace'),
                 style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colorScheme.primary),
-                    foregroundColor: colorScheme.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12)),
-              )),
-        ]),
+                  side: BorderSide(color: colorScheme.primary),
+                  foregroundColor: colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(UI.radiusSm),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Fintech theme extension ───────────────────────────────────────────────────
 
-final themeProvider = ChangeNotifierProvider<ThemeProvider>((ref) => ThemeProvider());
+final themeProvider =
+    ChangeNotifierProvider<ThemeProvider>((ref) => ThemeProvider());
 
 @immutable
 class FintechTheme extends ThemeExtension<FintechTheme> {
@@ -94,12 +96,12 @@ class AppColors {
   static List<BoxShadow> cardShadow(BuildContext c) =>
       Theme.of(c).brightness == Brightness.light
           ? [
-        BoxShadow(
-          color: _s(c).primary.withValues(alpha: 0.04),
-          blurRadius: 20,
-          offset: const Offset(0, 4),
-        )
-      ]
+              BoxShadow(
+                color: _s(c).primary.withValues(alpha: 0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ]
           : [];
 }
 
@@ -108,14 +110,23 @@ class AppColors {
 enum AppThemeMode { system, light, dark, black }
 
 class ThemeProvider extends ChangeNotifier {
+  ThemeProvider() {
+    _load();
+  }
   static const _kThemeKey = 'theme_mode';
   static const _kBalanceKey = 'hide_balance';
+  static const _kFullscreenKey = 'is_fullscreen';
+  static const _kBiometricsKey = 'use_biometrics';
 
   AppThemeMode _mode = AppThemeMode.system;
   bool _hideBalance = false;
+  bool _isFullscreen = false;
+  bool _useBiometrics = true; // Default to true for safety
 
   AppThemeMode get mode => _mode;
   bool get hideBalance => _hideBalance;
+  bool get isFullscreen => _isFullscreen;
+  bool get useBiometrics => _useBiometrics;
 
   /// Returns the Flutter ThemeMode for MaterialApp.
   /// Both dark and black use ThemeMode.dark — the difference is in the
@@ -135,19 +146,33 @@ class ThemeProvider extends ChangeNotifier {
   /// True when the user explicitly chose black mode.
   bool get isBlackMode => _mode == AppThemeMode.black;
 
-  ThemeProvider() {
-    _load();
-  }
-
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kThemeKey);
     _mode = AppThemeMode.values.firstWhere(
-          (e) => e.name == saved,
+      (e) => e.name == saved,
       orElse: () => AppThemeMode.system,
     );
     _hideBalance = prefs.getBool(_kBalanceKey) ?? false;
+    _isFullscreen = prefs.getBool(_kFullscreenKey) ?? false;
+    _useBiometrics = prefs.getBool(_kBiometricsKey) ?? true;
+    _applyFullscreen(enabled: _isFullscreen);
     notifyListeners();
+  }
+
+  void _applyFullscreen({required bool enabled}) {
+    if (enabled) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
+  Future<void> setFullscreen({required bool enabled}) async {
+    _isFullscreen = enabled;
+    _applyFullscreen(enabled: enabled);
+    notifyListeners();
+    (await SharedPreferences.getInstance()).setBool(_kFullscreenKey, enabled);
   }
 
   Future<void> setMode(AppThemeMode mode) async {
@@ -156,10 +181,16 @@ class ThemeProvider extends ChangeNotifier {
     (await SharedPreferences.getInstance()).setString(_kThemeKey, mode.name);
   }
 
-  Future<void> setHideBalance(bool hide) async {
+  Future<void> setHideBalance({required bool hide}) async {
     _hideBalance = hide;
     notifyListeners();
     (await SharedPreferences.getInstance()).setBool(_kBalanceKey, hide);
+  }
+
+  Future<void> setUseBiometrics({required bool useOrNot}) async {
+    _useBiometrics = useOrNot;
+    notifyListeners();
+    (await SharedPreferences.getInstance()).setBool(_kBiometricsKey, useOrNot);
   }
 
   // ── Theme getters ─────────────────────────────────────────────────────────
@@ -169,8 +200,9 @@ class ThemeProvider extends ChangeNotifier {
   static ThemeData get blackTheme => buildBlackTheme(null);
 
   /// Returns the correct dark ThemeData based on current mode.
-  ThemeData darkThemeFor(ColorScheme? dynamicScheme) =>
-      isBlackMode ? buildBlackTheme(dynamicScheme) : buildDarkTheme(dynamicScheme);
+  ThemeData darkThemeFor(ColorScheme? dynamicScheme) => isBlackMode
+      ? buildBlackTheme(dynamicScheme)
+      : buildDarkTheme(dynamicScheme);
 }
 
 // ── Theme builders ────────────────────────────────────────────────────────────
@@ -186,8 +218,11 @@ ThemeData buildBlackTheme(ColorScheme? dynamicScheme) =>
 
 enum _DarkVariant { none, dark, black }
 
-ThemeData _build(Brightness brightness, _DarkVariant variant,
-    [ColorScheme? dynamicScheme]) {
+ThemeData _build(
+  Brightness brightness,
+  _DarkVariant variant, [
+  ColorScheme? dynamicScheme,
+]) {
   final isDark = brightness == Brightness.dark;
   final isBlack = variant == _DarkVariant.black;
   const brandSeed = Color(0xFF1B4EDE);
@@ -246,7 +281,7 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
         danger: const Color(0xFFEF4444),
         warning: const Color(0xFFF59E0B),
         info: colorScheme.primary,
-        cardRadius: 20,
+        cardRadius: UI.radiusMd,
         glassOpacity: isDark ? 0.08 : 0.7,
       ),
     ],
@@ -263,27 +298,32 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
         letterSpacing: -0.5,
       ),
       systemOverlayStyle:
-      isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
     ),
     cardTheme: CardThemeData(
       color: colorScheme.surfaceContainer,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(UI.radiusMd),
         side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
+          color: colorScheme.outlineVariant.withValues(alpha: 0.15),
+        ),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: colorScheme.surfaceContainerHigh,
       border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+        borderRadius: BorderRadius.circular(UI.radiusMd),
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+        borderRadius: BorderRadius.circular(UI.radiusMd),
+        borderSide: BorderSide.none,
+      ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(UI.radiusMd),
         borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -294,7 +334,8 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
         foregroundColor: colorScheme.onPrimary,
         elevation: 0,
         minimumSize: const Size.fromHeight(56),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(UI.radiusMd),),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
@@ -302,16 +343,27 @@ ThemeData _build(Brightness brightness, _DarkVariant variant,
       style: TextButton.styleFrom(
         foregroundColor: colorScheme.primary,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(UI.radiusSm),),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: colorScheme.primary,
         side: BorderSide(color: colorScheme.outlineVariant),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(UI.radiusMd),),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
+    ),
+    chipTheme: ChipThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UI.radiusSm),
+      ),
+      side:
+          BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.2)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
     ),
   );
 }

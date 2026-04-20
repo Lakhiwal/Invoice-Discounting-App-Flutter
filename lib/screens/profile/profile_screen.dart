@@ -2,34 +2,35 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-import '../../main.dart';
-import '../../services/api_service.dart';
-import '../../services/portfolio_cache.dart';
-import '../../theme/theme_provider.dart';
-import '../../theme/ui_constants.dart';
-import '../../utils/app_haptics.dart';
-import '../../widgets/liquidity_refresh_indicator.dart';
-import '../../widgets/skeleton.dart';
-import '../../widgets/stagger_list.dart';
-import '../bank_accounts_screen.dart';
-import '../change_password_screen.dart';
-import '../login_screen.dart';
-import '../nominee_screen.dart';
-import '../personal_details_screen.dart';
-import '../profile_webview_screen.dart';
-import '../settings_screen.dart';
-import '../../widgets/pressable.dart';
-import '../../widgets/vibe_state_wrapper.dart';
-import 'widgets/hero_section.dart';
-import 'widgets/stats_row.dart';
-import 'widgets/menu_widgets.dart';
-import 'widgets/status_widgets.dart';
-import 'widgets/app_bar_widgets.dart';
-import 'widgets/sign_out_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/main.dart';
+import 'package:invoice_discounting_app/models/nominee.dart';
+import 'package:invoice_discounting_app/screens/add_nominee_screen.dart';
+import 'package:invoice_discounting_app/screens/bank_accounts_screen.dart';
+import 'package:invoice_discounting_app/screens/change_password_screen.dart';
+import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/screens/personal_details_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/hero_section.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/menu_widgets.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/sign_out_button.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/stats_row.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/status_widgets.dart';
+import 'package:invoice_discounting_app/screens/profile_webview_screen.dart';
+import 'package:invoice_discounting_app/screens/settings_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/services/portfolio_cache.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
+import 'package:invoice_discounting_app/widgets/pressable.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:invoice_discounting_app/widgets/stagger_list.dart';
+import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -112,7 +113,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
       final profile = results[0] as Map<String, dynamic>?;
       final portfolio = results[1] as Map<String, dynamic>?;
-      final bankAccounts = results[2] as List<Map<String, dynamic>>;
+      final bankAccounts = results[2]! as List<Map<String, dynamic>>;
       final nominee = results[3] as Map<String, dynamic>?;
 
       final summary = portfolio?['summary'];
@@ -122,7 +123,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           double.tryParse(summary?['total_returns']?.toString() ?? '0') ?? 0;
       final activeCount = (summary?['active_count'] as num?)?.toInt() ?? 0;
       final avgReturn =
-      totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0.0;
+          totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0.0;
 
       setState(() {
         _profile = profile;
@@ -146,18 +147,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Future<void> _refreshProfile() async {
-    await _loadAll(forceRefresh: true, silent: true);
+    await _loadAll(silent: true);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   String _formatKycStatus(String? status) => switch (status) {
-    'draft' => 'Not Submitted',
-    'submitted' => 'Under Review',
-    'approved' => 'Verified',
-    'rejected' => 'Rejected',
-    _ => 'Unknown',
-  };
+        'draft' => 'Not Submitted',
+        'submitted' => 'Under Review',
+        'approved' => 'Verified',
+        'rejected' => 'Rejected',
+        _ => 'Unknown',
+      };
 
   bool get _isKycVerified => _profile?['profile_status'] == 'approved';
 
@@ -184,20 +185,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
-    AppHaptics.selection();
+    unawaited(AppHaptics.selection());
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('$label copied'),
-      duration: const Duration(seconds: 2),
-      backgroundColor: AppColors.success(context),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(UI.radiusSm)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label copied'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.success(context),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(UI.radiusSm),
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmLogout() async {
-    await AppHaptics.selection();
+    unawaited(AppHaptics.selection());
     if (!mounted) return;
 
     final colorScheme = Theme.of(context).colorScheme;
@@ -206,7 +210,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(UI.radiusMd)),
+          borderRadius: BorderRadius.circular(UI.radiusMd),
+        ),
         icon: Container(
           width: 48,
           height: 48,
@@ -214,30 +219,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             color: AppColors.danger(context).withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(Icons.logout_rounded,
-              color: AppColors.danger(context), size: 24),
+          child: Icon(
+            AppIcons.logout,
+            color: AppColors.danger(context),
+            size: 24,
+          ),
         ),
-        title: Text('Sign out?',
-            style: TextStyle(
-                color: colorScheme.onSurface, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Sign out?',
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         content: Text(
-            'You\'ll need to sign in again to access your account.',
-            style:
-            TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14)),
+          "You'll need to sign in again to access your account.",
+          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel',
-                  style: TextStyle(color: colorScheme.onSurfaceVariant))),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          ),
           TextButton(
             onPressed: () async {
-              await AppHaptics.buttonPress();
+              unawaited(AppHaptics.buttonPress());
               Navigator.pop(ctx, true);
             },
-            child: Text('Sign Out',
-                style: TextStyle(
-                    color: AppColors.danger(context),
-                    fontWeight: FontWeight.w600)),
+            child: Text(
+              'Sign Out',
+              style: TextStyle(
+                color: AppColors.danger(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -247,19 +265,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Future<void> _performLogout() async {
-    await AppHaptics.error();
+    unawaited(AppHaptics.error());
     PortfolioCache.clear();
 
-    navigatorKey.currentState!.pushAndRemoveUntil(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (_, animation, __) =>
-            FadeTransition(opacity: animation, child: const LoginScreen()),
+    unawaited(
+      navigatorKey.currentState!.pushAndRemoveUntil(
+        PageRouteBuilder<void>(
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (_, animation, __) =>
+              FadeTransition(opacity: animation, child: const LoginScreen()),
+        ),
+        (route) => false,
       ),
-          (route) => false,
     );
 
-    ApiService.logout().catchError((e) => debugPrint('Logout cleanup: $e'));
+    unawaited(
+      ApiService.logout().catchError((e) => debugPrint('Logout cleanup: $e')),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -271,13 +293,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return Scaffold(
       backgroundColor: colorScheme.surface,
       body: LiquidityRefreshIndicator(
-        onRefresh: () => _loadAll(forceRefresh: true, silent: true),
+        onRefresh: () => _loadAll(silent: true),
         color: colorScheme.primary,
         child: VibeStateWrapper(
           state: _isLoading
               ? VibeState.loading
               : (_hasError ? VibeState.error : VibeState.success),
-          onRetry: () => _loadAll(forceRefresh: true),
+          onRetry: _loadAll,
           loadingSkeleton: CustomScrollView(
             physics: const NeverScrollableScrollPhysics(),
             slivers: [
@@ -291,7 +313,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics()),
+              parent: BouncingScrollPhysics(),
+            ),
             slivers: [
               _buildAppBar(colorScheme),
               SliverToBoxAdapter(
@@ -319,16 +342,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.only(top: 16),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate(
                     _buildSections(context)
                         .asMap()
                         .entries
-                        .map((e) => StaggerItem(
-                              index: e.key + 2,
-                              child: RepaintBoundary(child: e.value),
-                            ))
+                        .map(
+                          (e) => StaggerItem(
+                            index: e.key + 2,
+                            child: RepaintBoundary(child: e.value),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -340,53 +365,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
-  SliverAppBar _buildAppBar(ColorScheme colorScheme) {
-    return SliverAppBar(
-      pinned: true,
-      toolbarHeight: 72,
-      leadingWidth: 64,
-      scrolledUnderElevation: 0.5,
-      backgroundColor: colorScheme.surface,
-      surfaceTintColor: Colors.transparent,
-      leading: const ProfileBackButton(),
-      centerTitle: true,
-      title: Text(
-        'Profile',
-        style: TextStyle(
-          color: colorScheme.onSurface,
-          fontSize: 17,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      actions: [
-        // ── Settings gear icon ──
-        IconButton(
-          onPressed: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            Navigator.push(
-              context,
-              SmoothPageRoute(builder: (_) => const SettingsScreen()),
-            );
-          },
-          icon: Icon(
-            Icons.settings_outlined,
-            color: colorScheme.onSurfaceVariant,
-            size: 22,
+  SliverAppBar _buildAppBar(ColorScheme colorScheme) => SliverAppBar(
+        pinned: true,
+        toolbarHeight: 72,
+        leadingWidth: 64,
+        scrolledUnderElevation: 0.5,
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        leading: const ProfileBackButton(),
+        centerTitle: true,
+        title: Text(
+          'Profile',
+          style: TextStyle(
+            color: colorScheme.onSurface,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
           ),
-          tooltip: 'Settings',
         ),
-        const SizedBox(width: 4),
-      ],
-    );
-  }
+        actions: [
+          // ── Settings gear icon ──
+          IconButton(
+            onPressed: () async {
+              unawaited(AppHaptics.selection());
+              if (!mounted) return;
+              unawaited(
+                Navigator.push<void>(
+                  context,
+                  SmoothPageRoute<void>(builder: (_) => const SettingsScreen()),
+                ),
+              );
+            },
+            icon: Icon(
+              AppIcons.settings,
+              color: colorScheme.onSurfaceVariant,
+              size: 22,
+            ),
+            tooltip: 'Settings',
+          ),
+          const SizedBox(width: 4),
+        ],
+      );
 
   List<Widget> _buildSections(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     String bankSubtitle;
     final primaryBank =
-    _bankAccounts.where((b) => b['is_primary'] == true).toList();
+        _bankAccounts.where((b) => b['is_primary'] == true).toList();
     if (primaryBank.isNotEmpty) {
       final bankName = primaryBank.first['bank_name'] ?? '';
       final accNum = primaryBank.first['account_number']?.toString() ?? '';
@@ -396,137 +421,214 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       bankSubtitle = '$bankName $masked';
     } else if (_bankAccounts.isNotEmpty) {
       bankSubtitle =
-      '${_bankAccounts.length} account${_bankAccounts.length > 1 ? 's' : ''} linked';
+          '${_bankAccounts.length} account${_bankAccounts.length > 1 ? 's' : ''} linked';
     } else {
       bankSubtitle = 'No accounts linked';
     }
 
     final nomineeName = _nominee?['name'] as String?;
     final nomineeRel = _nominee?['relationship'] as String?;
-    final String nomineeSubtitle =
-    (nomineeName != null && nomineeName.isNotEmpty)
+    final nomineeSubtitle = (nomineeName != null && nomineeName.isNotEmpty)
         ? '$nomineeName · ${nomineeRel ?? ''}'.trimRight()
         : 'Add or update nominee';
 
     return [
+      if (!_isKycVerified)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.warning(context).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(UI.radiusMd),
+              border: Border.all(color: AppColors.warning(context).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(AppIcons.info, color: AppColors.warning(context)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profile Approval Pending',
+                        style: TextStyle(
+                          color: AppColors.warning(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your profile is under review. Financial operations are restricted until approval is granted.',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       // ── Account ─────────────────────────────────────────────────
       const ProfileSectionHeader(label: 'Account'),
-      ProfileCardGroup(children: [
-        ProfileMenuItem(
-          icon: Icons.person_outline_rounded,
-          iconColor: colorScheme.primary,
-          iconBg: colorScheme.primary.withValues(alpha: 0.1),
-          label: 'Personal details',
-          subtitle: _profile?['name'] ?? 'View your info',
-          onTap: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            Navigator.of(context, rootNavigator: false).push(
-              SmoothPageRoute(
-                builder: (_) => PersonalDetailsScreen(
-                  profile: _profile,
-                  onProfileUpdated: _refreshProfile,
+      ProfileCardGroup(
+        children: [
+          ProfileMenuItem(
+            icon: AppIcons.user,
+            iconColor: colorScheme.primary,
+            iconBg: colorScheme.primary.withValues(alpha: 0.1),
+            label: 'Personal details',
+            subtitle: (_profile?['name'] as String?) ?? 'View your info',
+            onTap: () async {
+              unawaited(AppHaptics.selection());
+              if (!mounted) return;
+              unawaited(
+                Navigator.of(context).push(
+                  SmoothPageRoute<void>(
+                    builder: (_) => PersonalDetailsScreen(
+                      profile: _profile,
+                      onProfileUpdated: _refreshProfile,
+                    ),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-        ProfileMenuItem(
-          icon: Icons.verified_user_outlined,
-          iconColor: colorScheme.primary,
-          iconBg: colorScheme.primary.withValues(alpha: 0.1),
-          label: 'KYC & identity',
-          trailing: ProfileStatusPill(
-              label: _formatKycStatus(_profile?['profile_status']),
+              );
+            },
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.verifiedUser,
+            iconColor: colorScheme.primary,
+            iconBg: colorScheme.primary.withValues(alpha: 0.1),
+            label: 'KYC & identity',
+            trailing: ProfileStatusPill(
+              label: _formatKycStatus(_profile?['profile_status'] as String?),
               color: _isKycVerified
                   ? AppColors.success(context)
-                  : AppColors.warning(context)),
-          onTap: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            try {
-              final tokenResult = await ApiService.createWebviewToken();
-              final token = tokenResult['token'] as String?;
+                  : AppColors.warning(context),
+            ),
+            onTap: () async {
+              unawaited(AppHaptics.selection());
               if (!mounted) return;
-              if (token != null) {
-                Navigator.of(context, rootNavigator: false).push(
-                    SmoothPageRoute(
+              try {
+                final tokenResult = await ApiService.createWebviewToken();
+                final token = tokenResult['token'] as String?;
+                if (!mounted) return;
+                if (token != null) {
+                  unawaited(
+                    Navigator.of(context).push(
+                      SmoothPageRoute<void>(
                         builder: (_) => ProfileWebViewScreen(
-                            token: token,
-                            name: _profile?['name'] ?? '')));
+                          token: token,
+                          name: (_profile?['name'] as String?) ?? '',
+                        ),
+                      ),
+                    ),
+                  );
+                }
+              } catch (_) {}
+            },
+            onLongPress: (_profile?['pan_number'] as String?) != null
+                ? () =>
+                    _copyToClipboard(_profile!['pan_number'] as String, 'PAN')
+                : null,
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.bank,
+            iconColor: _bankAccounts.isEmpty
+                ? AppColors.warning(context)
+                : colorScheme.primary,
+            iconBg: _bankAccounts.isEmpty
+                ? AppColors.warning(context).withValues(alpha: 0.1)
+                : colorScheme.primary.withValues(alpha: 0.1),
+            label: 'Bank accounts',
+            subtitle: bankSubtitle,
+            trailing: _bankAccounts.isEmpty
+                ? ProfileStatusPill(
+                    label: 'Required',
+                    color: AppColors.warning(context),
+                  )
+                : null,
+            onTap: () async {
+              unawaited(AppHaptics.selection());
+              if (!mounted) return;
+              unawaited(
+                Navigator.of(context).push(
+                  SmoothPageRoute<void>(
+                    builder: (_) => const BankAccountsScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.userBold, // Nominee/People variant
+            iconColor: _nominee == null
+                ? AppColors.warning(context)
+                : colorScheme.primary,
+            iconBg: _nominee == null
+                ? AppColors.warning(context).withValues(alpha: 0.1)
+                : colorScheme.primary.withValues(alpha: 0.1),
+            label: 'Nominee',
+            subtitle: nomineeSubtitle,
+            trailing: _nominee == null
+                ? ProfileStatusPill(
+                    label: 'Add',
+                    color: AppColors.warning(context),
+                  )
+                : null,
+            onTap: () async {
+              unawaited(AppHaptics.selection());
+              if (!mounted) return;
+              final nominee =
+                  _nominee != null ? Nominee.fromMap(_nominee!) : null;
+              final navigator = Navigator.of(context);
+              final updated = await navigator.push<bool>(
+                SmoothPageRoute<bool>(
+                  builder: (_) => AddNomineeScreen(nominee: nominee),
+                ),
+              );
+              if (updated == true) {
+                await _loadAll(silent: true);
               }
-            } catch (_) {}
-          },
-          onLongPress: _profile?['pan_number'] != null
-              ? () => _copyToClipboard(_profile!['pan_number'], 'PAN')
-              : null,
-        ),
-        ProfileMenuItem(
-          icon: Icons.account_balance_outlined,
-          iconColor: _bankAccounts.isEmpty
-              ? AppColors.warning(context)
-              : colorScheme.primary,
-          iconBg: _bankAccounts.isEmpty
-              ? AppColors.warning(context).withValues(alpha: 0.1)
-              : colorScheme.primary.withValues(alpha: 0.1),
-          label: 'Bank accounts',
-          subtitle: bankSubtitle,
-          trailing: _bankAccounts.isEmpty
-              ? ProfileStatusPill(
-              label: 'Required', color: AppColors.warning(context))
-              : null,
-          onTap: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            Navigator.of(context, rootNavigator: false).push(
-                SmoothPageRoute(builder: (_) => const BankAccountsScreen()));
-          },
-        ),
-        ProfileMenuItem(
-          icon: Icons.people_outline_rounded,
-          iconColor: _nominee == null
-              ? AppColors.warning(context)
-              : colorScheme.primary,
-          iconBg: _nominee == null
-              ? AppColors.warning(context).withValues(alpha: 0.1)
-              : colorScheme.primary.withValues(alpha: 0.1),
-          label: 'Nominee',
-          subtitle: nomineeSubtitle,
-          trailing: _nominee == null
-              ? ProfileStatusPill(
-              label: 'Add', color: AppColors.warning(context))
-              : null,
-          onTap: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            Navigator.of(context, rootNavigator: false)
-                .push(SmoothPageRoute(builder: (_) => const NomineeScreen()));
-          },
-        ),
-        ProfileMenuItem(
-          icon: Icons.lock_outline_rounded,
-          iconColor: AppColors.warning(context),
-          iconBg: AppColors.warning(context).withValues(alpha: 0.1),
-          label: 'Change password',
-          onTap: () async {
-            await AppHaptics.selection();
-            if (!mounted) return;
-            Navigator.of(context, rootNavigator: false).push(
-                SmoothPageRoute(builder: (_) => const ChangePasswordScreen()));
-          },
-        ),
-      ]),
+            },
+          ),
+          ProfileMenuItem(
+            icon: AppIcons.password,
+            iconColor: AppColors.warning(context),
+            iconBg: AppColors.warning(context).withValues(alpha: 0.1),
+            label: 'Change password',
+            onTap: () async {
+              unawaited(AppHaptics.selection());
+              if (!mounted) return;
+              unawaited(
+                Navigator.of(context).push(
+                  SmoothPageRoute<void>(
+                    builder: (_) => const ChangePasswordScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       const SizedBox(height: UI.lg),
 
       // ── Footer: support / terms / version ─────────────────────
-      _FooterLinks(
+      const _FooterLinks(
         supportEmail: _supportEmail,
         appVersion: _appVersion,
       ),
       const SizedBox(height: UI.md),
 
       // ── Sign out ──────────────────────────────────────────────
-      ProfileSignOutButton(onTap: _confirmLogout),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: ProfileSignOutButton(onTap: _confirmLogout),
+      ),
       const SizedBox(height: 100),
     ];
   }
@@ -535,69 +637,78 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 // ── Footer links row ────────────────────────────────────────────────────────
 
 class _FooterLinks extends ConsumerWidget {
-  final String supportEmail;
-  final String appVersion;
-
   const _FooterLinks({
     required this.supportEmail,
     required this.appVersion,
   });
+  final String supportEmail;
+  final String appVersion;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _FooterButton(
-          icon: Icons.mail_outline_rounded,
-          label: 'Support',
-          onTap: () {
-            AppHaptics.selection();
-            launchUrl(Uri.parse(
-                'mailto:$supportEmail?subject=Finworks360 Support'));
-          },
-        ),
-        Container(
-          width: 0.5,
-          height: 16,
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-        ),
-        _FooterButton(
-          icon: Icons.description_outlined,
-          label: 'Terms',
-          onTap: () {
-            AppHaptics.selection();
-            launchUrl(
-                Uri.parse('https://finworks360.com/terms-and-conditions/'),
-                mode: LaunchMode.externalApplication);
-          },
-        ),
-        Container(
-          width: 0.5,
-          height: 16,
-          color: cs.outlineVariant.withValues(alpha: 0.3),
-        ),
-        _FooterButton(
-          icon: Icons.info_outline_rounded,
-          label: 'v$appVersion',
-          onTap: () {},
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _FooterButton(
+            icon: AppIcons.mail,
+            label: 'Support',
+            onTap: () {
+              unawaited(AppHaptics.selection());
+              unawaited(
+                launchUrl(
+                  Uri.parse('mailto:$supportEmail?subject=Finworks360 Support'),
+                ),
+              );
+            },
+          ),
+          Container(
+            width: 0.5,
+            height: 16,
+            color: cs.outlineVariant.withValues(alpha: 0.3),
+          ),
+          _FooterButton(
+            icon: AppIcons.description,
+            label: 'Terms',
+            onTap: () {
+              unawaited(AppHaptics.selection());
+              unawaited(
+                launchUrl(
+                  Uri.parse('https://finworks360.com/terms-and-conditions/'),
+                  mode: LaunchMode.externalApplication,
+                ),
+              );
+            },
+          ),
+          Container(
+            width: 0.5,
+            height: 16,
+            color: cs.outlineVariant.withValues(alpha: 0.3),
+          ),
+          _FooterButton(
+            icon: AppIcons.info,
+            label: 'v$appVersion',
+            onTap: () {
+              unawaited(AppHaptics.selection());
+            },
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _FooterButton extends ConsumerWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
   const _FooterButton({
     required this.icon,
     required this.label,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -610,13 +721,19 @@ class _FooterButton extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-                  size: 14),
+              Icon(
+                icon,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                size: 14,
+              ),
               const SizedBox(width: 5),
-              Text(label,
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-                      fontSize: 12)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),

@@ -1,16 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../models/bank_account.dart';
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../utils/smooth_page_route.dart';
-import '../widgets/app_logo_header.dart';
-import '../widgets/liquidity_refresh_indicator.dart';
-import '../widgets/skeleton.dart';
-import 'add_bank_account_screen.dart';
-import 'account_details_screen.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:invoice_discounting_app/models/bank_account.dart';
+import 'package:invoice_discounting_app/screens/account_details_screen.dart';
+import 'package:invoice_discounting_app/screens/add_bank_account_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
 
 // ── Screen ───────────────────────────────────────────────────────────────────
 
@@ -44,7 +48,7 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
 
     try {
       final raw = await ApiService.getBankAccounts(forceRefresh: forceRefresh);
-      
+
       // Ensure the "Syncing" state is visible for a premium feel
       if (forceRefresh) {
         final elapsed = DateTime.now().difference(startTime).inMilliseconds;
@@ -55,7 +59,7 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
 
       if (!mounted) return;
       setState(() {
-        _accounts = raw.map((m) => BankAccount.fromMap(m)).toList();
+        _accounts = raw.map(BankAccount.fromMap).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -67,44 +71,50 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
     }
   }
 
+  void _copyAccountNumber(BankAccount account) {
+    AppHaptics.selection();
+    Clipboard.setData(ClipboardData(text: account.accountNumber));
+    _snack('Account number copied', isError: false);
+  }
+
   void _snack(String msg, {required bool isError}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor:
-          isError ? AppColors.danger(context) : AppColors.success(context),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor:
+            isError ? AppColors.danger(context) : AppColors.success(context),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 
   Future<void> _goToAdd() async {
-    await AppHaptics.selection();
+    unawaited(AppHaptics.selection());
     if (_accounts.length >= 5) {
       _snack('Maximum 5 accounts allowed', isError: true);
       return;
     }
-    
+
     if (!mounted) return;
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
+    final success = await Navigator.of(context).push<bool>(
+      SmoothPageRoute<bool>(
         builder: (_) => AddBankAccountScreen(existingCount: _accounts.length),
       ),
     );
 
-    if (result == true && mounted) {
+    if (success == true && mounted) {
       _snack('Bank account added', isError: false);
       _load();
     }
   }
 
   Future<void> _goToDetail(BankAccount account) async {
-    await AppHaptics.selection();
+    unawaited(AppHaptics.selection());
     if (!mounted) return;
-    final result = await Navigator.push<bool>(
-      context,
-      ParallaxSlidePageRoute(
+    final success = await Navigator.of(context).push<bool>(
+      SmoothPageRoute<bool>(
         builder: (_) => AccountDetailsScreen(
           account: account,
           onRefresh: _load,
@@ -112,7 +122,7 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
       ),
     );
 
-    if (result == true && mounted) {
+    if (success == true && mounted) {
       _load();
     }
   }
@@ -127,19 +137,20 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
         onRefresh: () => _load(forceRefresh: true, silent: true),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),
+          ),
           slivers: [
             // App bar
-            AppLogoHeader(
+            const AppLogoHeader(
               title: 'Bank Accounts',
             ),
 
             if (_isLoading)
-              SliverFillRemaining(
+              const SliverFillRemaining(
                 hasScrollBody: false,
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: const Padding(
+                  duration: Duration(milliseconds: 300),
+                  child: Padding(
                     key: ValueKey('loading'),
                     padding: EdgeInsets.all(24),
                     child: SkeletonBankAccountList(),
@@ -153,13 +164,19 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.wifi_off_rounded,
-                          size: 48,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                      Icon(
+                        AppIcons.wifiOff,
+                        size: 48,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                      ),
                       const SizedBox(height: 16),
-                      Text(_error!,
-                          style: TextStyle(
-                              color: cs.onSurfaceVariant, fontSize: 15)),
+                      Text(
+                        _error!,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 15,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       TextButton(onPressed: _load, child: const Text('Retry')),
                     ],
@@ -180,7 +197,7 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
                       boxShadow: [
                         BoxShadow(
                           color: cs.primary.withValues(alpha: 0.2),
@@ -191,17 +208,23 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
                     ),
                     child: Material(
                       color: cs.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(UI.radiusMd - 2),
                       child: InkWell(
                         onTap: _goToAdd,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(UI.radiusMd - 2),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 20,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.add_circle_outline_rounded,
-                                  color: cs.primary, size: 20),
+                              Icon(
+                                AppIcons.addCircle,
+                                color: cs.primary,
+                                size: 20,
+                              ),
                               const SizedBox(width: 10),
                               Text(
                                 'Add New Bank Account',
@@ -251,6 +274,7 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
                               child: _BankListItem(
                                 account: account,
                                 onTap: () => _goToDetail(account),
+                                onLongPress: () => _copyAccountNumber(account),
                               ),
                             );
                           },
@@ -273,10 +297,14 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _BankListItem extends ConsumerWidget {
+  const _BankListItem({
+    required this.account,
+    required this.onTap,
+    this.onLongPress,
+  });
   final BankAccount account;
   final VoidCallback onTap;
-
-  const _BankListItem({required this.account, required this.onTap});
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -286,7 +314,7 @@ class _BankListItem extends ConsumerWidget {
     return Container(
       decoration: BoxDecoration(
         color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(UI.radiusMd),
         border: Border.all(
           color: account.isPrimary
               ? cs.primary.withValues(alpha: 0.3)
@@ -294,19 +322,20 @@ class _BankListItem extends ConsumerWidget {
           width: account.isPrimary ? 1.5 : 1.0,
         ),
         boxShadow: [
-          if (account.isPrimary)
-            BoxShadow(
-              color: cs.primary.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          BoxShadow(
+            color:
+                Colors.black.withValues(alpha: account.isPrimary ? 0.06 : 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(19),
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(UI.radiusMd),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -318,12 +347,12 @@ class _BankListItem extends ConsumerWidget {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(UI.radiusSm + 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -331,11 +360,14 @@ class _BankListItem extends ConsumerWidget {
                       ? SvgPicture.network(
                           account.logoUrl!,
                           placeholderBuilder: (_) => Icon(
-                              Icons.account_balance_rounded,
-                              color: info.brandColor),
+                            AppIcons.bank,
+                            color: info.brandColor,
+                          ),
                         )
-                      : Icon(Icons.account_balance_rounded,
-                          color: info.brandColor),
+                      : Icon(
+                          AppIcons.bank,
+                          color: info.brandColor,
+                        ),
                 ),
                 const SizedBox(width: 16),
 
@@ -368,8 +400,9 @@ class _BankListItem extends ConsumerWidget {
                             width: 3,
                             height: 3,
                             decoration: BoxDecoration(
-                                color: cs.onSurfaceVariant,
-                                shape: BoxShape.circle),
+                              color: cs.onSurfaceVariant,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -393,7 +426,7 @@ class _BankListItem extends ConsumerWidget {
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: cs.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(UI.radiusSm),
                     ),
                     child: Text(
                       'PRIMARY',
@@ -406,8 +439,7 @@ class _BankListItem extends ConsumerWidget {
                     ),
                   )
                 else
-                  Icon(Icons.chevron_right_rounded,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                  const SizedBox.shrink(),
               ],
             ),
           ),
@@ -418,8 +450,8 @@ class _BankListItem extends ConsumerWidget {
 }
 
 class _EmptyState extends ConsumerWidget {
-  final VoidCallback onAdd;
   const _EmptyState({required this.onAdd});
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -429,7 +461,7 @@ class _EmptyState extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
       decoration: BoxDecoration(
         color: cs.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(UI.radiusLg),
         border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.1)),
       ),
       child: Column(
@@ -438,16 +470,22 @@ class _EmptyState extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: cs.primary.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(UI.radiusMd),
             ),
-            child: Icon(Icons.account_balance_rounded,
-                color: cs.primary.withValues(alpha: 0.4), size: 40),
+            child: Icon(
+              AppIcons.bank,
+              color: cs.primary.withValues(alpha: 0.4),
+              size: 40,
+            ),
           ),
           const SizedBox(height: 24),
           Text(
             'No Bank Accounts Yet',
             style: TextStyle(
-                color: cs.onSurface, fontSize: 18, fontWeight: FontWeight.w800),
+              color: cs.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -458,8 +496,10 @@ class _EmptyState extends ConsumerWidget {
           const SizedBox(height: 24),
           TextButton(
             onPressed: onAdd,
-            child: const Text('Add your first bank',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Add your first bank',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

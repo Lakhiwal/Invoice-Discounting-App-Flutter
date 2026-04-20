@@ -8,16 +8,16 @@ class UI {
   static const double lg = 24;
   static const double xl = 32;
 
-  // ── radius tokens (tightened for cleaner look) ──
-  static const double radiusSm = 8;
-  static const double radiusMd = 14;
-  static const double radiusLg = 20;
+  // ── radius tokens (sharpened for a crisp fintech aesthetic) ──
+  static const double radiusSm = 4;
+  static const double radiusMd = 8;
+  static const double radiusLg = 12;
+  static const double radiusXl = 16;
 
-  static const BorderRadius cardRadius =
-  BorderRadius.all(Radius.circular(20));
+  static const BorderRadius cardRadius = BorderRadius.all(Radius.circular(8));
 
   static const BorderRadius sheetRadius =
-  BorderRadius.vertical(top: Radius.circular(20));
+      BorderRadius.vertical(top: Radius.circular(16));
 
   // ── animation ──
   static const Duration fast = Duration(milliseconds: 180);
@@ -25,6 +25,6 @@ class UI {
 
   // ── shared auth gradient ──
   static List<Color> authGradient(bool isDark) => isDark
-      ? const [Color(0xFF000000), Color(0xFF0A0A0A), Color(0xFF000000)]
-      : const [Color(0xFFFFFFFF), Color(0xFFF5F5F5), Color(0xFFFFFFFF)];
+      ? const [Color(0xFF050508), Color(0xFF0D121F)]
+      : const [Color(0xFFF8FAFF), Color(0xFFFFFFFF)];
 }

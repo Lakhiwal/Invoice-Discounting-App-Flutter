@@ -1,18 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import '../widgets/app_logo_header.dart';
-import '../widgets/liquidity_refresh_indicator.dart';
-import '../widgets/skeleton.dart';
-import '../widgets/vibe_state_wrapper.dart';
-import '../view_models/analytics_view_model.dart';
-import '../view_models/analytics_state.dart';
-import '../widgets/analytics/analytics_cards.dart';
-import '../widgets/analytics/analytics_charts.dart';
-import '../widgets/analytics/earnings_card.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/view_models/analytics_state.dart';
+import 'package:invoice_discounting_app/view_models/analytics_view_model.dart';
+import 'package:invoice_discounting_app/widgets/analytics/ai_insight_card.dart';
+import 'package:invoice_discounting_app/widgets/analytics/analytics_cards.dart';
+import 'package:invoice_discounting_app/widgets/analytics/analytics_charts.dart';
+import 'package:invoice_discounting_app/widgets/analytics/earnings_card.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
 
 // - [x] Implement `AnalyticsNotifier` in `analytics_view_model.dart` [MODIFY]
 // - [x] Refactor `AnalyticsScreen` to `ConsumerStatefulWidget` [MODIFY]
@@ -46,7 +49,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           ),
           error: (err, stack) => VibeStateWrapper(
             state: VibeState.error,
-            errorMessage: 'We couldn\'t load your analytics data.',
+            errorMessage: "We couldn't load your analytics data.",
             onRetry: () => ref.read(analyticsProvider.notifier).refresh(),
             child: const SizedBox.shrink(),
           ),
@@ -63,7 +66,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       state: state.allActive.isEmpty && state.allRepaid.isEmpty
           ? VibeState.empty
           : VibeState.success,
-      emptyIcon: Icons.analytics_outlined,
+      emptyIcon: AppIcons.analytics,
       emptyTitle: 'No Data Yet',
       emptySubtitle: 'Start investing to see your analytics here.',
       child: GestureDetector(
@@ -72,25 +75,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           if (details.primaryVelocity! < 0 &&
               currentIndex < state.timeOptions.length - 1) {
             notifier.setTimeFilter(state.timeOptions[currentIndex + 1]);
-            AppHaptics.selection();
+            unawaited(AppHaptics.selection());
           } else if (details.primaryVelocity! > 0 && currentIndex > 0) {
             notifier.setTimeFilter(state.timeOptions[currentIndex - 1]);
-            AppHaptics.selection();
+            unawaited(AppHaptics.selection());
           }
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),
+          ),
           slivers: [
             AppLogoHeader(
               title: 'Analytics',
               actions: [
                 IconButton(
-                  onPressed: () {
-                    AppHaptics.selection();
-                    // PDF generation can be added here
-                  },
-                  icon: Icon(Icons.download_rounded, color: cs.primary),
+                  onPressed: () => unawaited(AppHaptics.selection()),
+                  icon: Icon(AppIcons.download, color: cs.primary),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -109,21 +110,24 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       child: GestureDetector(
                         onTap: () {
                           notifier.setTimeFilter(f);
-                          AppHaptics.selection();
+                          unawaited(AppHaptics.selection());
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 7),
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
                           decoration: BoxDecoration(
                             color: active
                                 ? cs.primary.withValues(alpha: 0.12)
                                 : cs.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(UI.radiusSm),
                             border: Border.all(
-                                color: active
-                                    ? cs.primary
-                                    : cs.outlineVariant.withValues(alpha: 0.3)),
+                              color: active
+                                  ? cs.primary
+                                  : cs.outlineVariant.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Text(
                             f,
@@ -146,11 +150,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(UI.md, 12, UI.md, 0),
-                child: HealthScoreCard(
-                  score: state.healthScore,
-                  label: state.healthLabel,
-                  color: state.healthColor,
-                  factors: state.healthFactors,
+                child: Column(
+                  children: [
+                    HealthScoreCard(
+                      score: state.healthScore,
+                      label: state.healthLabel,
+                      color: state.healthColor,
+                      factors: state.healthFactors,
+                    ),
+                    const SizedBox(height: 16),
+                    const AiInsightCard(),
+                  ],
                 ),
               ),
             ),
@@ -159,54 +169,57 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(UI.md, 16, UI.md, 0),
-                child: Row(children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Invested',
-                      numericValue: hide ? null : state.totalInvested,
-                      value: hide ? '₹● ● ●' : null,
-                      prefix: '₹',
-                      color: cs.primary,
-                      staggerIndex: 0,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Invested',
+                        numericValue: hide ? null : state.totalInvested,
+                        value: hide ? '₹● ● ●' : null,
+                        prefix: '₹',
+                        color: cs.primary,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Returns',
-                      numericValue: hide ? null : state.totalReturns,
-                      value: hide ? '₹● ● ●' : null,
-                      prefix: '₹',
-                      color: const Color(0xFF12B76A),
-                      staggerIndex: 1,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Returns',
+                        numericValue: hide ? null : state.totalReturns,
+                        value: hide ? '₹● ● ●' : null,
+                        prefix: '₹',
+                        color: const Color(0xFF12B76A),
+                        staggerIndex: 1,
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ),
 
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(UI.md, 8, UI.md, 0),
-                child: Row(children: [
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Avg. yield',
-                      numericValue: state.avgYield,
-                      suffix: '%',
-                      color: const Color(0xFFF59E0B),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Avg. yield',
+                        numericValue: state.avgYield,
+                        suffix: '%',
+                        color: const Color(0xFFF59E0B),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: MetricCard(
-                      label: 'Active / Repaid',
-                      value:
-                          '${state.filteredActive.length} / ${state.filteredRepaid.length}',
-                      color: cs.onSurface,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: MetricCard(
+                        label: 'Active / Repaid',
+                        value:
+                            '${state.filteredActive.length} / ${state.filteredRepaid.length}',
+                        color: cs.onSurface,
+                      ),
                     ),
-                  ),
-                ]),
+                  ],
+                ),
               ),
             ),
 
@@ -216,7 +229,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(UI.md, 16, UI.md, 0),
                   child: MaturityCalendar(
-                      data: state.maturityData, hideBalance: hide),
+                    data: state.maturityData,
+                    hideBalance: hide,
+                  ),
                 ),
               ),
 
@@ -225,9 +240,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(UI.md, 12, UI.md, 0),
                   child: RiskCard(
-                      buckets: state.riskBuckets,
-                      total: state.totalInvested,
-                      hideBalance: hide),
+                    buckets: state.riskBuckets,
+                    total: state.totalInvested,
+                    hideBalance: hide,
+                  ),
                 ),
               ),
 
@@ -236,8 +252,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(UI.md, 12, UI.md, 0),
                   child: SectorCard(
-                      sectorData: state.sectorData,
-                      totalInvested: state.totalInvested),
+                    sectorData: state.sectorData,
+                    totalInvested: state.totalInvested,
+                  ),
                 ),
               ),
 
@@ -246,7 +263,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(UI.md, 12, UI.md, 0),
                   child: TopHoldingsCard(
-                      holdings: state.topHoldings, hideBalance: hide),
+                    holdings: state.topHoldings,
+                    hideBalance: hide,
+                  ),
                 ),
               ),
 

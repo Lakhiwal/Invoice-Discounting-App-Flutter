@@ -16,6 +16,10 @@ import 'package:flutter_cashfree_pg_sdk/utils/cfenums.dart';
 ///     environment: 'SANDBOX', // or 'PRODUCTION'
 ///   );
 class CashfreeService {
+  CashfreeService() {
+    _gateway.setCallback(_onVerify, _onError);
+  }
+
   /// Called on successful payment with the order ID.
   void Function(String orderId)? onSuccess;
 
@@ -23,10 +27,6 @@ class CashfreeService {
   void Function(String error)? onError;
 
   final _gateway = CFPaymentGatewayService();
-
-  CashfreeService() {
-    _gateway.setCallback(_onVerify, _onError);
-  }
 
   void _onVerify(String orderId) {
     debugPrint('Cashfree payment verified: $orderId');
@@ -59,9 +59,8 @@ class CashfreeService {
           .setPaymentSessionId(paymentSessionId)
           .build();
 
-      final webCheckout = CFWebCheckoutPaymentBuilder()
-          .setSession(session)
-          .build();
+      final webCheckout =
+          CFWebCheckoutPaymentBuilder().setSession(session).build();
 
       _gateway.doPayment(webCheckout);
     } catch (e) {

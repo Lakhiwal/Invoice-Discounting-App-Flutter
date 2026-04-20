@@ -4,9 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Riverpod provider ─────────────────────────────────────────────────────────
-final notificationProvider =
-    ChangeNotifierProvider<NotificationProvider>((ref) => NotificationProvider());
+final notificationProvider = ChangeNotifierProvider<NotificationProvider>(
+  (ref) => NotificationProvider(),
+);
+
 class NotificationProvider extends ChangeNotifier {
+  NotificationProvider() {
+    loadNotifications();
+  }
   List<Map<String, dynamic>> _notifications = [];
   bool _isLoading = true;
 
@@ -15,11 +20,10 @@ class NotificationProvider extends ChangeNotifier {
   int get unreadCount =>
       _notifications.where((n) => n['is_read'] == false).length;
 
-  NotificationProvider() {
-    loadNotifications();
-  }
-
-  Future<void> loadNotifications({bool silent = false, bool isRefresh = false}) async {
+  Future<void> loadNotifications({
+    bool silent = false,
+    bool isRefresh = false,
+  }) async {
     final startTime = DateTime.now();
 
     if (!silent) {
@@ -28,19 +32,21 @@ class NotificationProvider extends ChangeNotifier {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final List<String> saved =
-        prefs.getStringList('local_notifications') ?? [];
+    final saved = prefs.getStringList('local_notifications') ?? [];
 
     _notifications =
         saved.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
-    _notifications
-        .sort((a, b) => b['timestamp']?.compareTo(a['timestamp'] ?? '') ?? 0);
+    _notifications.sort((a, b) {
+      final bTs = b['timestamp'] as String? ?? '';
+      final aTs = a['timestamp'] as String? ?? '';
+      return bTs.compareTo(aTs);
+    });
 
     // Ensure the "Syncing" state is visible for a premium feel
     if (isRefresh) {
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
       if (elapsed < 800) {
-        await Future.delayed(Duration(milliseconds: 800 - elapsed));
+        await Future<void>.delayed(Duration(milliseconds: 800 - elapsed));
       }
     }
 
@@ -58,7 +64,7 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   Future<void> markAllAsRead() async {
-    for (var n in _notifications) {
+    for (final n in _notifications) {
       n['is_read'] = true;
     }
     await _save();
@@ -90,7 +96,9 @@ class NotificationProvider extends ChangeNotifier {
 
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('local_notifications',
-        _notifications.map((n) => jsonEncode(n)).toList());
+    await prefs.setStringList(
+      'local_notifications',
+      _notifications.map(jsonEncode).toList(),
+    );
   }
 }

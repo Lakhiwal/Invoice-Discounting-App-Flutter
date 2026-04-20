@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../../utils/app_haptics.dart';
-import '../../../widgets/pressable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Profile menu widgets — divider-based, no card borders
@@ -10,59 +11,91 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ── Section header ──────────────────────────────────────────────────────────
 
 class ProfileSectionHeader extends ConsumerWidget {
+  const ProfileSectionHeader({required this.label, super.key});
   final String label;
-  const ProfileSectionHeader({super.key, required this.label});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+        child: Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
-// ── Card group — subtle dividers, no border/card ────────────────────────────
+// ── Card group — Rounded glassmorphism-style container ─────────────────────
 
 class ProfileCardGroup extends ConsumerWidget {
+  const ProfileCardGroup({required this.children, super.key});
   final List<Widget> children;
-  const ProfileCardGroup({super.key, required this.children});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    return Column(
-      children: children.asMap().entries.map((entry) {
-        return Column(
-          children: [
-            entry.value,
-            if (entry.key < children.length - 1)
-              Padding(
-                padding: const EdgeInsets.only(left: 50),
-                child: Divider(
-                  color: cs.outlineVariant.withValues(alpha: 0.15),
-                  height: 0.5,
-                  thickness: 0.5,
-                ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(UI.radiusMd), // Sharp aesthetic
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.2),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: children
+            .asMap()
+            .entries
+            .map(
+              (entry) => Column(
+                children: [
+                  entry.value,
+                  if (entry.key < children.length - 1)
+                    Divider(
+                      color: cs.outlineVariant.withValues(alpha: 0.1),
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 60,
+                      endIndent: 20,
+                    ),
+                ],
               ),
-          ],
-        );
-      }).toList(),
+            )
+            .toList(),
+      ),
     );
   }
 }
 
 // ── Menu item ───────────────────────────────────────────────────────────────
 
-class ProfileMenuItem extends ConsumerWidget {
+class ProfileMenuItem extends ConsumerStatefulWidget {
+  const ProfileMenuItem({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.label,
+    required this.onTap,
+    super.key,
+    this.subtitle,
+    this.subtitleColor,
+    this.trailing,
+    this.onLongPress,
+  });
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
@@ -70,82 +103,118 @@ class ProfileMenuItem extends ConsumerWidget {
   final String? subtitle;
   final Color? subtitleColor;
   final Widget? trailing;
-  final bool showChevron;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const ProfileMenuItem({
-    super.key,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.label,
-    this.subtitle,
-    this.subtitleColor,
-    this.trailing,
-    this.showChevron = true,
-    required this.onTap,
-    this.onLongPress,
-  });
+  @override
+  ConsumerState<ProfileMenuItem> createState() => _ProfileMenuItemState();
+}
+
+class _ProfileMenuItemState extends ConsumerState<ProfileMenuItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Pressable(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 15),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: cs.onSurface,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      child: ScaleTransition(
+        scale: _scaleAnimation,
+        child: Container(
+          color: Colors.transparent, // Ensure full hit area
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.iconBg,
+                      widget.iconBg.withValues(alpha: 0.8),
+                    ],
                   ),
-                  if (subtitle != null && subtitle!.isNotEmpty)
+                  borderRadius:
+                      BorderRadius.circular(UI.radiusSm), // Sharp icon box
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.iconColor.withValues(alpha: 0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Icon(widget.icon, color: widget.iconColor, size: 16),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      widget.label,
                       style: TextStyle(
-                        color: subtitleColor ?? cs.onSurfaceVariant,
-                        fontSize: 11,
+                        color: cs.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                ],
+                    if (widget.subtitle != null &&
+                        widget.subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: widget.subtitleColor ?? cs.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            if (trailing != null) ...[
-              const SizedBox(width: 6),
-              trailing!,
+              if (widget.trailing != null) ...[
+                const SizedBox(width: 8),
+                widget.trailing!,
+              ] else
+                Icon(
+                  AppIcons.chevronRight,
+                  size: 18,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                ),
             ],
-            if (showChevron) ...[
-              const SizedBox(width: 6),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
-                size: 18,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -155,6 +224,15 @@ class ProfileMenuItem extends ConsumerWidget {
 // ── Toggle item (tappable, not a switch — opens picker) ─────────────────────
 
 class ProfileToggleItem extends ConsumerWidget {
+  const ProfileToggleItem({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.label,
+    required this.subtitle,
+    required this.onTap,
+    super.key,
+  });
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
@@ -162,98 +240,42 @@ class ProfileToggleItem extends ConsumerWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const ProfileToggleItem({
-    super.key,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.label,
-    required this.subtitle,
-    required this.onTap,
-  });
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ProfileMenuItem(
-      icon: icon,
-      iconColor: iconColor,
-      iconBg: iconBg,
-      label: label,
-      subtitle: subtitle,
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => ProfileMenuItem(
+        icon: icon,
+        iconColor: iconColor,
+        iconBg: iconBg,
+        label: label,
+        subtitle: subtitle,
+        onTap: onTap,
+      );
 }
 
-// ── Switch item ─────────────────────────────────────────────────────────────
+// ── Quiet Hours Tile (Time display) ─────────────────────────────────────────
 
-class ProfileSwitchItem extends ConsumerWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final String label;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const ProfileSwitchItem({
+class QuietHoursTile extends ConsumerWidget {
+  const QuietHoursTile({
+    required this.startTime,
+    required this.endTime,
+    required this.onTap,
     super.key,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.label,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
   });
+  final TimeOfDay startTime;
+  final TimeOfDay endTime;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
-    return Pressable(
-      onTap: () async {
-        await AppHaptics.selection();
-        onChanged(!value);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 15),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      style: TextStyle(
-                          color: cs.onSurface,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500)),
-                  Text(subtitle,
-                      style: TextStyle(
-                          color: cs.onSurfaceVariant, fontSize: 11)),
-                ],
-              ),
-            ),
-            Switch.adaptive(
-              value: value,
-              onChanged: (v) async {
-                await AppHaptics.selection();
-                onChanged(v);
-              },
-            ),
-          ],
-        ),
-      ),
+    final startStr = startTime.format(context);
+    final endStr = endTime.format(context);
+
+    return ProfileMenuItem(
+      icon: AppIcons.quiet,
+      iconColor: AppColors.warning(context),
+      iconBg: AppColors.warning(context).withValues(alpha: 0.1),
+      label: 'Quiet hours',
+      subtitle: '$startStr – $endStr',
+      onTap: onTap,
     );
   }
 }

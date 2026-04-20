@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import '../utils/bank_resolver.dart';
+import 'package:invoice_discounting_app/utils/bank_resolver.dart';
 
 part 'bank_account.freezed.dart';
 part 'bank_account.g.dart';
@@ -19,7 +19,8 @@ class BankAccount with _$BankAccount {
 
   const BankAccount._();
 
-  factory BankAccount.fromJson(Map<String, dynamic> json) => _$BankAccountFromJson(json);
+  factory BankAccount.fromJson(Map<String, dynamic> json) =>
+      _$BankAccountFromJson(json);
 
   factory BankAccount.fromMap(Map<String, dynamic> m) => BankAccount(
         id: m['id'] as int,

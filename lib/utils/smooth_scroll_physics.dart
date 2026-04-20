@@ -6,9 +6,8 @@ class SmoothScrollPhysics extends BouncingScrollPhysics {
   const SmoothScrollPhysics({super.parent});
 
   @override
-  SmoothScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return SmoothScrollPhysics(parent: buildParent(ancestor));
-  }
+  SmoothScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      SmoothScrollPhysics(parent: buildParent(ancestor));
 
   @override
   double get minFlingVelocity => 20;

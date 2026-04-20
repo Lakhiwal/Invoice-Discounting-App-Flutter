@@ -1,20 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_client.dart';
-import 'cache_service.dart';
+import 'package:invoice_discounting_app/services/api_client.dart';
+import 'package:invoice_discounting_app/services/cache_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WalletApiService — Wallet, Payments, Transactions
+// ECollectApiService — E-Collect Account, Payments, Transactions
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class WalletApiService {
+class ECollectApiService {
   static String get _base => ApiClient.baseUrl;
 
-  // ── Wallet ─────────────────────────────────────────────────────────────────
+  // ── E-Collect ───────────────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>?> getWallet(
-      {bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>?> getWallet({
+    bool forceRefresh = false,
+  }) async {
     const cacheKey = 'wallet_data';
 
     if (!forceRefresh) {
@@ -23,9 +24,9 @@ class WalletApiService {
     }
 
     try {
-      final response = await ApiClient.get('$_base/wallet/');
+      final response = await ApiClient.get('$_base/ecollect/details/');
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         await CacheService.save(cacheKey, data);
         return data;
       }
@@ -40,15 +41,15 @@ class WalletApiService {
 
   static Future<void> addFunds(double amount, String paymentMethod) async {
     try {
-      final response = await ApiClient.post('$_base/wallet/add/', {
+      final response = await ApiClient.post('$_base/ecollect/add/', {
         'amount': amount.toString(),
         'payment_method': paymentMethod,
       });
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200 || data['success'] != true) {
-        throw Exception(data['error'] ?? 'Failed to add funds');
+        throw Exception(data['error'] as String? ?? 'Failed to add funds');
       }
     } on UnauthorizedException {
       throw Exception('Session expired. Please log in again.');
@@ -59,14 +60,14 @@ class WalletApiService {
 
   static Future<void> withdrawFunds(double amount) async {
     try {
-      final response = await ApiClient.post('$_base/wallet/withdraw/', {
+      final response = await ApiClient.post('$_base/ecollect/withdraw/', {
         'amount': amount.toString(),
       });
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode != 200 || data['success'] != true) {
-        throw Exception(data['error'] ?? 'Failed to withdraw funds');
+        throw Exception(data['error'] as String? ?? 'Failed to withdraw funds');
       }
     } on UnauthorizedException {
       throw Exception('Session expired. Please log in again.');
@@ -75,8 +76,9 @@ class WalletApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getWalletHistory(
-      {bool forceRefresh = false}) async {
+  static Future<Map<String, dynamic>> getWalletHistory({
+    bool forceRefresh = false,
+  }) async {
     const cacheKey = 'wallet_history';
     if (!forceRefresh) {
       final cached = CacheService.get(cacheKey);
@@ -84,18 +86,18 @@ class WalletApiService {
     }
 
     try {
-      final response = await ApiClient.get('$_base/wallet/history/');
+      final response = await ApiClient.get('$_base/ecollect/history/');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
         await CacheService.save(cacheKey, data);
         return data;
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       return {
         'success': false,
-        'error': data['error'] ?? 'Failed to load history'
+        'error': data['error'] as String? ?? 'Failed to load history',
       };
     } on UnauthorizedException {
       rethrow;
@@ -108,20 +110,19 @@ class WalletApiService {
 
   // ── Payments (Cashfree) ────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> createCashfreeOrder(
-      double amount) async {
+  static Future<Map<String, dynamic>> createCashfreeOrder(double amount) async {
     try {
       final response =
           await ApiClient.post('$_base/payments/cashfree/create-order/', {
         'amount': amount.toStringAsFixed(2),
       });
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
         return data;
       }
       return {
         'success': false,
-        'error': data['error'] ?? 'Failed to create order'
+        'error': data['error'] as String? ?? 'Failed to create order',
       };
     } on UnauthorizedException {
       return {'success': false, 'error': 'Session expired'};
@@ -138,46 +139,41 @@ class WalletApiService {
           await ApiClient.post('$_base/payments/cashfree/verify/', {
         'order_id': orderId,
       });
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200) {
         return data;
       }
       return {
         'success': false,
-        'status': data['status'] ?? 'failed',
-        'error': data['error'] ?? 'Verification failed',
+        'status': data['status'] as String? ?? 'failed',
+        'error': data['error'] as String? ?? 'Verification failed',
       };
     } on UnauthorizedException {
-      return {
-        'success': false,
-        'status': 'failed',
-        'error': 'Session expired'
-      };
+      return {'success': false, 'status': 'failed', 'error': 'Session expired'};
     } catch (e) {
       return {
         'success': false,
         'status': 'pending',
-        'error': 'Connection error — wallet will update shortly'
+        'error': 'Connection error — E-Collect will update shortly',
       };
     }
   }
 
   // ── Payments (Razorpay) ────────────────────────────────────────────────────
 
-  static Future<Map<String, dynamic>> createRazorpayOrder(
-      double amount) async {
+  static Future<Map<String, dynamic>> createRazorpayOrder(double amount) async {
     try {
       final response = await ApiClient.post('$_base/payments/create-order/', {
         'amount': amount.toString(),
       });
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
         return data;
       }
 
-      return {'success': false, 'error': data['error']};
+      return {'success': false, 'error': data['error'] as String?};
     } on UnauthorizedException {
       return {'success': false, 'error': 'Session expired'};
     } catch (e) {
@@ -197,7 +193,7 @@ class WalletApiService {
         'signature': signature,
       });
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (response.statusCode == 200) {
         return data;
@@ -205,8 +201,8 @@ class WalletApiService {
 
       return {
         'success': false,
-        'status': data['status'] ?? 'failed',
-        'error': data['error'] ?? 'Verification failed',
+        'status': data['status'] as String? ?? 'failed',
+        'error': data['error'] as String? ?? 'Verification failed',
       };
     } on UnauthorizedException {
       return {
@@ -218,7 +214,7 @@ class WalletApiService {
       return {
         'success': false,
         'status': 'pending',
-        'error': 'Connection error — wallet will update shortly',
+        'error': 'Connection error — E-Collect will update shortly',
       };
     }
   }

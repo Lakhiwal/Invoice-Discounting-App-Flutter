@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/notification_service.dart';
+import 'package:invoice_discounting_app/services/notification_service.dart';
 
 class DeepLinkTestUtil {
   /// Simulates a notification tap for a new invoice.

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AnimatedPage extends ConsumerStatefulWidget {
+  const AnimatedPage({required this.child, super.key});
   final Widget child;
-
-  const AnimatedPage({super.key, required this.child});
 
   @override
   ConsumerState<AnimatedPage> createState() => _AnimatedPageState();
@@ -42,10 +41,8 @@ class _AnimatedPageState extends ConsumerState<AnimatedPage>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(position: _slide, child: widget.child),
-    );
-  }
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(position: _slide, child: widget.child),
+      );
 }

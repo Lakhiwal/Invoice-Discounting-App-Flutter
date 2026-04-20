@@ -1,15 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../models/nominee.dart';
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/models/nominee.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 class AddNomineeScreen extends ConsumerStatefulWidget {
-  final Nominee? nominee;
   const AddNomineeScreen({super.key, this.nominee});
+  final Nominee? nominee;
 
   @override
   ConsumerState<AddNomineeScreen> createState() => _AddNomineeScreenState();
@@ -68,7 +69,7 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       return;
     }
 
@@ -77,11 +78,12 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
     final age = int.tryParse(_ageCtrl.text) ?? 0;
 
     if (age < 18 && _guardianCtrl.text.trim().isEmpty) {
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Guardian name is required for minor nominees')),
+          content: Text('Guardian name is required for minor nominees'),
+        ),
       );
       setState(() => _saving = false);
       return;
@@ -99,22 +101,25 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
 
       if (!mounted) return;
 
-      if (!result['success']) {
-        await AppHaptics.error();
+      if (result['success'] != true) {
+        unawaited(AppHaptics.error());
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['error'] ?? 'Failed to save nominee')),
+          SnackBar(
+            content:
+                Text((result['error'] as String?) ?? 'Failed to save nominee'),
+          ),
         );
         return;
       }
 
       if (!mounted) return;
-      await AppHaptics.success();
+      unawaited(AppHaptics.success());
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Connection error')),
       );
@@ -131,140 +136,200 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
-        title: Text(isEdit ? 'Update Nominee' : 'Add Nominee',
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        title: Text(
+          isEdit ? 'Update Nominee' : 'Add Nominee',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
         backgroundColor: cs.surface,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon: Icon(AppIcons.back, size: 20),
+          onPressed: () {
+            AppHaptics.selection();
+            Navigator.pop(context);
+          },
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('NOMINEE DETAILS',
-                  style: TextStyle(
+      body: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'NOMINEE DETAILS',
+                    style: TextStyle(
                       color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2)),
-              const SizedBox(height: 16),
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-              _input('Full Name', _nameCtrl, icon: Icons.person_outline_rounded),
-              const SizedBox(height: 16),
+                  _input(
+                    'Full Name',
+                    _nameCtrl,
+                    icon: AppIcons.user,
+                  ),
+                  const SizedBox(height: 16),
 
-              _input(
-                'Age',
-                _ageCtrl,
-                icon: Icons.cake_outlined,
-                keyboard: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Required';
-                  final n = int.tryParse(v);
-                  if (n == null || n < 1 || n > 120) {
-                    return 'Enter a valid age (1–120)';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
+                  _input(
+                    'Age',
+                    _ageCtrl,
+                    icon: AppIcons.cake,
+                    keyboard: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Required';
+                      final n = int.tryParse(v);
+                      if (n == null || n < 1 || n > 120) {
+                        return 'Enter a valid age (1–120)';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
 
-              // Guardian section for minors
-              AnimatedSize(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOutCubic,
-                child: _isMinor
-                    ? Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.amber(context).withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: AppColors.amber(context).withValues(alpha: 0.2)),
-                              ),
-                              child: Row(children: [
-                                Icon(Icons.info_outline,
-                                    color: AppColors.amber(context), size: 16),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Nominee is a minor. A guardian name is mandatory.',
-                                    style: TextStyle(
+                  // Guardian section for minors
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                    child: _isMinor
+                        ? Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.amber(context)
+                                        .withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppColors.amber(context)
+                                          .withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        AppIcons.info,
                                         color: AppColors.amber(context),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500),
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Nominee is a minor. A guardian name is mandatory.',
+                                          style: TextStyle(
+                                            color: AppColors.amber(context),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ]),
+                                const SizedBox(height: 16),
+                                _input(
+                                  'Guardian Full Name',
+                                  _guardianCtrl,
+                                  icon: AppIcons.shield,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                            _input('Guardian Full Name', _guardianCtrl,
-                                icon: Icons.shield_outlined, required: true),
-                          ],
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-
-              _dropdown(
-                label: 'Gender',
-                value: _gender,
-                icon: Icons.wc_outlined,
-                items: const ['Male', 'Female', 'Other'],
-                onChanged: (v) => setState(() => _gender = v!),
-              ),
-              const SizedBox(height: 16),
-
-              _dropdown(
-                label: 'Relationship',
-                value: _relationship,
-                icon: Icons.people_outline_rounded,
-                items: const [
-                  'Father', 'Mother', 'Spouse', 'Brother', 'Sister', 'Child', 'Other'
-                ],
-                onChanged: (v) => setState(() => _relationship = v!),
-              ),
-              const SizedBox(height: 16),
-
-              _input('Address', _addressCtrl,
-                  icon: Icons.location_on_outlined, maxLines: 3),
-              const SizedBox(height: 40),
-
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _saving ? null : _save,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary(context),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                  child: _saving
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2.5, color: Colors.white))
-                      : Text(isEdit ? 'Update Details' : 'Save Nominee',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
+
+                  _dropdown(
+                    label: 'Gender',
+                    value: _gender,
+                    icon: AppIcons.wc,
+                    items: const ['Male', 'Female', 'Other'],
+                    onChanged: (v) {
+                      AppHaptics.selection();
+                      setState(() => _gender = v!);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  _dropdown(
+                    label: 'Relationship',
+                    value: _relationship,
+                    icon: AppIcons.people,
+                    items: const [
+                      'Father',
+                      'Mother',
+                      'Spouse',
+                      'Brother',
+                      'Sister',
+                      'Child',
+                      'Other',
+                    ],
+                    onChanged: (v) {
+                      AppHaptics.selection();
+                      setState(() => _relationship = v!);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  _input(
+                    'Address',
+                    _addressCtrl,
+                    icon: AppIcons.location,
+                    maxLines: 3,
+                  ),
+                  const Spacer(),
+                  const SizedBox(height: 40),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _saving
+                          ? null
+                          : () {
+                              unawaited(AppHaptics.buttonPress());
+                              _save();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary(context),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              isEdit ? 'Update Details' : 'Save Nominee',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -325,7 +390,8 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
     return DropdownButtonFormField<String>(
       initialValue: value,
       onChanged: onChanged,
-      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      items:
+          items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: icon != null ? Icon(icon, size: 20) : null,

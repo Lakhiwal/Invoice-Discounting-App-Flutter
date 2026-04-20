@@ -1,27 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../services/api_service.dart';
-import '../services/cashfree_service.dart';
-import '../services/portfolio_cache.dart';
-import '../utils/app_haptics.dart';
-import '../utils/formatters.dart';
-import '../utils/smooth_page_route.dart';
-import '../theme/theme_provider.dart';
-import '../widgets/vibe_state_wrapper.dart';
-import '../widgets/app_bar_action.dart';
-import '../widgets/app_logo_header.dart';
-import '../widgets/liquidity_refresh_indicator.dart';
-import 'marketplace_screen.dart';
-import 'transaction_history_screen.dart';
-import '../widgets/home/portfolio_hero.dart';
-import '../widgets/home/quick_actions.dart';
-import '../widgets/home/active_investment_card.dart';
-import '../widgets/home/transaction_activity.dart';
-import '../widgets/skeleton.dart';
-import '../theme/ui_constants.dart';
+import 'package:invoice_discounting_app/models/invoice_item.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:invoice_discounting_app/screens/marketplace_screen.dart';
+import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/services/cashfree_service.dart';
+import 'package:invoice_discounting_app/services/portfolio_cache.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
+import 'package:invoice_discounting_app/utils/momentum_haptics.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:invoice_discounting_app/widgets/app_bar_action.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:invoice_discounting_app/widgets/home/active_investment_card.dart';
+import 'package:invoice_discounting_app/widgets/home/portfolio_hero.dart';
+import 'package:invoice_discounting_app/widgets/home/quick_actions.dart';
+import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
+import 'package:invoice_discounting_app/widgets/marketplace/invoice_card.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
 
 const String _kMaskedShort = '● ● ●';
 
@@ -40,26 +43,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasError = false;
   late CashfreeService _cashfree;
   late final ScrollController _scrollController;
+  final MomentumHaptics _momentumHaptics = MomentumHaptics();
 
+  List<InvoiceItem> _unfundedInvoices = [];
+  double _irr = 0.0;
+
+  // Pagination State
+  int _invoicePage = 1;
+  bool _isMoreInvoicesLoading = false;
+  bool _hasMoreInvoices = true;
 
   double get _walletBalance =>
       double.tryParse(_wallet?['balance']?.toString() ?? '0') ?? 0;
-  double get _totalInvested =>
-      double.tryParse(
-          _portfolio?['summary']?['total_invested']?.toString() ?? '0') ??
-      0;
-  double get _totalReturns =>
-      double.tryParse(
-          _portfolio?['summary']?['total_returns']?.toString() ?? '0') ??
-      0;
+  double get _totalInvested {
+    final summary = _portfolio?['summary'] as Map<String, dynamic>?;
+    return double.tryParse(summary?['total_invested']?.toString() ?? '0') ?? 0;
+  }
+
+  double get _totalReturns {
+    final summary = _portfolio?['summary'] as Map<String, dynamic>?;
+    return double.tryParse(summary?['total_returns']?.toString() ?? '0') ?? 0;
+  }
+
   List get _activeInvestments => _portfolio?['active'] as List? ?? [];
 
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _cashfree = CashfreeService();
-    _loadData();
+
+    // MANDATORY SYNC: Always force a fresh fetch on first mount of this session
+    // to prevent observing stale data from previous users or APK installs.
+    unawaited(_loadData(forceRefresh: true));
   }
 
   @override
@@ -71,7 +87,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<bool> _waitForWalletUpdate({int maxRetries = 10}) async {
     final initialBalance = _walletBalance;
-    for (int i = 0; i < maxRetries; i++) {
+    for (var i = 0; i < maxRetries; i++) {
       await Future.delayed(const Duration(seconds: 1));
       try {
         final wallet = await ApiService.getWallet();
@@ -81,6 +97,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } catch (_) {}
     }
     return false;
+  }
+
+  void _onScroll() {
+    _momentumHaptics.onScroll(_scrollController.position.pixels);
+
+    // Pagination trigger: 20 per query, load another when reached 15 or 16
+    // We check if we are near the bottom of the list
+    if (_scrollController.position.pixels >
+            _scrollController.position.maxScrollExtent - 800 &&
+        !_isMoreInvoicesLoading &&
+        _hasMoreInvoices) {
+      _loadMoreInvoices();
+    }
+  }
+
+  Future<void> _loadMoreInvoices() async {
+    if (_isMoreInvoicesLoading || !_hasMoreInvoices) return;
+
+    setState(() => _isMoreInvoicesLoading = true);
+    try {
+      final nextPage = _invoicePage + 1;
+      final results = await ApiService.getInvoices(
+        page: nextPage,
+        limit: 20,
+        status: 'approved',
+        unfundedOnly: true,
+      );
+
+      if (mounted) {
+        final newInvoices = results
+            .map((e) => InvoiceItem.fromMap(e as Map<String, dynamic>))
+            .where((i) => i.status.toLowerCase() == 'available' && i.fundingPct == 0)
+            .toList();
+
+        setState(() {
+          _unfundedInvoices.addAll(newInvoices);
+          _invoicePage = nextPage;
+          _isMoreInvoicesLoading = false;
+          if (newInvoices.isEmpty) {
+            _hasMoreInvoices = false;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isMoreInvoicesLoading = false);
+      }
+    }
   }
 
   Future<void> _loadData({bool forceRefresh = false}) async {
@@ -102,6 +166,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ApiService.getWallet(forceRefresh: forceRefresh),
         ApiService.getCachedUser(),
         ApiService.getProfile(),
+        ApiService.getInvoices(
+          limit: 20,
+          forceRefresh: forceRefresh,
+          unfundedOnly: true,
+        ),
       ]);
 
       // Ensure the "Syncing" state is visible for a premium feel
@@ -113,12 +182,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
 
       if (mounted) {
+        final portfolio = results[0] as Map<String, dynamic>?;
+        final rawInvoices = results[4] as List? ?? [];
+
+        // 1. Categorize Invoices
+        final invoices = rawInvoices
+            .map((e) => InvoiceItem.fromMap(e as Map<String, dynamic>))
+            .toList();
+
+        _unfundedInvoices = invoices
+            .where(
+              (i) => i.status.toLowerCase() == 'available' && i.fundingPct == 0,
+            )
+            .toList();
+        _invoicePage = 1;
+        _hasMoreInvoices = _unfundedInvoices.length >= 20;
+
+        // 2. Calculate Portfolio IRR (Weighted Avg Yield)
+        final active = portfolio?['active'] as List? ?? [];
+        final totalInvested = double.tryParse(
+                portfolio?['summary']?['total_invested']?.toString() ?? '0') ??
+            0;
+
+        var irr = 0.0;
+        if (active.isNotEmpty && totalInvested > 0) {
+          var weightedSum = 0.0;
+          for (final inv in active) {
+            final amt = double.tryParse(inv['amount']?.toString() ?? '0') ?? 0;
+            final rate =
+                double.tryParse(inv['investor_rate']?.toString() ?? '0') ?? 0;
+            weightedSum += amt * rate;
+          }
+          irr = weightedSum / totalInvested;
+        }
+
         setState(() {
-          _portfolio = results[0];
-          _wallet = results[1];
+          _portfolio = portfolio;
+          _wallet = results[1] as Map<String, dynamic>?;
+          _irr = irr;
           _isLoading = false;
         });
-        AppHaptics.numberReveal();
+        unawaited(AppHaptics.numberReveal());
       }
     } catch (_) {
       if (mounted) {
@@ -137,12 +241,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (prefillAmount != null) {
       controller.text = prefillAmount.toStringAsFixed(0);
     }
-    bool isLoading = false;
+    var isLoading = false;
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       showDragHandle: true,
       backgroundColor: colorScheme.surface,
       builder: (context) => StatefulBuilder(
@@ -150,52 +255,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(UI.lg, 8, UI.lg, 40),
+            padding: EdgeInsets.fromLTRB(
+              UI.lg,
+              8,
+              UI.lg,
+              MediaQuery.paddingOf(context).bottom + 40,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Add Funds',
-                    style: TextStyle(
-                        color: colorScheme.onSurface,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5)),
+                Text(
+                  'Add Funds',
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Instant credit to your investing wallet',
-                    style: TextStyle(
-                        color: colorScheme.onSurfaceVariant, fontSize: 14)),
+                Text(
+                  'Instant credit to your E-Collect Account',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 28),
                 TextField(
                   controller: controller,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d+\.?\d{0,2}'),
+                    ),
                   ],
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Amount',
                     prefixText: '₹ ',
                     prefixStyle: TextStyle(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w800),
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                    ),
                     hintText: '0.00',
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(UI.radiusLg),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3))),
+                      borderRadius: BorderRadius.circular(UI.radiusLg),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(UI.radiusLg),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3))),
+                      borderRadius: BorderRadius.circular(UI.radiusLg),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(UI.radiusLg),
-                        borderSide:
-                            BorderSide(color: colorScheme.primary, width: 1.5)),
+                      borderRadius: BorderRadius.circular(UI.radiusLg),
+                      borderSide:
+                          BorderSide(color: colorScheme.primary, width: 1.5),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -203,20 +330,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: ['1000', '5000', '10000', '25000', '50000']
-                        .map((amt) => Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ActionChip(
-                                  label: Text('₹$amt'),
-                                  onPressed: () {
-                                    AppHaptics.selection();
-                                    controller.text = amt;
-                                  },
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  backgroundColor:
-                                      colorScheme.surfaceContainerHigh,
-                                  side: BorderSide.none),
-                            ))
+                        .map(
+                          (amt) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ActionChip(
+                              label: Text('₹$amt'),
+                              onPressed: () {
+                                unawaited(AppHaptics.selection());
+                                controller.text = amt;
+                              },
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(UI.radiusSm),
+                              ),
+                              backgroundColor: colorScheme.surfaceContainerHigh,
+                              side: BorderSide.none,
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -228,42 +359,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           final amt = double.tryParse(controller.text);
                           if (amt == null || amt <= 0 || amt > 50000) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Maximum ₹50,000 allowed per transaction')));
+                              const SnackBar(
+                                content: Text(
+                                  'Maximum ₹50,000 allowed per transaction',
+                                ),
+                              ),
+                            );
                             return;
                           }
 
-                          final result = await ApiService.createCashfreeOrder(amt);
+                          final result =
+                              await ApiService.createCashfreeOrder(amt);
 
                           if (!mounted) return;
                           final messenger = ScaffoldMessenger.of(context);
 
-                          if (result['error'] != null && result['success'] == false) {
+                          if (result['error'] != null &&
+                              result['success'] == false) {
                             setModal(() => isLoading = false);
                             messenger.showSnackBar(
-                                SnackBar(content: Text(result['error'])));
+                              SnackBar(
+                                content: Text(result['error'] as String),
+                              ),
+                            );
                             return;
                           }
 
                           final orderId = result['order_id'] as String;
-                          final sessionId = result['payment_session_id'] as String;
-                          final env = result['environment'] as String? ?? 'SANDBOX';
+                          final sessionId =
+                              result['payment_session_id'] as String;
+                          final env =
+                              result['environment'] as String? ?? 'SANDBOX';
 
                           final homeNavigator = Navigator.of(context);
 
                           _cashfree.onSuccess = (cfOrderId) async {
                             if (!mounted) return;
                             homeNavigator.pop(); // close bottom sheet
-                            homeNavigator.push(
-                              MaterialPageRoute(
-                                builder: (_) => const PaymentStatusScreen(
-                                  status: PaymentStatus.processing,
+                            unawaited(
+                              homeNavigator.push(
+                                SmoothPageRoute<void>(
+                                  builder: (_) => const PaymentStatusScreen(
+                                    status: PaymentStatus.processing,
+                                  ),
                                 ),
                               ),
                             );
 
-                            final verifyResult = await ApiService.verifyCashfreePayment(
+                            final verifyResult =
+                                await ApiService.verifyCashfreePayment(
                               orderId: orderId,
                             );
 
@@ -272,33 +416,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             final paymentStatus = verifyResult['status'];
 
                             if (paymentStatus == 'completed') {
-                              homeNavigator.pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentStatusScreen(
-                                    status: PaymentStatus.success,
-                                    onDismiss: () => _loadData(),
+                              unawaited(
+                                homeNavigator.pushReplacement(
+                                  SmoothPageRoute<void>(
+                                    builder: (_) => PaymentStatusScreen(
+                                      status: PaymentStatus.success,
+                                      onDismiss: _loadData,
+                                    ),
                                   ),
                                 ),
                               );
                             } else if (paymentStatus == 'pending') {
-                              final walletUpdated = await _waitForWalletUpdate(maxRetries: 8);
+                              final walletUpdated =
+                                  await _waitForWalletUpdate(maxRetries: 8);
                               if (!mounted) return;
-                              homeNavigator.pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentStatusScreen(
-                                    status: walletUpdated
-                                        ? PaymentStatus.success
-                                        : PaymentStatus.success,
-                                    onDismiss: () => _loadData(),
+                              unawaited(
+                                homeNavigator.pushReplacement(
+                                  SmoothPageRoute<void>(
+                                    builder: (_) => PaymentStatusScreen(
+                                      status: walletUpdated
+                                          ? PaymentStatus.success
+                                          : PaymentStatus.success,
+                                    ),
                                   ),
                                 ),
                               );
                             } else {
-                              homeNavigator.pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => PaymentStatusScreen(
-                                    status: PaymentStatus.failed,
-                                    onDismiss: () => _loadData(),
+                              unawaited(
+                                homeNavigator.pushReplacement(
+                                  SmoothPageRoute<void>(
+                                    builder: (_) => PaymentStatusScreen(
+                                      status: PaymentStatus.failed,
+                                      onDismiss: _loadData,
+                                    ),
                                   ),
                                 ),
                               );
@@ -307,12 +457,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                           _cashfree.onError = (error) {
                             if (!mounted) return;
-                            try { homeNavigator.pop(); } catch (_) {}
-                            homeNavigator.push(
-                              MaterialPageRoute(
-                                builder: (_) => PaymentStatusScreen(
-                                  status: PaymentStatus.failed,
-                                  onDismiss: () => _loadData(),
+                            try {
+                              homeNavigator.pop();
+                            } catch (_) {}
+                            unawaited(
+                              homeNavigator.push(
+                                SmoothPageRoute<void>(
+                                  builder: (_) => PaymentStatusScreen(
+                                    status: PaymentStatus.failed,
+                                    onDismiss: _loadData,
+                                  ),
                                 ),
                               ),
                             );
@@ -330,7 +484,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                              strokeWidth: 3, color: Colors.white))
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text('Confirm Deposit'),
                 ),
               ],
@@ -343,12 +500,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _showWithdrawSheet() {
     final controller = TextEditingController();
-    bool isLoading = false;
+    var isLoading = false;
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       showDragHandle: true,
       backgroundColor: colorScheme.surface,
       builder: (context) => StatefulBuilder(
@@ -356,73 +514,102 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           padding:
               EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              8,
+              24,
+              MediaQuery.paddingOf(context).bottom + 40,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Withdraw',
-                    style: TextStyle(
-                        color: colorScheme.onSurface,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5)),
+                Text(
+                  'Withdraw',
+                  style: TextStyle(
+                    color: colorScheme.onSurface,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Available: ₹${fmtAmount(_walletBalance)}',
-                    style: TextStyle(
-                        color: colorScheme.onSurfaceVariant, fontSize: 14)),
+                Text(
+                  'Available: ₹${fmtAmount(_walletBalance)}',
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 28),
                 TextField(
                   controller: controller,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}'))
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d+\.?\d{0,2}'),
+                    ),
                   ],
                   style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Amount',
                     prefixText: '₹ ',
                     prefixStyle: TextStyle(
-                        color: colorScheme.error, fontWeight: FontWeight.w800),
+                      color: colorScheme.error,
+                      fontWeight: FontWeight.w800,
+                    ),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3))),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
                     enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                            color: colorScheme.outline.withValues(alpha: 0.3))),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
+                    ),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            BorderSide(color: colorScheme.error, width: 1.5)),
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
+                      borderSide:
+                          BorderSide(color: colorScheme.error, width: 1.5),
+                    ),
                   ),
                 ),
                 Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                        onPressed: () {
-                          AppHaptics.selection();
-                          controller.text = _walletBalance.toStringAsFixed(2);
-                        },
-                        child: const Text('Withdraw All'))),
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      AppHaptics.selection();
+                      controller.text = _walletBalance.toStringAsFixed(2);
+                    },
+                    child: const Text('Withdraw All'),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.error),
+                    backgroundColor: colorScheme.error,
+                  ),
                   onPressed: isLoading
                       ? null
                       : () async {
                           final amt = double.tryParse(controller.text);
                           if (amt == null || amt <= 0 || amt > _walletBalance) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Invalid amount or insufficient balance')));
+                              const SnackBar(
+                                content: Text(
+                                  'Invalid amount or insufficient balance',
+                                ),
+                              ),
+                            );
                             return;
                           }
                           setModal(() => isLoading = true);
@@ -432,20 +619,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           try {
                             await ApiService.withdrawFunds(amt);
                             if (!mounted) return;
-                            await AppHaptics.success();
+                            unawaited(AppHaptics.success());
                             Navigator.pop(context);
                             _loadData();
-                            messenger.showSnackBar(SnackBar(
+                            messenger.showSnackBar(
+                              SnackBar(
                                 content: Text(
-                                    '₹${fmtAmount(amt)} withdrawn successfully'),
-                                backgroundColor: successColor));
+                                  '₹${fmtAmount(amt)} withdrawn successfully',
+                                ),
+                                backgroundColor: successColor,
+                              ),
+                            );
                           } catch (e) {
                             if (!mounted) return;
                             setModal(() => isLoading = false);
-                            await AppHaptics.error();
-                            messenger.showSnackBar(SnackBar(
+                            unawaited(AppHaptics.error());
+                            messenger.showSnackBar(
+                              SnackBar(
                                 content: Text('Failed: $e'),
-                                backgroundColor: errorColor));
+                                backgroundColor: errorColor,
+                              ),
+                            );
                           }
                         },
                   child: isLoading
@@ -453,7 +647,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                              strokeWidth: 3, color: Colors.white))
+                            strokeWidth: 3,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text('Withdraw Funds'),
                 ),
               ],
@@ -481,41 +678,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       decoration: isBlack
           ? null
           : BoxDecoration(
-              gradient: LinearGradient(colors: [
-                colorScheme.surface,
-                colorScheme.surfaceContainerLow,
-                colorScheme.surface
-              ], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.surface,
+                  colorScheme.surfaceContainerLow,
+                  colorScheme.surface,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
             ),
       child: Scaffold(
         backgroundColor: isBlack ? colorScheme.surface : Colors.transparent,
         body: LiquidityRefreshIndicator(
           onRefresh: () => _loadData(forceRefresh: true),
           color: colorScheme.primary,
-          child: VibeStateWrapper(
-            state: _isLoading
-                ? VibeState.loading
-                : (_hasError ? VibeState.error : VibeState.success),
-            loadingSkeleton: const SkeletonHomeContent(),
-            onRetry: () => _loadData(forceRefresh: true),
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics()),
-              slivers: [
-                const AppLogoHeader(
-                  title: 'Home',
-                  actions: [
-                    AppBarActions(),
-                  ],
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            slivers: [
+              const AppLogoHeader(
+                title: 'Home',
+                actions: [
+                  AppBarActions(),
+                ],
+              ),
+              if (_isLoading || _hasError)
+                SliverToBoxAdapter(
+                  child: VibeStateWrapper(
+                    state: _isLoading
+                        ? VibeState.loading
+                        : (_hasError ? VibeState.error : VibeState.success),
+                    loadingSkeleton: const SkeletonHomeContent(),
+                    onRetry: () => _loadData(forceRefresh: true),
+                    child: const SizedBox.shrink(),
+                  ),
                 ),
+              if (!_isLoading && !_hasError) ...[
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                     child: AnimatedBuilder(
                       animation: _scrollController,
                       builder: (context, child) {
-                        final double offset = _scrollController.hasClients
+                        final offset = _scrollController.hasClients
                             ? _scrollController.positions.first.pixels
                             : 0;
                         return Transform.translate(
@@ -527,165 +735,182 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         );
                       },
                       child: RepaintBoundary(
-                        child: PortfolioHero(
-                          totalInvested: _totalInvested,
-                          wallet: _walletBalance,
-                          returns: _totalReturns,
-                          activeCount: summary?['active_count'] ?? 0,
-                          repaidCount: summary?['repaid_count'] ?? 0,
-                          isBlackMode: isBlack,
-                          onAdd: _showAddFundsSheet,
-                          onWithdraw: _showWithdrawSheet,
-                          onToggleHide: () {
-                            AppHaptics.selection();
-                            final p = ref.read(themeProvider);
-                            p.setHideBalance(!p.hideBalance);
-                          },
-                        ),
+                        child: (() {
+                          final summary =
+                              _portfolio?['summary'] as Map<String, dynamic>?;
+                          return PortfolioHero(
+                            totalInvested: _totalInvested,
+                            wallet: _walletBalance,
+                            irr: _irr,
+                            activeCount:
+                                (summary?['active_count'] as int?) ?? 0,
+                            repaidCount:
+                                (summary?['repaid_count'] as int?) ?? 0,
+                            isBlackMode: isBlack,
+                            onAdd: _showAddFundsSheet,
+                            onWithdraw: _showWithdrawSheet,
+                            onToggleHide: () {
+                              AppHaptics.selection();
+                              final p = ref.read(themeProvider);
+                              p.setHideBalance(hide: !p.hideBalance);
+                            },
+                          );
+                        })(),
                       ),
                     ),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                      child: QuickActions(
-                          isBlackMode: isBlack,
-                          onAdd: _showAddFundsSheet,
-                          onWithdraw: _showWithdrawSheet,
-                          onMarketplace: () {
-                            AppHaptics.selection();
-                            Navigator.push(
-                                context,
-                                SmoothPageRoute(
-                                    builder: (_) => const MarketplaceScreen()));
-                          })),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: QuickActions(
+                      isBlackMode: isBlack,
+                      onAdd: _showAddFundsSheet,
+                      onWithdraw: _showWithdrawSheet,
+                      onMarketplace: () {
+                        AppHaptics.selection();
+                        Navigator.push(
+                          context,
+                          SmoothPageRoute(
+                              builder: (_) => const MarketplaceScreen()),
+                        );
+                      },
+                    ),
+                  ),
                 ),
                 if (_activeInvestments.isNotEmpty) ...[
                   SliverToBoxAdapter(
-                      child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-                          child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Active Investments',
-                                    style: TextStyle(
-                                        color: colorScheme.onSurface,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.3)),
-                                Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                        color: AppColors.success(context)
-                                            .withValues(
-                                                alpha: isBlack ? 0.08 : 0.1),
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    child: Text(
-                                        '${_activeInvestments.length} active',
-                                        style: TextStyle(
-                                            color: AppColors.success(context),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700))),
-                              ]))),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Active Investments',
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success(context).withValues(
+                                alpha: isBlack ? 0.08 : 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(UI.radiusSm),
+                            ),
+                            child: Text(
+                              '${_activeInvestments.length} active',
+                              style: TextStyle(
+                                color: AppColors.success(context),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   SliverToBoxAdapter(
                     child: SizedBox(
-                        height: 130,
-                        child: ClipRect(
-                            child: ListView.builder(
+                      height: 130,
+                      child: ClipRect(
+                        child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: _activeInvestments.length,
                           itemBuilder: (ctx, i) => RepaintBoundary(
                             child: ActiveInvestmentCard(
-                                investment: _activeInvestments[i],
-                                index: i,
-                                isBlackMode: isBlack),
+                              investment:
+                                  _activeInvestments[i] as Map<String, dynamic>,
+                              index: i,
+                              isBlackMode: isBlack,
+                            ),
                           ),
-                        ))),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
-                SliverToBoxAdapter(
-                    child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Recent Activity',
-                                  style: TextStyle(
-                                      color: colorScheme.onSurface,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.3)),
-                              TextButton(
-                                onPressed: () async {
-                                  AppHaptics.selection();
-                                  final result = await Navigator.push(
-                                    context,
-                                    SmoothPageRoute(
-                                      builder: (_) =>
-                                          const TransactionHistoryScreen(),
-                                    ),
-                                  );
-                                  if (result is RetryPaymentRequest &&
-                                      mounted) {
-                                    _showAddFundsSheet(
-                                        prefillAmount: result.amount);
-                                  }
-                                },
-                                child: const Text('View All'),
-                              ),
-                            ]))),
-                // ── Transaction list with dividers ──────────────────
-                if (transactions.isNotEmpty)
+                // ── Invoice Sections ──────────────────────────────────────────
+                if (_unfundedInvoices.isNotEmpty) ...[
+                  _buildSectionHeader(
+                    context,
+                    title: 'Unfunded Invoices',
+                    onViewAll: () => Navigator.of(context, rootNavigator: true)
+                        .push(SmoothPageRoute(
+                            builder: (_) => const MarketplaceScreen())),
+                  ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate(
-                        (context, i) {
-                          final int itemIndex = i ~/ 2;
-                          if (i >= transactions.length * 2 - 1) return null;
-
-                          if (i.isOdd) {
-                            return Padding(
-                              padding: const EdgeInsets.only(left: 54),
-                              child: Divider(
-                                color: dividerColor,
-                                height: 0.5,
-                                thickness: 0.5,
-                              ),
-                            );
-                          }
-
-                          return TransactionActivityTile(tx: transactions[itemIndex]);
-                        },
-                        childCount: transactions.isEmpty ? 0 : transactions.length * 2 - 1,
+                        (ctx, i) => InvoiceCard(item: _unfundedInvoices[i]),
+                        childCount: _unfundedInvoices.length,
                       ),
                     ),
-                  )
-                else
-                  SliverToBoxAdapter(
-                    child: EmptyActivityPlaceholder(
-                      isBlackMode: isBlack,
-                      onExplore: () {
-                        AppHaptics.selection();
-                        Navigator.push(
-                          context,
-                          SmoothPageRoute(builder: (_) => const MarketplaceScreen()),
-                        );
-                      },
-                    ),
                   ),
+                  if (_isMoreInvoicesLoading)
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: LoadingAnimationWidget.staggeredDotsWave(
+                            color: colorScheme.primary,
+                            size: 32,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
                 const SliverToBoxAdapter(child: SizedBox(height: 120)),
               ],
-            ),
+            ],
           ),
         ),
       ),
     );
   }
 
-
+  Widget _buildSectionHeader(
+    BuildContext context, {
+    required String title,
+    VoidCallback? onViewAll,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: colorScheme.onSurface,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+              ),
+            ),
+            if (onViewAll != null)
+              TextButton(
+                onPressed: () {
+                  AppHaptics.selection();
+                  onViewAll();
+                },
+                child: const Text('View All'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,31 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/models/invoice_item.dart';
+import 'package:invoice_discounting_app/screens/investment_calculator.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/services/portfolio_cache.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
+import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:invoice_discounting_app/widgets/pressable.dart';
+import 'package:invoice_discounting_app/widgets/skeleton.dart';
 import 'package:local_auth/local_auth.dart';
 
-import '../screens/investment_calculator.dart';
-import '../services/api_service.dart';
-import '../services/portfolio_cache.dart';
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import '../utils/formatters.dart';
-import '../widgets/app_logo_header.dart';
-import '../widgets/animated_amount_text.dart';
-import '../widgets/pressable.dart';
-import '../models/invoice_item.dart';
-import '../widgets/skeleton.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
-  final InvoiceItem? item;
-  final int? invoiceId;
-
   const InvoiceDetailScreen({super.key, this.item, this.invoiceId});
 
   factory InvoiceDetailScreen.fromMap(Map<String, dynamic> invoice) =>
       InvoiceDetailScreen(item: InvoiceItem.fromMap(invoice));
+  final InvoiceItem? item;
+  final int? invoiceId;
 
   @override
-  ConsumerState<InvoiceDetailScreen> createState() => _InvoiceDetailScreenState();
+  ConsumerState<InvoiceDetailScreen> createState() =>
+      _InvoiceDetailScreenState();
 }
 
 class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
@@ -35,7 +37,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
   String? _message;
   double? _walletBalance;
   static double? _cachedWalletBalance;
-  
+
   InvoiceItem? _loadedItem;
 
   // FIX (UX): success state uses a dedicated animation so the CTA
@@ -70,23 +72,26 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     super.dispose();
   }
 
-  void _openCalculator() async {
-    await AppHaptics.selection();
+  Future<void> _openCalculator() async {
+    unawaited(AppHaptics.selection());
     if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      // FIX: useSafeArea ensures the sheet doesn't clip under notch/chin
-      useSafeArea: true,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      builder: (context) => InvestmentCalculator(
-        invoiceId: int.tryParse(_item!.id) ?? 0,
-        maxAmount: _item!.remainingAmount,
-        walletBalance: _walletBalance,
-        roi: _item!.roi,
-        days: _item!.daysLeft,
-        onInvest: _investWithBiometric,
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useRootNavigator: true,
+        showDragHandle: true,
+        // FIX: useSafeArea ensures the sheet doesn't clip under notch/chin
+        useSafeArea: true,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        builder: (context) => InvestmentCalculator(
+          invoiceId: int.tryParse(_item!.id) ?? 0,
+          maxAmount: _item!.remainingAmount,
+          eCollectBalance: _walletBalance,
+          roi: _item!.roi,
+          days: _item!.daysLeft,
+          onInvest: _investWithBiometric,
+        ),
       ),
     );
   }
@@ -136,23 +141,31 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
     if (mounted) Navigator.of(context).pop();
 
     final localAuth = LocalAuthentication();
-    bool authenticated = false;
+    var authenticated = false;
+
+    final useBiometrics = ref.read(themeProvider).useBiometrics;
+    final isHighValue = amount > 50000;
 
     try {
-      final canAuth =
-          await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      final canAuth = await localAuth.canCheckBiometrics ||
+          await localAuth.isDeviceSupported();
 
-      if (canAuth) {
+      if (canAuth && (useBiometrics || isHighValue)) {
         authenticated = await localAuth.authenticate(
-          localizedReason: 'Confirm investment of ₹${fmtAmount(amount)}',
+          localizedReason: isHighValue
+              ? 'High-value transaction protection: Confirm ₹${fmtAmount(amount)}'
+              : 'Confirm investment of ₹${fmtAmount(amount)}',
+          biometricOnly: true,
         );
+      } else {
+        authenticated = true;
       }
     } catch (_) {
       authenticated = false;
     }
 
     if (!authenticated && mounted) {
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       setState(() {
         _message = 'Authentication failed';
         _isSuccess = false;
@@ -168,7 +181,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 
     try {
       final invoiceId = int.tryParse(_item!.id) ?? 0;
-      await AppHaptics.investmentConfirm();
+      unawaited(AppHaptics.investmentConfirm());
       final result = await ApiService.invest(invoiceId, amount);
       PortfolioCache.invalidate();
       if (result['success'] == true) _cachedWalletBalance = null;
@@ -178,21 +191,22 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
         setState(() {
           _isInvesting = false;
           _isSuccess = success;
-          _message = success ? 'Investment successful!' : result['error'];
+          _message =
+              success ? 'Investment successful!' : (result['error'] as String?);
         });
         if (success) {
-          await AppHaptics.success();
+          unawaited(AppHaptics.success());
           _successCtrl.forward();
           Future.delayed(const Duration(milliseconds: 1600), () {
-            if (mounted) Navigator.pop(context);
+            if (mounted) unawaited(Navigator.of(context).maybePop());
           });
         } else {
-          await AppHaptics.error();
+          unawaited(AppHaptics.error());
         }
       }
     } catch (e) {
       if (mounted) {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         setState(() {
           _isInvesting = false;
           _isSuccess = false;
@@ -211,19 +225,28 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline_rounded, size: 48, color: Theme.of(context).colorScheme.error),
+                Icon(
+                  AppIcons.error,
+                  size: 48,
+                  color: Theme.of(context).colorScheme.error,
+                ),
                 const SizedBox(height: 16),
                 Text(_message!, style: const TextStyle(fontSize: 16)),
                 const SizedBox(height: 24),
                 ElevatedButton(
-                  onPressed: () { 
-                    setState(() { _message = null; });
+                  onPressed: () {
+                    setState(() {
+                      _message = null;
+                    });
                     if (widget.invoiceId != null) _fetchItem(widget.invoiceId!);
                   },
                   child: const Text('Try Again'),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    AppHaptics.selection();
+                    unawaited(Navigator.of(context).maybePop());
+                  },
                   child: const Text('Go Back'),
                 ),
               ],
@@ -234,8 +257,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
       return const Scaffold(body: SkeletonInvoiceDetail());
     }
 
-    final statusColor =
-        _item!.isAvailable ? AppColors.emerald(context) : AppColors.amber(context);
+    final statusColor = _item!.isAvailable
+        ? AppColors.emerald(context)
+        : AppColors.amber(context);
     final urgencyColor = _item!.daysLeft <= 7
         ? AppColors.rose(context)
         : _item!.daysLeft <= 30
@@ -271,259 +295,296 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
-                  // ── Status + days urgency row ──────────────────────────
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: statusColor.withValues(alpha: 0.25)),
-                        ),
-                        child: Text(_item!.statusDisplay,
-                            style: TextStyle(
+                      // ── Status + days urgency row ──────────────────────────
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(UI.radiusSm),
+                              border: Border.all(
+                                color: statusColor.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Text(
+                              _item!.statusDisplay,
+                              style: TextStyle(
                                 color: statusColor,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: urgencyColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: urgencyColor.withValues(alpha: 0.2)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.schedule_rounded,
-                                size: 12, color: urgencyColor),
-                            const SizedBox(width: 4),
-                            Text(_item!.daysLeftDisplay,
-                                style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: urgencyColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(UI.radiusSm),
+                              border: Border.all(
+                                color: urgencyColor.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  AppIcons.timer,
+                                  size: 12,
+                                  color: urgencyColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _item!.daysLeftDisplay,
+                                  style: TextStyle(
                                     color: urgencyColor,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600)),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: UI.md),
+
+                      // ── Description ────────────────────────────────────────
+                      if (_item!.particular.isNotEmpty)
+                        Text(
+                          _item!.particular,
+                          style: TextStyle(
+                            color: AppColors.textSecondary(context),
+                            fontSize: 13,
+                          ),
+                        ),
+
+                      if (_item!.debtor.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              AppIcons.business,
+                              size: 13,
+                              color: AppColors.textSecondary(context),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'Debtor: ${_item!.debtor}',
+                              style: TextStyle(
+                                color: AppColors.textSecondary(context),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      const SizedBox(height: UI.lg),
+
+                      Row(
+                        children: [
+                          _DetailMetric(
+                            label: 'Investor ROI',
+                            color: AppColors.emerald(context),
+                            icon: AppIcons.trendingUp,
+                            value: AnimatedAmountText(
+                              value: _item!.roi,
+                              suffix: '%',
+                              style: TextStyle(
+                                color: AppColors.emerald(context),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          _DetailMetric(
+                            label: 'Tenure',
+                            color: AppColors.primary(context),
+                            icon: AppIcons.calendar,
+                            value: AnimatedAmountText(
+                              value: _item!.tenureDays.toDouble(),
+                              suffix: 'D',
+                              style: TextStyle(
+                                color: AppColors.primary(context),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Funding progress card ──────────────────────────────
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.navyCard(context),
+                          borderRadius: BorderRadius.circular(UI.radiusLg),
+                          border: Border.all(color: AppColors.divider(context)),
+                        ),
+                        child: Column(
+                          children: [
+                            _RowInfo(
+                              label: 'Remaining Amount',
+                              value: AnimatedAmountText(
+                                value: _item!.remainingAmount,
+                                prefix: '₹',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary(context),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _RowInfo(
+                              label: 'Funding Progress',
+                              value: AnimatedAmountText(
+                                value: _item!.fundingPct,
+                                suffix: '%',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary(context),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // FIX (UX): animated progress bar — value animates
+                            // from 0 to fundingPct on first build so the bar
+                            // "fills up" as the screen loads. Feels alive.
+                            TweenAnimationBuilder<double>(
+                              tween:
+                                  Tween(begin: 0, end: _item!.fundingPct / 100),
+                              duration: const Duration(milliseconds: 900),
+                              curve: Curves.easeOutCubic,
+                              builder: (_, v, __) => ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(UI.radiusSm),
+                                child: LinearProgressIndicator(
+                                  value: v,
+                                  minHeight: 8,
+                                  backgroundColor: AppColors.divider(context),
+                                  valueColor: AlwaysStoppedAnimation(
+                                    AppColors.primary(context),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Urgency message when almost fully funded
+                            if (_item!.fundingPct >= 80) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(
+                                    AppIcons.flash,
+                                    size: 13,
+                                    color: AppColors.amber(context),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _item!.fundingPct >= 95
+                                        ? 'Almost gone — invest now!'
+                                        : 'Filling up fast',
+                                    style: TextStyle(
+                                      color: AppColors.amber(context),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    ],
-                  ),
 
-                  const SizedBox(height: UI.md),
-
-                  // ── Description ────────────────────────────────────────
-                  if (_item!.particular.isNotEmpty)
-                    Text(_item!.particular,
-                        style: TextStyle(
-                            color: AppColors.textSecondary(context),
-                            fontSize: 13)),
-
-                  if (_item!.debtor.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.business_outlined,
-                            size: 13,
-                            color: AppColors.textSecondary(context)),
-                        const SizedBox(width: 5),
-                        Text('Debtor: ${_item!.debtor}',
-                            style: TextStyle(
+                      // ── Wallet balance hint ────────────────────────────────
+                      if (_walletBalance != null) ...[
+                        const SizedBox(height: UI.md),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.navyLight(context),
+                            borderRadius: BorderRadius.circular(UI.radiusMd),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                AppIcons.wallet,
+                                size: 14,
                                 color: AppColors.textSecondary(context),
-                                fontSize: 12)),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: UI.lg),
-
-                  Row(
-                    children: [
-                      _DetailMetric(
-                        label: 'Investor ROI',
-                        color: AppColors.emerald(context),
-                        icon: Icons.trending_up_rounded,
-                        value: AnimatedAmountText(
-                          value: _item!.roi,
-                          suffix: '%',
-                          style: TextStyle(
-                            color: AppColors.emerald(context),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _DetailMetric(
-                        label: 'Tenure',
-                        color: AppColors.primary(context),
-                        icon: Icons.calendar_today_outlined,
-                        value: AnimatedAmountText(
-                          value: _item!.tenureDays.toDouble(),
-                          suffix: 'D',
-                          style: TextStyle(
-                            color: AppColors.primary(context),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ── Funding progress card ──────────────────────────────
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.navyCard(context),
-                      borderRadius: BorderRadius.circular(20),
-                      border:
-                      Border.all(color: AppColors.divider(context)),
-                    ),
-                    child: Column(
-                      children: [
-                        _RowInfo(
-                          label: 'Remaining Amount',
-                          value: AnimatedAmountText(
-                            value: _item!.remainingAmount,
-                            prefix: '₹',
-                            style: TextStyle(
-                              color: AppColors.textPrimary(context),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _RowInfo(
-                          label: 'Funding Progress',
-                          value: AnimatedAmountText(
-                            value: _item!.fundingPct,
-                            suffix: '%',
-                            style: TextStyle(
-                              color: AppColors.textPrimary(context),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        // FIX (UX): animated progress bar — value animates
-                        // from 0 to fundingPct on first build so the bar
-                        // "fills up" as the screen loads. Feels alive.
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: _item!.fundingPct / 100),
-                          duration: const Duration(milliseconds: 900),
-                          curve: Curves.easeOutCubic,
-                          builder: (_, v, __) => ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: LinearProgressIndicator(
-                              value: v,
-                              minHeight: 8,
-                              backgroundColor: AppColors.divider(context),
-                              valueColor: AlwaysStoppedAnimation(
-                                  AppColors.primary(context)),
-                            ),
-                          ),
-                        ),
-
-                        // Urgency message when almost fully funded
-                        if (_item!.fundingPct >= 80) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(Icons.local_fire_department_rounded,
-                                  size: 13,
-                                  color: AppColors.amber(context)),
-                              const SizedBox(width: 4),
-                              Text(
-                                _item!.fundingPct >= 95
-                                    ? 'Almost gone — invest now!'
-                                    : 'Filling up fast',
-                                style: TextStyle(
-                                    color: AppColors.amber(context),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700),
                               ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  // ── Wallet balance hint ────────────────────────────────
-                  if (_walletBalance != null) ...[
-                    const SizedBox(height: UI.md),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.navyLight(context),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 14,
-                              color: AppColors.textSecondary(context)),
-                          const SizedBox(width: 8),
-                          Row(
-                            children: [
-                              Text(
-                                'Available wallet: ',
-                                style: TextStyle(
-                                    color: AppColors.textSecondary(context),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              AnimatedAmountText(
-                                value: _walletBalance ?? 0,
-                                prefix: '₹',
-                                style: TextStyle(
-                                    color: AppColors.textSecondary(context),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          // FIX (UX): show a warning if wallet is below
-                          // min investment amount (heuristic: ₹1000)
-                          if (_walletBalance! < 1000)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.warning_amber_rounded,
-                                    size: 13,
-                                    color: AppColors.amber(context)),
-                                const SizedBox(width: 4),
-                                Text('Low balance',
+                              const SizedBox(width: 8),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Available wallet: ',
                                     style: TextStyle(
+                                      color: AppColors.textSecondary(context),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  AnimatedAmountText(
+                                    value: _walletBalance ?? 0,
+                                    prefix: '₹',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary(context),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              // FIX (UX): show a warning if wallet is below
+                              // min investment amount (heuristic: ₹1000)
+                              if (_walletBalance! < 1000)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      AppIcons.warning,
+                                      size: 13,
+                                      color: AppColors.amber(context),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Low balance',
+                                      style: TextStyle(
                                         color: AppColors.amber(context),
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w700)),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
 
-                  const SizedBox(height: UI.lg),
+                      const SizedBox(height: UI.lg),
 
-                  // ── How it works — quick edu block ─────────────────────
-                  _HowItWorks(roi: _item!.roi, days: _item!.daysLeft),
+                      // ── How it works — quick edu block ─────────────────────
+                      _HowItWorks(roi: _item!.roi, days: _item!.daysLeft),
                     ],
                   ),
                 ),
@@ -539,13 +600,6 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
 // ── Sticky bottom CTA ─────────────────────────────────────────────────────────
 
 class _BottomCTA extends ConsumerWidget {
-  final bool isInvesting;
-  final bool isSuccess;
-  final AnimationController successCtrl;
-  final Animation<double> successScale;
-  final String? message;
-  final VoidCallback? onTap;
-
   const _BottomCTA({
     required this.isInvesting,
     required this.isSuccess,
@@ -554,6 +608,12 @@ class _BottomCTA extends ConsumerWidget {
     required this.message,
     required this.onTap,
   });
+  final bool isInvesting;
+  final bool isSuccess;
+  final AnimationController successCtrl;
+  final Animation<double> successScale;
+  final String? message;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -561,12 +621,17 @@ class _BottomCTA extends ConsumerWidget {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          20, 12, 20, MediaQuery.of(context).padding.bottom + 12),
+        20,
+        12,
+        20,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.scaffold(context),
         border: Border(
           top: BorderSide(
-              color: AppColors.divider(context).withValues(alpha: 0.4)),
+            color: AppColors.divider(context).withValues(alpha: 0.4),
+          ),
         ),
       ),
       child: Column(
@@ -579,25 +644,24 @@ class _BottomCTA extends ConsumerWidget {
               child: Container(
                 key: ValueKey(message),
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: isSuccess
                       ? AppColors.emerald(context).withValues(alpha: 0.1)
                       : colorScheme.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(UI.radiusMd),
                   border: Border.all(
-                      color: isSuccess
-                          ? AppColors.emerald(context).withValues(alpha: 0.3)
-                          : colorScheme.error.withValues(alpha: 0.3)),
+                    color: isSuccess
+                        ? AppColors.emerald(context).withValues(alpha: 0.3)
+                        : colorScheme.error.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isSuccess
-                          ? Icons.check_circle_outline_rounded
-                          : Icons.error_outline_rounded,
+                      isSuccess ? AppIcons.check : AppIcons.error,
                       size: 16,
                       color: isSuccess
                           ? AppColors.emerald(context)
@@ -605,13 +669,16 @@ class _BottomCTA extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(message!,
-                          style: TextStyle(
-                              color: isSuccess
-                                  ? AppColors.emerald(context)
-                                  : colorScheme.error,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600)),
+                      child: Text(
+                        message!,
+                        style: TextStyle(
+                          color: isSuccess
+                              ? AppColors.emerald(context)
+                              : colorScheme.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -629,73 +696,93 @@ class _BottomCTA extends ConsumerWidget {
               height: 54,
               decoration: BoxDecoration(
                 gradient: isSuccess
-                    ? LinearGradient(colors: [
-                  AppColors.emerald(context),
-                  AppColors.emerald(context)
-                      .withValues(alpha: 0.8),
-                ])
-                    : LinearGradient(colors: [
-                  colorScheme.primary,
-                  Color.lerp(
-                      colorScheme.primary, colorScheme.tertiary, 0.4)!,
-                ]),
-                borderRadius: BorderRadius.circular(16),
+                    ? LinearGradient(
+                        colors: [
+                          AppColors.emerald(context),
+                          AppColors.emerald(context).withValues(alpha: 0.8),
+                        ],
+                      )
+                    : LinearGradient(
+                        colors: [
+                          colorScheme.primary,
+                          Color.lerp(
+                            colorScheme.primary,
+                            colorScheme.tertiary,
+                            0.4,
+                          )!,
+                        ],
+                      ),
+                borderRadius: BorderRadius.circular(UI.radiusMd),
                 boxShadow: onTap == null
                     ? []
                     : [
-                  BoxShadow(
-                    color: (isSuccess
-                        ? AppColors.emerald(context)
-                        : colorScheme.primary)
-                        .withValues(alpha: 0.35),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+                        BoxShadow(
+                          color: (isSuccess
+                                  ? AppColors.emerald(context)
+                                  : colorScheme.primary)
+                              .withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
               ),
               child: Center(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: isInvesting
                       ? const SizedBox(
-                    key: ValueKey('loading'),
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2.5),
-                  )
+                          key: ValueKey('loading'),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
                       : isSuccess
-                      ? ScaleTransition(
-                    key: const ValueKey('success'),
-                    scale: successScale,
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.check_rounded,
-                            color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text('Invested Successfully',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  )
-                      : const Row(
-                    key: ValueKey('invest'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.bolt_rounded,
-                          color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text('Invest Now',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
+                          ? ScaleTransition(
+                              key: const ValueKey('success'),
+                              scale: successScale,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    AppIcons.check,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Invested Successfully',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : Row(
+                              key: const ValueKey('invest'),
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  AppIcons.flash,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Invest Now',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                 ),
               ),
             ),
@@ -709,57 +796,62 @@ class _BottomCTA extends ConsumerWidget {
 // ── How It Works mini block ───────────────────────────────────────────────────
 
 class _HowItWorks extends ConsumerWidget {
+  const _HowItWorks({required this.roi, required this.days});
   final double roi;
   final int days;
-
-  const _HowItWorks({required this.roi, required this.days});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Compute example return on ₹10,000
-    final examplePrincipal = 10000.0;
+    const examplePrincipal = 10000.0;
     final profit = examplePrincipal * (roi / 100) * (days / 365);
 
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.primary(context).withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(UI.radiusLg),
         border: Border.all(
-            color: AppColors.primary(context).withValues(alpha: 0.15)),
+          color: AppColors.primary(context).withValues(alpha: 0.15),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline_rounded,
-                  size: 15, color: AppColors.primary(context)),
+              Icon(
+                AppIcons.insight,
+                size: 15,
+                color: AppColors.primary(context),
+              ),
               const SizedBox(width: 7),
-              Text('How it works',
-                  style: TextStyle(
-                      color: AppColors.primary(context),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                'How it works',
+                style: TextStyle(
+                  color: AppColors.primary(context),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           _HowItWorksStep(
             number: '1',
             text:
-            'You lend ₹${fmtAmount(examplePrincipal)} to this business via invoice financing.',
+                'You lend ₹${fmtAmount(examplePrincipal)} to this business via invoice financing.',
           ),
           const SizedBox(height: 8),
           _HowItWorksStep(
             number: '2',
             text:
-            'The debtor repays in $days days. You earn ₹${fmtAmount(profit)} on ₹${fmtAmount(examplePrincipal)} — that\'s ${roi.toStringAsFixed(1)}% p.a.',
+                "The debtor repays in $days days. You earn ₹${fmtAmount(profit)} on ₹${fmtAmount(examplePrincipal)} — that's ${roi.toStringAsFixed(1)}% p.a.",
           ),
           const SizedBox(height: 8),
-          _HowItWorksStep(
+          const _HowItWorksStep(
             number: '3',
-            text:
-            'Principal + returns credited to your wallet automatically.',
+            text: 'Principal + returns credited to your wallet automatically.',
           ),
         ],
       ),
@@ -768,108 +860,112 @@ class _HowItWorks extends ConsumerWidget {
 }
 
 class _HowItWorksStep extends ConsumerWidget {
+  const _HowItWorksStep({required this.number, required this.text});
   final String number;
   final String text;
 
-  const _HowItWorksStep({required this.number, required this.text});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: AppColors.primary(context).withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(number,
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(UI.radiusSm),
+            ),
+            child: Center(
+              child: Text(
+                number,
                 style: TextStyle(
-                    color: AppColors.primary(context),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800)),
+                  color: AppColors.primary(context),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(text,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
               style: TextStyle(
-                  color: AppColors.textSecondary(context),
-                  fontSize: 12,
-                  height: 1.5)),
-        ),
-      ],
-    );
-  }
+                color: AppColors.textSecondary(context),
+                fontSize: 12,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 // ── Detail metric tile ────────────────────────────────────────────────────────
 
 class _DetailMetric extends ConsumerWidget {
-  final String label;
-  final Widget value;
-  final Color color;
-  final IconData icon;
-
   const _DetailMetric({
     required this.label,
     required this.value,
     required this.color,
     required this.icon,
   });
+  final String label;
+  final Widget value;
+  final Color color;
+  final IconData icon;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.navyCard(context),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.divider(context)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 14),
-                const SizedBox(width: 6),
-                Text(label,
+  Widget build(BuildContext context, WidgetRef ref) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.navyCard(context),
+            borderRadius: BorderRadius.circular(UI.radiusLg),
+            border: Border.all(color: AppColors.divider(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
                     style: TextStyle(
-                        color: AppColors.textSecondary(context), fontSize: 11)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            value,
-          ],
+                      color: AppColors.textSecondary(context),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              value,
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _RowInfo extends ConsumerWidget {
+  const _RowInfo({required this.label, required this.value});
   final String label;
   final Widget value;
 
-  const _RowInfo({required this.label, required this.value});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label,
+  Widget build(BuildContext context, WidgetRef ref) => Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
             style: TextStyle(
-                color: AppColors.textSecondary(context), fontSize: 13)),
-        value,
-      ],
-    );
-  }
+              color: AppColors.textSecondary(context),
+              fontSize: 13,
+            ),
+          ),
+          value,
+        ],
+      );
 }
 
 // ── TrustSignalsCard and related widgets (unchanged) ─────────────────────────

@@ -19,6 +19,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 //   )
 
 class GradientText extends ConsumerWidget {
+  const GradientText(
+    this.text, {
+    super.key,
+    this.style,
+    this.gradient = GradientText.blue,
+  });
   final String text;
   final TextStyle? style;
   final Gradient gradient;
@@ -41,21 +47,12 @@ class GradientText extends ConsumerWidget {
     colors: [Color(0xFF3B82F6), Color(0xFF93C5FD)],
   );
 
-  const GradientText(
-    this.text, {
-    super.key,
-    this.style,
-    this.gradient = GradientText.blue,
-  });
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => gradient.createShader(
-        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-      ),
-      child: Text(text, style: style),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => gradient.createShader(
+          Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+        ),
+        child: Text(text, style: style),
+      );
 }

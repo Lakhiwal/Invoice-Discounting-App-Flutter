@@ -1,23 +1,24 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import '../../utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 class FastScrollbar extends ConsumerStatefulWidget {
-  final ScrollController controller;
-  final int itemCount;
-
   const FastScrollbar({
-    super.key,
     required this.controller,
     required this.itemCount,
+    super.key,
   });
+  final ScrollController controller;
+  final int itemCount;
 
   @override
   ConsumerState<FastScrollbar> createState() => FastScrollbarState();
 }
 
-class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerProviderStateMixin {
+class FastScrollbarState extends ConsumerState<FastScrollbar>
+    with SingleTickerProviderStateMixin {
   bool _visible = false;
   bool _dragging = false;
   double _thumbFraction = 0;
@@ -40,7 +41,10 @@ class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerP
   @override
   void initState() {
     super.initState();
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 180));
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     widget.controller.addListener(_onScroll);
   }
@@ -58,8 +62,11 @@ class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerP
     final pos = widget.controller.position;
     final fraction = (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
     setState(() => _thumbFraction = fraction);
-    if (!_visible) show();
-    else _scheduleHide();
+    if (!_visible) {
+      show();
+    } else {
+      _scheduleHide();
+    }
   }
 
   void _scheduleHide() {
@@ -81,11 +88,12 @@ class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerP
       _thumbFraction = fraction;
       _dragging = true;
     });
-    
+
     final targetPixel = fraction * widget.controller.position.maxScrollExtent;
     widget.controller.jumpTo(targetPixel);
-    
-    final index = (fraction * widget.itemCount).floor().clamp(0, widget.itemCount - 1);
+
+    final index =
+        (fraction * widget.itemCount).floor().clamp(0, widget.itemCount - 1);
     if (index != _lastHapticIndex) {
       _lastHapticIndex = index;
       AppHaptics.scrollTick();
@@ -102,7 +110,8 @@ class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerP
         ignoring: !_visible,
         child: GestureDetector(
           onVerticalDragStart: (_) => setState(() => _dragging = true),
-          onVerticalDragUpdate: (d) => _onDragUpdate(d, MediaQuery.of(context).size.height * 0.6),
+          onVerticalDragUpdate: (d) =>
+              _onDragUpdate(d, MediaQuery.of(context).size.height * 0.6),
           onVerticalDragEnd: (_) {
             setState(() => _dragging = false);
             _scheduleHide();
@@ -122,7 +131,11 @@ class FastScrollbarState extends ConsumerState<FastScrollbar> with SingleTickerP
                       child: Container(
                         width: 4,
                         height: _thumbH,
-                        decoration: BoxDecoration(color: cs.primary.withValues(alpha: _dragging ? 1.0 : 0.5), borderRadius: BorderRadius.circular(4)),
+                        decoration: BoxDecoration(
+                          color: cs.primary
+                              .withValues(alpha: _dragging ? 1.0 : 0.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                   ],

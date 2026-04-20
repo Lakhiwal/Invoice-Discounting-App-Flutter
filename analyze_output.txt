@@ -1,0 +1,553 @@
+Analyzing Invoice-Discounting-App-Flutter...                    
+
+warning • Unused import: 'package:loading_animation_widget/loading_animation_widget.dart' • lib/main.dart:23:8 • unused_import
+   info • Unreachable member 'saveRefreshRate' in an executable library • lib/main.dart:51:14 • unreachable_from_main
+   info • Don't use 'BuildContext's across async gaps • lib/main.dart:286:24 • use_build_context_synchronously
+   info • Unreachable member 'RefreshRatePicker' in an executable library • lib/main.dart:478:7 • unreachable_from_main
+   info • Unreachable member 'RefreshRatePicker.new' in an executable library • lib/main.dart:479:9 • unreachable_from_main
+warning • The type of 'e' can't be inferred; a type must be explicitly provided • lib/providers/auth_provider.dart:203:43 • inference_failure_on_untyped_parameter
+   info • Use 'isEven' rather than '% 2' • lib/screens/account_details_screen.dart:365:24 • use_is_even_rather_than_modulo
+warning • The return type of ' Function(String?)' can't be inferred • lib/screens/add_nominee_screen.dart:386:14 • inference_failure_on_function_return_type
+warning • The value of the local variable 'cs' isn't used • lib/screens/bank_account_detail_screen.dart:258:11 • unused_local_variable
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/bank_accounts_screen.dart:56:17 • inference_failure_on_instance_creation
+   info • The imported package 'intl' isn't a dependency of the importing package • lib/screens/basic_information_screen.dart:4:8 • depend_on_referenced_packages
+   info • Missing a required trailing comma • lib/screens/basic_information_screen.dart:84:68 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/basic_information_screen.dart:340:67 • require_trailing_commas
+   info • Sort directive sections alphabetically • lib/screens/e_collect_screen.dart:13:1 • directives_ordering
+   info • Missing a required trailing comma • lib/screens/e_collect_screen.dart:92:46 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/e_collect_screen.dart:124:57 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/screens/e_collect_screen.dart:170:58 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/screens/e_collect_screen.dart:255:64 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/screens/e_collect_screen.dart:471:6 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/screens/e_collect_screen.dart:522:47 • prefer_expression_function_bodies
+warning • The type argument(s) of the constructor 'MaterialPageRoute' can't be inferred • lib/screens/e_collect_screen.dart:539:13 • inference_failure_on_instance_creation
+   info • Missing a required trailing comma • lib/screens/e_collect_screen.dart:700:77 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/screens/e_collect_screen.dart:891:6 • prefer_expression_function_bodies
+   info • Sort directive sections alphabetically • lib/screens/home_screen.dart:8:1 • directives_ordering
+warning • The declaration '_kMaskedShort' isn't referenced • lib/screens/home_screen.dart:29:14 • unused_element
+warning • The declaration '_totalReturns' isn't referenced • lib/screens/home_screen.dart:63:14 • unused_element
+warning • The generic type 'List<dynamic>' should have explicit type arguments but doesn't • lib/screens/home_screen.dart:68:3 • strict_raw_type
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/home_screen.dart:91:13 • inference_failure_on_instance_creation
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/home_screen.dart:180:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:204:17 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/screens/home_screen.dart:204:76 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:211:41 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:213:33 • avoid_dynamic_calls
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/home_screen.dart:247:5 • inference_failure_on_function_invocation
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:375:66 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:394:62 • use_build_context_synchronously
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/home_screen.dart:506:5 • inference_failure_on_function_invocation
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:623:43 • use_build_context_synchronously
+warning • The value of the local variable 'summary' isn't used • lib/screens/home_screen.dart:669:11 • unused_local_variable
+warning • The value of the local variable 'transactions' isn't used • lib/screens/home_screen.dart:670:11 • unused_local_variable
+warning • The value of the local variable 'dividerColor' isn't used • lib/screens/home_screen.dart:673:11 • unused_local_variable
+warning • The type argument(s) of the constructor 'SmoothPageRoute' can't be inferred • lib/screens/home_screen.dart:774:27 • inference_failure_on_instance_creation
+   info • Missing a required trailing comma • lib/screens/home_screen.dart:775:72 • require_trailing_commas
+warning • The type argument(s) of the constructor 'SmoothPageRoute' can't be inferred • lib/screens/home_screen.dart:848:31 • inference_failure_on_instance_creation
+   info • Missing a required trailing comma • lib/screens/home_screen.dart:849:70 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/home_screen.dart:849:71 • require_trailing_commas
+warning • The return type of ' Function(double)?' can't be inferred • lib/screens/investment_calculator.dart:25:9 • inference_failure_on_function_return_type
+warning • Unused import: 'package:invoice_discounting_app/screens/analytics_screen.dart' • lib/screens/main_screen.dart:7:8 • unused_import
+   info • Sort directive sections alphabetically • lib/screens/marketplace_screen.dart:18:1 • directives_ordering
+   info • Unnecessary use of a block function body • lib/screens/marketplace_screen.dart:86:60 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/screens/marketplace_screen.dart:119:73 • require_trailing_commas
+   info • The value of the argument is redundant because it matches the default value • lib/screens/marketplace_screen.dart:146:31 • avoid_redundant_argument_values
+   info • Unnecessary use of a block function body • lib/screens/marketplace_screen.dart:185:5 • prefer_expression_function_bodies
+   info • The value of the argument is redundant because it matches the default value • lib/screens/marketplace_screen.dart:392:55 • avoid_redundant_argument_values
+   info • Missing a required trailing comma • lib/screens/marketplace_screen.dart:430:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/marketplace_screen.dart:448:71 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/marketplace_screen.dart:458:72 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/screens/marketplace_screen.dart:471:32 • prefer_expression_function_bodies
+warning • The return type of ' Function(bool)' can't be inferred • lib/screens/marketplace_screen.dart:501:9 • inference_failure_on_function_return_type
+   info • 'bool' parameters should be named parameters • lib/screens/marketplace_screen.dart:501:18 • avoid_positional_boolean_parameters
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/nominee_screen.dart:51:17 • inference_failure_on_instance_creation
+   info • Missing a required trailing comma • lib/screens/notification_center_screen.dart:135:53 • require_trailing_commas
+   info • Sort directive sections alphabetically • lib/screens/portfolio_screen.dart:15:1 • directives_ordering
+   info • Sort directive sections alphabetically • lib/screens/portfolio_screen.dart:20:1 • directives_ordering
+   info • Sort directive sections alphabetically • lib/screens/portfolio_screen.dart:22:1 • directives_ordering
+warning • Unused import: 'package:invoice_discounting_app/utils/smooth_page_route.dart' • lib/screens/portfolio_screen.dart:23:8 • unused_import
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/portfolio_screen.dart:110:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:133:30 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:133:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:135:29 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:138:30 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:138:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:140:29 • avoid_dynamic_calls
+   info • The value of the argument is redundant because it matches the default value • lib/screens/portfolio_screen.dart:155:27 • avoid_redundant_argument_values
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:181:46 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:191:46 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:227:55 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:245:58 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:246:58 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:278:73 • require_trailing_commas
+   info • Closure should be a tearoff • lib/screens/portfolio_screen.dart:439:16 • unnecessary_lambdas
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:474:74 • require_trailing_commas
+   info • Required named parameters should be before optional named parameters • lib/screens/portfolio_screen.dart:508:19 • always_put_required_named_parameters_first
+   info • Required named parameters should be before optional named parameters • lib/screens/portfolio_screen.dart:509:19 • always_put_required_named_parameters_first
+   info • Required named parameters should be before optional named parameters • lib/screens/portfolio_screen.dart:510:19 • always_put_required_named_parameters_first
+   info • Required named parameters should be before optional named parameters • lib/screens/portfolio_screen.dart:511:19 • always_put_required_named_parameters_first
+   info • Required named parameters should be before optional named parameters • lib/screens/portfolio_screen.dart:512:19 • always_put_required_named_parameters_first
+   info • The value of the argument is redundant because it matches the default value • lib/screens/portfolio_screen.dart:827:16 • avoid_redundant_argument_values
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:869:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:873:75 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:879:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:879:70 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:912:74 • require_trailing_commas
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/portfolio_screen.dart:1099:11 • inference_failure_on_function_invocation
+   info • Missing a required trailing comma • lib/screens/portfolio_screen.dart:1673:8 • require_trailing_commas
+   info • Don't use 'BuildContext's across async gaps • lib/screens/portfolio_screen.dart:1682:23 • use_build_context_synchronously
+warning • The type argument(s) of the function 'showDialog' can't be inferred • lib/screens/portfolio_screen.dart:1692:11 • inference_failure_on_function_invocation
+   info • Constructor declarations should be before non-constructor declarations • lib/screens/portfolio_screen.dart:2018:9 • sort_constructors_first
+warning • The value of the field '_portfolio' isn't used • lib/screens/profile/profile_screen.dart:45:25 • unused_field
+warning • The value of the field '_totalReturns' isn't used • lib/screens/profile/profile_screen.dart:52:10 • unused_field
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/profile/profile_screen.dart:110:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:121:27 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:123:27 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:124:28 • avoid_dynamic_calls
+warning • The type of 'e' can't be inferred; a type must be explicitly provided • lib/screens/profile/profile_screen.dart:283:39 • inference_failure_on_untyped_parameter
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/profile/profile_screen.dart:522:34 • use_build_context_synchronously
+   info • Statements in an if should be enclosed in a block • lib/screens/profile/sheets/shield_management_sheet.dart:355:38 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/profile/widgets/app_bar_widgets.dart:23:29 • use_build_context_synchronously
+warning • The value of the local variable 'doneCount' isn't used • lib/screens/profile/widgets/hero_section.dart:47:11 • unused_local_variable
+warning • The value of the field '_masked' isn't used • lib/screens/profile/widgets/stats_row.dart:22:23 • unused_field
+warning • The value of the local variable 'hideBalance' isn't used • lib/screens/profile/widgets/stats_row.dart:27:11 • unused_local_variable
+warning • The value of the local variable 'isDark' isn't used • lib/screens/profile/widgets/stats_row.dart:96:11 • unused_local_variable
+warning • The value of the local variable 'acceptsAll' isn't used • lib/screens/profile_webview_screen.dart:167:11 • unused_local_variable
+   info • Closure should be a tearoff • lib/screens/secondary_market_screen.dart:72:30 • unnecessary_lambdas
+warning • The type argument(s) of 'Map' can't be inferred • lib/screens/secondary_market_screen.dart:148:43 • inference_failure_on_collection_literal
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:149:21 • avoid_dynamic_calls
+warning • The type argument(s) of 'Map' can't be inferred • lib/screens/secondary_market_screen.dart:149:43 • inference_failure_on_collection_literal
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:153:25 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:154:35 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:183:25 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:235:53 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/screens/secondary_market_screen.dart:292:6 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/secondary_market_screen.dart:306:8 • require_trailing_commas
+   info • Missing a required trailing comma • lib/screens/secondary_market_screen.dart:307:6 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/screens/secondary_market_screen.dart:354:38 • prefer_expression_function_bodies
+   info • Constructor declarations should be before non-constructor declarations • lib/screens/withdraw_request_screen.dart:18:9 • sort_constructors_first
+   info • Required named parameters should be before optional named parameters • lib/screens/withdraw_request_screen.dart:21:19 • always_put_required_named_parameters_first
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/withdraw_request_screen.dart:72:13 • inference_failure_on_instance_creation
+   info • The expression has no effect and can be removed • lib/screens/withdraw_request_screen.dart:82:37 • noop_primitive_operations
+   info • Unnecessary use of a block function body • lib/screens/withdraw_request_screen.dart:266:58 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/screens/withdraw_request_screen.dart:320:46 • require_trailing_commas
+   info • The value of the argument is redundant because it matches the default value • lib/screens/withdraw_request_screen.dart:331:21 • avoid_redundant_argument_values
+   info • Unnecessary use of a block function body • lib/screens/withdraw_request_screen.dart:360:58 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/screens/withdraw_request_screen.dart:411:45 • prefer_expression_function_bodies
+   info • Sort directive sections alphabetically • lib/services/api_service.dart:25:1 • directives_ordering
+   info • Use 'package:' imports for files in the 'lib' directory • lib/services/auth_api_service.dart:8:8 • always_use_package_imports
+   info • Use 'package:' imports for files in the 'lib' directory • lib/services/auth_api_service.dart:9:8 • always_use_package_imports
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:40:36 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:52:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:58:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:64:13 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:68:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:72:36 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:72:52 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:74:55 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:77:19 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:78:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:81:44 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:118:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:124:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:130:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:135:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:161:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:167:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:175:22 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:176:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:181:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:204:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:210:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:216:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:221:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:246:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:252:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:258:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:263:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:292:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:298:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:306:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:312:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:322:49 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:337:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:343:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:366:7 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:382:20 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:383:15 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:385:9 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:390:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:403:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:405:42 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:417:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:421:18 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:422:7 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:429:40 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:444:20 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:448:41 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:449:36 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:449:52 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:451:55 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:454:19 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:455:22 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:456:9 • require_trailing_commas
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:460:20 • avoid_dynamic_calls
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:461:9 • require_trailing_commas
+   info • Missing a required trailing comma • lib/services/auth_api_service.dart:476:6 • require_trailing_commas
+   info • Missing a message in an assert • lib/services/notification_api_service.dart:21:7 • prefer_asserts_with_message
+   info • Unreachable member 'initialize' in an executable library • lib/services/notification_service.dart:84:23 • unreachable_from_main
+   info • Missing a message in an assert • lib/services/notification_service.dart:158:7 • prefer_asserts_with_message
+   info • Unreachable member 'requestPermission' in an executable library • lib/services/notification_service.dart:261:23 • unreachable_from_main
+   info • Unreachable member 'revokePermission' in an executable library • lib/services/notification_service.dart:271:23 • unreachable_from_main
+   info • Unreachable member 'setPushEnabled' in an executable library • lib/services/notification_service.dart:291:23 • unreachable_from_main
+   info • 'bool' parameters should be named parameters • lib/services/notification_service.dart:291:38 • avoid_positional_boolean_parameters
+   info • Unreachable member 'setQuietHours' in an executable library • lib/services/notification_service.dart:315:23 • unreachable_from_main
+   info • Unreachable member 'sendSmartLiquidityAlert' in an executable library • lib/services/notification_service.dart:366:23 • unreachable_from_main
+   info • Empty catch block • lib/services/notification_service.dart:410:17 • empty_catches
+   info • 'bool' parameters should be named parameters • lib/theme/ui_constants.dart:27:35 • avoid_positional_boolean_parameters
+   info • Constructor declarations should be before non-constructor declarations • lib/utils/momentum_haptics.dart:16:3 • sort_constructors_first
+   info • Use 'package:' imports for files in the 'lib' directory • lib/view_models/auth_view_model.dart:4:8 • always_use_package_imports
+   info • Use 'package:' imports for files in the 'lib' directory • lib/view_models/auth_view_model.dart:5:8 • always_use_package_imports
+   info • Use 'package:' imports for files in the 'lib' directory • lib/view_models/auth_view_model.dart:6:8 • always_use_package_imports
+   info • Constructor declarations should be before non-constructor declarations • lib/view_models/auth_view_model.dart:28:3 • sort_constructors_first
+   info • Sort directive sections alphabetically • lib/widgets/auth/login_form.dart:4:1 • directives_ordering
+   info • The value of the argument is redundant because it matches the default value • lib/widgets/back_gesture_handler.dart:102:26 • avoid_redundant_argument_values
+   info • Sort directive sections alphabetically • lib/widgets/liquidity_refresh_indicator.dart:9:1 • directives_ordering
+   info • Missing a required trailing comma • lib/widgets/marketplace/invoice_card.dart:34:70 • require_trailing_commas
+   info • Use 'package:' imports for files in the 'lib' directory • lib/widgets/skeleton.dart:4:8 • always_use_package_imports
+   info • Use 'package:' imports for files in the 'lib' directory • lib/widgets/skeleton.dart:5:8 • always_use_package_imports
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:17:9 • sort_constructors_first
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:29:9 • sort_constructors_first
+   info • Required named parameters should be before optional named parameters • lib/widgets/skeleton.dart:29:49 • always_put_required_named_parameters_first
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:70:9 • sort_constructors_first
+   info • Required named parameters should be before optional named parameters • lib/widgets/skeleton.dart:73:19 • always_put_required_named_parameters_first
+   info • Multiple variables declared on a single line • lib/widgets/skeleton.dart:125:26 • avoid_multiple_declarations_per_line
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:127:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:130:27 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:145:9 • sort_constructors_first
+   info • Required named parameters should be before optional named parameters • lib/widgets/skeleton.dart:147:21 • always_put_required_named_parameters_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:148:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:159:65 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:159:66 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:180:15 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:203:9 • sort_constructors_first
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:223:13 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:223:76 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:224:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:225:44 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:225:66 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:227:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:228:44 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:228:67 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:229:14 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:231:15 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:231:29 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:232:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:234:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:237:32 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:237:55 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:237:56 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:239:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:241:28 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:243:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:244:54 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:244:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:244:78 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:244:79 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:245:16 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:250:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:251:14 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:271:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:281:64 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:283:21 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:284:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:284:21 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:284:22 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:292:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:309:62 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:327:79 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:329:79 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:336:74 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:336:75 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:338:26 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:339:30 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:343:56 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:354:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:362:76 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:362:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:364:16 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:365:20 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:371:9 • sort_constructors_first
+   info • The value of the argument is redundant because it matches the default value • lib/widgets/skeleton.dart:380:36 • avoid_redundant_argument_values
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:392:76 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:409:67 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:412:24 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:412:25 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:412:26 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:412:27 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:412:28 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:413:6 • require_trailing_commas
+   info • Multiple variables declared on a single line • lib/widgets/skeleton.dart:418:26 • avoid_multiple_declarations_per_line
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:420:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:449:62 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:455:60 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:457:17 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:473:64 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:478:64 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:484:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:486:17 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:496:68 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:496:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:501:68 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:501:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:514:72 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:518:23 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:520:35 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:521:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:522:27 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:529:65 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:540:60 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:553:26 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:555:31 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:556:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:558:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:560:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:562:23 • prefer_const_constructors
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:578:9 • sort_constructors_first
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:584:9 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:591:59 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:591:60 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:591:61 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:594:75 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:595:8 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:595:9 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:614:74 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:616:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:616:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:617:9 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:618:8 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:630:9 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:632:75 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:633:8 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:633:9 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:639:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:657:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:668:77 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:677:33 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:681:75 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:682:32 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:683:27 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:685:41 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:686:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:688:33 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:689:32 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:692:22 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:692:23 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:717:56 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:717:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:722:56 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:722:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:723:8 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:730:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:745:75 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:747:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:748:20 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:751:27 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:752:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:754:15 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:755:14 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:755:15 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:757:9 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:758:8 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:767:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:776:8 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:787:53 • prefer_expression_function_bodies
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:799:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:800:22 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:802:29 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:803:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:805:17 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:806:16 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:806:17 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:808:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:809:10 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:818:27 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:821:26 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:821:27 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:821:28 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:825:76 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:827:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:828:10 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:833:51 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:835:9 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:835:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:836:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:837:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:838:10 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:839:8 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:864:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:864:27 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:867:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:868:10 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:870:9 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:870:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:871:11 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:871:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:872:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:874:13 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:875:12 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:876:11 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:876:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:877:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:879:13 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:880:12 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:881:11 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:881:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:882:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:884:13 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:885:12 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:886:10 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:891:51 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:893:9 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:893:74 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:894:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:895:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:896:10 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:898:9 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:900:20 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:900:53 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:901:8 • require_trailing_commas
+   info • Constructor declarations should be before non-constructor declarations • lib/widgets/skeleton.dart:913:9 • sort_constructors_first
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:931:53 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:936:66 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:943:72 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:946:28 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:946:29 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:950:65 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:951:22 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:959:18 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:959:19 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:989:57 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:991:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:993:15 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:994:14 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:995:12 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1009:57 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1011:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1013:15 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1014:14 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1015:12 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1016:10 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1045:44 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1051:13 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1053:57 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1063:70 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1065:24 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1067:31 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1068:23 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1070:23 • prefer_const_constructors
+   info • The value of the argument is redundant because it matches the default value • lib/widgets/skeleton.dart:1070:48 • avoid_redundant_argument_values
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1071:22 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1075:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1077:22 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1079:29 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1080:21 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1085:20 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1087:12 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1098:53 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1139:79 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1173:53 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1177:44 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1191:60 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1209:62 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1209:63 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1251:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1253:13 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1259:58 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1264:58 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1265:14 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1279:23 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1283:66 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1284:22 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1289:59 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1294:35 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1294:68 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1294:69 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1295:16 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1298:12 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1315:60 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1321:79 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1323:36 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1323:53 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1324:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1326:31 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1327:30 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1331:24 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1332:28 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1353:65 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1355:12 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1357:8 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1361:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1363:14 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1363:48 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1390:60 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1392:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1394:17 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1416:69 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1418:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1419:36 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1421:41 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1422:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1424:33 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1428:26 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1429:24 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1456:74 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1463:68 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1465:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1466:34 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1468:39 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1469:31 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1471:31 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1478:68 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1482:18 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1498:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1510:76 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1517:70 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1519:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1520:36 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1522:41 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1523:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1525:33 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1532:20 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1543:53 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1574:77 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1576:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1577:20 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1579:25 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1580:17 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/skeleton.dart:1582:29 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1583:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1584:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1588:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1590:17 • prefer_const_constructors
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1604:53 • prefer_expression_function_bodies
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1609:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1611:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1622:66 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1623:22 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1626:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1631:54 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1642:53 • prefer_expression_function_bodies
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1648:77 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1650:11 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1652:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1655:79 • require_trailing_commas
+   info • Use 'const' with the constructor to improve performance • lib/widgets/skeleton.dart:1657:11 • prefer_const_constructors
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1660:77 • require_trailing_commas
+   info • Missing a required trailing comma • lib/widgets/skeleton.dart:1665:54 • require_trailing_commas
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1676:53 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1695:53 • prefer_expression_function_bodies
+   info • Unnecessary use of a block function body • lib/widgets/skeleton.dart:1713:38 • prefer_expression_function_bodies
+   info • Sort directive sections alphabetically • lib/widgets/vibe_state_wrapper.dart:4:1 • directives_ordering
+
+549 issues found. (ran in 4.8s)

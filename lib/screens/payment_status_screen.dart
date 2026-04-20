@@ -1,24 +1,23 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-
-import '../utils/app_haptics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 enum PaymentStatus { processing, success, failed }
 
 class PaymentStatusScreen extends ConsumerStatefulWidget {
+  const PaymentStatusScreen({
+    required this.status,
+    super.key,
+    this.onDismiss,
+  });
   final PaymentStatus status;
   final VoidCallback? onDismiss;
 
-  const PaymentStatusScreen({
-    super.key,
-    required this.status,
-    this.onDismiss,
-  });
-
   @override
-  ConsumerState<PaymentStatusScreen> createState() => _PaymentStatusScreenState();
+  ConsumerState<PaymentStatusScreen> createState() =>
+      _PaymentStatusScreenState();
 }
 
 class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
@@ -108,7 +107,7 @@ class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen> {
 
   String _getSubtitle() => switch (widget.status) {
         PaymentStatus.processing => 'Please wait, this may take a few seconds',
-        PaymentStatus.success => 'Your wallet has been updated',
+        PaymentStatus.success => 'Your E-Collect balance has been updated',
         PaymentStatus.failed => 'Something went wrong. Please try again',
       };
 }
@@ -134,14 +133,17 @@ class _ProcessingState extends ConsumerState<_ProcessingAnimation>
   void initState() {
     super.initState();
     _spinCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1800))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 2000))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
     _arcCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 3000))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
 
     // Haptic: subtle tick on mount to confirm screen appeared
     AppHaptics.selection();
@@ -181,9 +183,6 @@ class _ProcessingState extends ConsumerState<_ProcessingAnimation>
 }
 
 class _ProcessingPainter extends CustomPainter {
-  final double spin, pulse, arc;
-  final Color primary, surface;
-
   _ProcessingPainter({
     required this.spin,
     required this.pulse,
@@ -191,6 +190,11 @@ class _ProcessingPainter extends CustomPainter {
     required this.primary,
     required this.surface,
   });
+  final double spin;
+  final double pulse;
+  final double arc;
+  final Color primary;
+  final Color surface;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -209,7 +213,7 @@ class _ProcessingPainter extends CustomPainter {
 
     // Outer gradient arc
     final outerArcRect = Rect.fromCircle(center: c, radius: maxR - 8);
-    final sweepAngle = math.pi * 0.8;
+    const sweepAngle = math.pi * 0.8;
     final startAngle = spin * 2 * math.pi;
 
     final outerArcPaint = Paint()
@@ -219,7 +223,7 @@ class _ProcessingPainter extends CustomPainter {
       ..shader = SweepGradient(
         startAngle: startAngle,
         endAngle: startAngle + sweepAngle,
-        colors: [primary, primary.withValues(alpha: 0.0)],
+        colors: [primary, primary.withValues(alpha: 0)],
         stops: const [0.0, 1.0],
         transform: GradientRotation(startAngle),
       ).createShader(outerArcRect);
@@ -271,8 +275,11 @@ class _ProcessingPainter extends CustomPainter {
         ..color = primary.withValues(alpha: 0.06 + pulse * 0.04)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
-    canvas.drawCircle(c, centerR,
-        Paint()..color = primary.withValues(alpha: 0.08 + pulse * 0.04));
+    canvas.drawCircle(
+      c,
+      centerR,
+      Paint()..color = primary.withValues(alpha: 0.08 + pulse * 0.04),
+    );
     canvas.drawCircle(
       c,
       centerR,
@@ -314,23 +321,31 @@ class _SuccessState extends ConsumerState<_SuccessAnimation>
     super.initState();
 
     _ringCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _ringSweep = CurvedAnimation(parent: _ringCtrl, curve: Curves.easeInOut);
 
     _fillCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 350));
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _fillScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.08), weight: 65),
-      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1.0), weight: 35),
+      TweenSequenceItem(tween: Tween(begin: 0, end: 1.08), weight: 65),
+      TweenSequenceItem(tween: Tween(begin: 1.08, end: 1), weight: 35),
     ]).animate(CurvedAnimation(parent: _fillCtrl, curve: Curves.easeOut));
 
     _checkCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _checkDraw =
         CurvedAnimation(parent: _checkCtrl, curve: Curves.easeOutCubic);
 
     _burstCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _burstProg = CurvedAnimation(parent: _burstCtrl, curve: Curves.easeOut);
 
     // Chain with haptics
@@ -356,34 +371,34 @@ class _SuccessState extends ConsumerState<_SuccessAnimation>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation:
-          Listenable.merge([_ringSweep, _fillScale, _checkDraw, _burstProg]),
-      builder: (_, __) => CustomPaint(
-        painter: _SuccessPainter(
-          ringSweep: _ringSweep.value,
-          fillScale: _fillScale.value,
-          checkDraw: _checkDraw.value,
-          burstProg: _burstProg.value,
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation:
+            Listenable.merge([_ringSweep, _fillScale, _checkDraw, _burstProg]),
+        builder: (_, __) => CustomPaint(
+          painter: _SuccessPainter(
+            ringSweep: _ringSweep.value,
+            fillScale: _fillScale.value,
+            checkDraw: _checkDraw.value,
+            burstProg: _burstProg.value,
+          ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _SuccessPainter extends CustomPainter {
-  final double ringSweep, fillScale, checkDraw, burstProg;
-
-  static const _green = Color(0xFF12B76A);
-  static const _greenDark = Color(0xFF0B8A49);
-
   _SuccessPainter({
     required this.ringSweep,
     required this.fillScale,
     required this.checkDraw,
     required this.burstProg,
   });
+  final double ringSweep;
+  final double fillScale;
+  final double checkDraw;
+  final double burstProg;
+
+  static const _green = Color(0xFF12B76A);
+  static const _greenDark = Color(0xFF0B8A49);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -423,7 +438,7 @@ class _SuccessPainter extends CustomPainter {
         c,
         fr,
         Paint()
-          ..shader = LinearGradient(
+          ..shader = const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [_green, _greenDark],
@@ -451,7 +466,7 @@ class _SuccessPainter extends CustomPainter {
       final burstR = maxR * (1.0 + burstProg * 0.8);
       final alpha = (1.0 - burstProg).clamp(0.0, 1.0);
 
-      for (int i = 0; i < 12; i++) {
+      for (var i = 0; i < 12; i++) {
         final angle = (i / 12) * 2 * math.pi - math.pi / 2;
         final dist = burstR + (i.isEven ? 0 : maxR * 0.1);
         final pos = Offset(
@@ -460,7 +475,10 @@ class _SuccessPainter extends CustomPainter {
         );
         final dotR = (i.isEven ? 3.0 : 2.0) * (1 - burstProg * 0.5);
         canvas.drawCircle(
-            pos, dotR, Paint()..color = _green.withValues(alpha: alpha * 0.6));
+          pos,
+          dotR,
+          Paint()..color = _green.withValues(alpha: alpha * 0.6),
+        );
       }
     }
 
@@ -538,22 +556,30 @@ class _FailedState extends ConsumerState<_FailedAnimation>
     super.initState();
 
     _ringCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
     _ringSweep = CurvedAnimation(parent: _ringCtrl, curve: Curves.easeInOut);
 
     _fillCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 300));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
     _fillScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.06), weight: 60),
-      TweenSequenceItem(tween: Tween(begin: 1.06, end: 1.0), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 0, end: 1.06), weight: 60),
+      TweenSequenceItem(tween: Tween(begin: 1.06, end: 1), weight: 40),
     ]).animate(CurvedAnimation(parent: _fillCtrl, curve: Curves.easeOut));
 
     _xCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 350));
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
     _xDraw = CurvedAnimation(parent: _xCtrl, curve: Curves.easeOutCubic);
 
     _shakeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
     _shake = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0, end: -12), weight: 12),
       TweenSequenceItem(tween: Tween(begin: -12, end: 12), weight: 18),
@@ -563,7 +589,9 @@ class _FailedState extends ConsumerState<_FailedAnimation>
     ]).animate(_shakeCtrl);
 
     _pulseCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
 
     // Chain with haptics
     _ringCtrl.forward().then((_) {
@@ -592,37 +620,38 @@ class _FailedState extends ConsumerState<_FailedAnimation>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge(
-          [_ringSweep, _fillScale, _xDraw, _shake, _pulseCtrl]),
-      builder: (_, __) => Transform.translate(
-        offset: Offset(_shake.value, 0),
-        child: CustomPaint(
-          painter: _FailedPainter(
-            ringSweep: _ringSweep.value,
-            fillScale: _fillScale.value,
-            xDraw: _xDraw.value,
-            pulseProg: _pulseCtrl.value,
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: Listenable.merge(
+          [_ringSweep, _fillScale, _xDraw, _shake, _pulseCtrl],
+        ),
+        builder: (_, __) => Transform.translate(
+          offset: Offset(_shake.value, 0),
+          child: CustomPaint(
+            painter: _FailedPainter(
+              ringSweep: _ringSweep.value,
+              fillScale: _fillScale.value,
+              xDraw: _xDraw.value,
+              pulseProg: _pulseCtrl.value,
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _FailedPainter extends CustomPainter {
-  final double ringSweep, fillScale, xDraw, pulseProg;
-
-  static const _red = Color(0xFFEF4444);
-  static const _redDark = Color(0xFFDC2626);
-
   _FailedPainter({
     required this.ringSweep,
     required this.fillScale,
     required this.xDraw,
     required this.pulseProg,
   });
+  final double ringSweep;
+  final double fillScale;
+  final double xDraw;
+  final double pulseProg;
+
+  static const _red = Color(0xFFEF4444);
+  static const _redDark = Color(0xFFDC2626);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -674,7 +703,7 @@ class _FailedPainter extends CustomPainter {
         c,
         fr,
         Paint()
-          ..shader = LinearGradient(
+          ..shader = const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [_red, _redDark],
@@ -740,21 +769,18 @@ class _FailedPainter extends CustomPainter {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _RupeeSymbol extends ConsumerWidget {
+  const _RupeeSymbol({required this.color, required this.size});
   final Color color;
   final double size;
 
-  const _RupeeSymbol({required this.color, required this.size});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Text(
-      '₹',
-      style: TextStyle(
-        color: color,
-        fontSize: size,
-        fontWeight: FontWeight.w700,
-        height: 1.0,
-      ),
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => Text(
+        '₹',
+        style: TextStyle(
+          color: color,
+          fontSize: size,
+          fontWeight: FontWeight.w700,
+          height: 1,
+        ),
+      );
 }

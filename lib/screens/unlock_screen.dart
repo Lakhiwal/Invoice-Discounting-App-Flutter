@@ -1,17 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/screens/main_screen.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
-import '../utils/app_haptics.dart';
-import 'login_screen.dart';
-import 'main_screen.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class UnlockScreen extends ConsumerStatefulWidget {
   const UnlockScreen({super.key});
@@ -49,13 +50,13 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
     // users who aren't even logged in yet.
     if (data == null) return;
 
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future<void>.delayed(const Duration(milliseconds: 400));
     _authenticate();
   }
 
   Future<void> _authenticate() async {
     if (_isAuthenticating) return;
-    await AppHaptics.buttonPress();
+    unawaited(AppHaptics.buttonPress());
     setState(() {
       _isAuthenticating = true;
       _failed = false;
@@ -64,7 +65,6 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
     try {
       final success = await _auth.authenticate(
         localizedReason: 'Authenticate to access Finworks360',
-        biometricOnly: false,
       );
 
       if (!mounted) return;
@@ -72,11 +72,11 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
       if (success) {
         Navigator.pushAndRemoveUntil(
           context,
-          SmoothPageRoute(builder: (_) => const MainScreen()),
-              (route) => false,
+          SmoothPageRoute<void>(builder: (_) => const MainScreen()),
+          (route) => false,
         );
       } else {
-        await AppHaptics.error();
+        unawaited(AppHaptics.error());
         setState(() {
           _isAuthenticating = false;
           _failed = true;
@@ -85,8 +85,8 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
     } on PlatformException catch (e) {
       // FIX #28: surface specific lockout messages instead of generic "failed"
       if (!mounted) return;
-      await AppHaptics.error();
-      String message = 'Authentication failed. Try again.';
+      unawaited(AppHaptics.error());
+      var message = 'Authentication failed. Try again.';
       if (e.code == 'LockedOut') {
         message = 'Too many attempts. Wait a moment and try again.';
       } else if (e.code == 'PermanentlyLockedOut') {
@@ -99,7 +99,7 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      await AppHaptics.error();
+      unawaited(AppHaptics.error());
       setState(() {
         _isAuthenticating = false;
         _failed = true;
@@ -108,12 +108,12 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
     }
   }
 
-  void _goToLogin() async {
-    await AppHaptics.selection();
+  Future<void> _goToLogin() async {
+    unawaited(AppHaptics.selection());
     Navigator.pushAndRemoveUntil(
       context,
-      SmoothPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
+      SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
@@ -122,7 +122,8 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.scaffold(context),
+      backgroundColor:
+          isDark ? const Color(0xFF050508) : const Color(0xFFF8FAFF),
       body: Stack(
         children: [
           // ── Gradient background ──────────────────────────────────────────
@@ -133,7 +134,8 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: UI.authGradient(isDark), // Item #35: shared gradient
+                    colors:
+                        UI.authGradient(isDark), // Item #35: shared gradient
                   ),
                 ),
               ),
@@ -144,17 +146,19 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
           Positioned(
             top: -80,
             right: -80,
-            child: RepaintBoundary(
+            child: IgnorePointer(
               child: Container(
-                width: 280,
-                height: 280,
+                width: 480,
+                height: 480,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: RadialGradient(colors: [
-                    AppColors.blue(context)
-                        .withValues(alpha: isDark ? 0.15 : 0.08),
-                    Colors.transparent,
-                  ]),
+                  gradient: RadialGradient(
+                    colors: [
+                      AppColors.blue(context)
+                          .withValues(alpha: isDark ? 0.15 : 0.08),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -173,16 +177,15 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.primary(context)
-                          .withValues(alpha: 0.12),
+                      color: AppColors.primary(context).withValues(alpha: 0.12),
                       border: Border.all(
-                        color: AppColors.primary(context)
-                            .withValues(alpha: 0.25),
+                        color:
+                            AppColors.primary(context).withValues(alpha: 0.25),
                         width: 2,
                       ),
                     ),
                     child: Icon(
-                      Icons.lock_outline_rounded,
+                      AppIcons.lock,
                       size: 40,
                       color: AppColors.primary(context),
                     ),
@@ -207,9 +210,7 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
-                      _failed
-                          ? _failMessage
-                          : 'Authenticate to continue',
+                      _failed ? _failMessage : 'Authenticate to continue',
                       key: ValueKey(_failed),
                       style: TextStyle(
                         fontSize: 14,
@@ -233,16 +234,16 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
                           color: _failed
                               ? AppColors.rose(context).withValues(alpha: 0.5)
                               : AppColors.primary(context)
-                              .withValues(alpha: 0.4),
+                                  .withValues(alpha: 0.4),
                         ),
                         borderRadius: BorderRadius.circular(16),
                         color: _failed
                             ? AppColors.rose(context).withValues(alpha: 0.06)
                             : AppColors.primary(context)
-                            .withValues(alpha: 0.06),
+                                .withValues(alpha: 0.06),
                       ),
                       child: Icon(
-                        Icons.fingerprint_rounded,
+                        AppIcons.fingerPrint,
                         size: 48,
                         color: _failed
                             ? AppColors.rose(context)
@@ -272,10 +273,10 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
                       child: OutlinedButton(
                         onPressed: _goToLogin,
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                              color: AppColors.divider(context)),
+                          side: BorderSide(color: AppColors.divider(context)),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: Text(
                           'Sign in with password instead',

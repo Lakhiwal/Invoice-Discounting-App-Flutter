@@ -21,19 +21,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Pressable extends ConsumerStatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
-  final double scale;
-  final bool haptic;
-  final bool enabled;
-  final Duration downDuration;
-  final Duration upDuration;
-  final Curve upCurve;
-
   const Pressable({
-    super.key,
     required this.child,
+    super.key,
     this.onTap,
     this.onLongPress,
     this.scale = 0.965,
@@ -43,6 +33,15 @@ class Pressable extends ConsumerStatefulWidget {
     this.upDuration = const Duration(milliseconds: 240),
     this.upCurve = Curves.elasticOut,
   });
+  final Widget child;
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final double scale;
+  final bool haptic;
+  final bool enabled;
+  final Duration downDuration;
+  final Duration upDuration;
+  final Curve upCurve;
 
   @override
   ConsumerState<Pressable> createState() => _PressableState();
@@ -57,7 +56,7 @@ class _PressableState extends ConsumerState<Pressable>
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: widget.downDuration);
-    _scaleAnim = Tween<double>(begin: 1.0, end: widget.scale).animate(
+    _scaleAnim = Tween<double>(begin: 1, end: widget.scale).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
     );
   }
@@ -70,7 +69,7 @@ class _PressableState extends ConsumerState<Pressable>
 
   void _onTapDown(TapDownDetails _) {
     if (!widget.enabled || widget.onTap == null) return;
-    _ctrl.animateTo(1.0, duration: widget.downDuration, curve: Curves.easeOut);
+    _ctrl.animateTo(1, duration: widget.downDuration, curve: Curves.easeOut);
   }
 
   void _onTapUp(TapUpDetails _) {
@@ -83,7 +82,7 @@ class _PressableState extends ConsumerState<Pressable>
 
   void _spring() {
     _ctrl.animateTo(
-      0.0,
+      0,
       duration: widget.upDuration,
       curve: widget.upCurve,
     );
@@ -95,22 +94,20 @@ class _PressableState extends ConsumerState<Pressable>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _onTapDown,
-      onTapUp: _onTapUp,
-      onTapCancel: _onTapCancel,
-      onTap: _onTap,
-      onLongPress: widget.onLongPress,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedBuilder(
-        animation: _scaleAnim,
-        builder: (_, child) => Transform.scale(
-          scale: _scaleAnim.value,
-          child: child,
+  Widget build(BuildContext context) => GestureDetector(
+        onTapDown: _onTapDown,
+        onTapUp: _onTapUp,
+        onTapCancel: _onTapCancel,
+        onTap: _onTap,
+        onLongPress: widget.onLongPress,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedBuilder(
+          animation: _scaleAnim,
+          builder: (_, child) => Transform.scale(
+            scale: _scaleAnim.value,
+            child: child,
+          ),
+          child: widget.child,
         ),
-        child: widget.child,
-      ),
-    );
-  }
+      );
 }

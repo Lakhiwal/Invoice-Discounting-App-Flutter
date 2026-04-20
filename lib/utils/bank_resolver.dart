@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 class BankInfo {
-  final String name;
-  final Color brandColor;
-  final String? logoUrl;
-
   const BankInfo({
     required this.name,
     required this.brandColor,
     this.logoUrl,
   });
+  final String name;
+  final Color brandColor;
+  final String? logoUrl;
 }
 
 class BankResolver {
@@ -87,13 +86,14 @@ class BankResolver {
   /// Main entry point to resolve bank info from IFSC
   static BankInfo resolve(String ifsc) {
     if (ifsc.length < 4) return _default;
-    
+
     final prefix = ifsc.substring(0, 4).toUpperCase();
     final lowerPrefix = prefix.toLowerCase();
-    
+
     // Pattern for the reliable indian-banks repository (using symbol.svg for vector crispness)
-    final logoUrl = 'https://raw.githubusercontent.com/praveenpuglia/indian-banks/main/assets/logos/$lowerPrefix/symbol.svg';
-    
+    final logoUrl =
+        'https://raw.githubusercontent.com/praveenpuglia/indian-banks/main/assets/logos/$lowerPrefix/symbol.svg';
+
     final known = _topBanks[prefix];
     if (known != null) {
       return BankInfo(

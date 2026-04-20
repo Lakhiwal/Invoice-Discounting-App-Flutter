@@ -1,18 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-
-import '../utils/smooth_page_route.dart';
-import '../utils/app_haptics.dart'; // Item #8
-import 'login_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart'; // Item #8
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  ConsumerState<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
 class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
@@ -37,7 +39,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
   Future<void> _submit() async {
     if (_newController.text != _confirmController.text) {
-      await AppHaptics.error(); // Item #8
+      unawaited(AppHaptics.error()); // Item #8
       setState(() => _error = 'Passwords do not match');
       return;
     }
@@ -53,7 +55,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     });
 
     final result = await ApiService.changePassword(
-        _currentController.text, _newController.text);
+      _currentController.text,
+      _newController.text,
+    );
 
     // FIX: check mounted BEFORE setting loading = false.
     // If the user somehow navigated away (edge case), we must not
@@ -61,8 +65,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (result['success']) {
-      await AppHaptics.success(); // Item #8
+    if (result['success'] == true) {
+      unawaited(AppHaptics.success()); // Item #8
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('saved_password');
       await prefs.remove('access_token');
@@ -71,14 +75,16 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password changed successfully')));
+        const SnackBar(content: Text('Password changed successfully')),
+      );
 
       Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false);
+        SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
     } else {
-      await AppHaptics.error(); // Item #8
-      setState(() => _error = result['error']);
+      unawaited(AppHaptics.error()); // Item #8
+      setState(() => _error = result['error'] as String?);
     }
   }
 
@@ -92,22 +98,28 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         if (!didPop && _loading) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Please wait, updating your password…')),
+              content: Text('Please wait, updating your password…'),
+            ),
           );
         }
       },
       child: Scaffold(
         backgroundColor: cs.surface,
         appBar: AppBar(
-          title: const Text('Change Password',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+          title: const Text(
+            'Change Password',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          ),
           backgroundColor: cs.surface,
           scrolledUnderElevation: 0,
           automaticallyImplyLeading: !_loading,
           leading: !_loading
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(AppIcons.back, size: 20),
+                  onPressed: () {
+                    AppHaptics.selection();
+                    Navigator.pop(context);
+                  },
                 )
               : null,
         ),
@@ -117,36 +129,40 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('SECURITY UPDATE',
-                  style: TextStyle(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2)),
+              Text(
+                'SECURITY UPDATE',
+                style: TextStyle(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
               const SizedBox(height: 16),
-
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: cs.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.3)),
+                    color: cs.outlineVariant.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
                     _passwordInput(
                       label: 'Current Password',
                       controller: _currentController,
-                      icon: Icons.lock_outline_rounded,
+                      icon: AppIcons.lock,
                       show: _showCurrent,
-                      toggle: () => setState(() => _showCurrent = !_showCurrent),
+                      toggle: () =>
+                          setState(() => _showCurrent = !_showCurrent),
                     ),
                     const SizedBox(height: 16),
                     _passwordInput(
                       label: 'New Password',
                       controller: _newController,
-                      icon: Icons.lock_reset_rounded,
+                      icon: AppIcons.password,
                       show: _showNew,
                       toggle: () => setState(() => _showNew = !_showNew),
                     ),
@@ -154,15 +170,15 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     _passwordInput(
                       label: 'Confirm New Password',
                       controller: _confirmController,
-                      icon: Icons.check_circle_outline_rounded,
+                      icon: AppIcons.check,
                       show: _showConfirm,
-                      toggle: () => setState(() => _showConfirm = !_showConfirm),
+                      toggle: () =>
+                          setState(() => _showConfirm = !_showConfirm),
                       isLast: true,
                     ),
                   ],
                 ),
               ),
-
               if (_error != null) ...[
                 const SizedBox(height: 24),
                 Container(
@@ -171,25 +187,31 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     color: AppColors.danger(context).withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: AppColors.danger(context).withValues(alpha: 0.2)),
+                      color: AppColors.danger(context).withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline_rounded,
-                          color: AppColors.danger(context), size: 18),
+                      Icon(
+                        AppIcons.error,
+                        color: AppColors.danger(context),
+                        size: 18,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(_error!,
-                            style: TextStyle(
-                                color: AppColors.danger(context),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500)),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: AppColors.danger(context),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
-
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
@@ -200,7 +222,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     backgroundColor: cs.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   child: _loading
@@ -208,10 +231,17 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                           width: 24,
                           height: 24,
                           child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Text('Update Password',
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Update Password',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -255,7 +285,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         prefixIcon: Icon(icon, size: 20),
         suffixIcon: IconButton(
           icon: Icon(
-            show ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+            show ? AppIcons.eye : AppIcons.eyeSlash,
             size: 20,
             color: cs.onSurfaceVariant.withValues(alpha: 0.6),
           ),

@@ -18,6 +18,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StaggerList extends ConsumerStatefulWidget {
+  const StaggerList({
+    required this.children,
+    super.key,
+    this.staggerMs = 40,
+    this.slideDistance = 18,
+    this.itemDuration = const Duration(milliseconds: 320),
+  });
   final List<Widget> children;
 
   /// Delay between each item's animation start (ms).
@@ -28,14 +35,6 @@ class StaggerList extends ConsumerStatefulWidget {
 
   /// Duration of each item's own animation.
   final Duration itemDuration;
-
-  const StaggerList({
-    super.key,
-    required this.children,
-    this.staggerMs = 40,
-    this.slideDistance = 18,
-    this.itemDuration = const Duration(milliseconds: 320),
-  });
 
   @override
   ConsumerState<StaggerList> createState() => _StaggerListState();
@@ -53,24 +52,31 @@ class _StaggerListState extends ConsumerState<StaggerList>
   void initState() {
     super.initState();
     final n = widget.children.length;
-    _ctrls = List.generate(n,
-            (_) => AnimationController(vsync: this, duration: widget.itemDuration));
+    _ctrls = List.generate(
+      n,
+      (_) => AnimationController(vsync: this, duration: widget.itemDuration),
+    );
     _fades = _ctrls
-        .map((c) => Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: c, curve: Curves.easeOut)))
+        .map(
+          (c) => Tween<double>(begin: 0, end: 1)
+              .animate(CurvedAnimation(parent: c, curve: Curves.easeOut)),
+        )
         .toList();
     _slides = _ctrls
-        .map((c) => Tween<Offset>(
-        begin: Offset(0, widget.slideDistance / 400), end: Offset.zero)
-        .animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic)))
+        .map(
+          (c) => Tween<Offset>(
+            begin: Offset(0, widget.slideDistance / 400),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: c, curve: Curves.easeOutCubic)),
+        )
         .toList();
 
     _startStagger();
   }
 
-  void _startStagger() async {
-    for (int i = 0; i < _ctrls.length; i++) {
-      await Future.delayed(Duration(milliseconds: widget.staggerMs));
+  Future<void> _startStagger() async {
+    for (var i = 0; i < _ctrls.length; i++) {
+      await Future<void>.delayed(Duration(milliseconds: widget.staggerMs));
       // FIX #9: check _disposed (set in dispose()) in addition to mounted.
       // Without this, the Future.delayed fires after dispose(), and calling
       // _ctrls[i].forward() on a disposed AnimationController throws
@@ -90,19 +96,18 @@ class _StaggerListState extends ConsumerState<StaggerList>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: List.generate(widget.children.length, (i) {
-        return FadeTransition(
-          opacity: _fades[i],
-          child: SlideTransition(
-            position: _slides[i],
-            child: widget.children[i],
+  Widget build(BuildContext context) => Column(
+        children: List.generate(
+          widget.children.length,
+          (i) => FadeTransition(
+            opacity: _fades[i],
+            child: SlideTransition(
+              position: _slides[i],
+              child: widget.children[i],
+            ),
           ),
-        );
-      }),
-    );
-  }
+        ),
+      );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -121,6 +126,15 @@ class _StaggerListState extends ConsumerState<StaggerList>
 // ─────────────────────────────────────────────────────────────────────────────
 
 class StaggerItem extends ConsumerStatefulWidget {
+  const StaggerItem({
+    required this.index,
+    required this.child,
+    super.key,
+    this.maxDelayMs = 280,
+    this.staggerMs = 38,
+    this.itemDuration = const Duration(milliseconds: 340),
+    this.slideDistance = 16,
+  });
   final int index;
   final Widget child;
 
@@ -129,16 +143,6 @@ class StaggerItem extends ConsumerStatefulWidget {
   final int staggerMs;
   final Duration itemDuration;
   final double slideDistance;
-
-  const StaggerItem({
-    super.key,
-    required this.index,
-    required this.child,
-    this.maxDelayMs = 280,
-    this.staggerMs = 38,
-    this.itemDuration = const Duration(milliseconds: 340),
-    this.slideDistance = 16,
-  });
 
   @override
   ConsumerState<StaggerItem> createState() => _StaggerItemState();
@@ -165,11 +169,12 @@ class _StaggerItemState extends ConsumerState<StaggerItem>
   void initState() {
     super.initState();
     _ctrl = AnimationController(vsync: this, duration: widget.itemDuration);
-    _fade = Tween<double>(begin: 0.0, end: 1.0)
+    _fade = Tween<double>(begin: 0, end: 1)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _slide = Tween<Offset>(
-        begin: Offset(0, widget.slideDistance / 400), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      begin: Offset(0, widget.slideDistance / 400),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
 
     // Item #28: if this item was already animated, skip to end immediately
     if (_animatedKeys.contains(_itemKey)) {
@@ -179,8 +184,8 @@ class _StaggerItemState extends ConsumerState<StaggerItem>
     }
 
     final delayMs =
-    (widget.index * widget.staggerMs).clamp(0, widget.maxDelayMs);
-    Future.delayed(Duration(milliseconds: delayMs), () {
+        (widget.index * widget.staggerMs).clamp(0, widget.maxDelayMs);
+    Future<void>.delayed(Duration(milliseconds: delayMs), () {
       if (mounted && !_triggered) {
         _triggered = true;
         if (_animatedKeys.length >= _maxAnimatedKeys) {
@@ -199,13 +204,11 @@ class _StaggerItemState extends ConsumerState<StaggerItem>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: widget.child,
-      ),
-    );
-  }
+  Widget build(BuildContext context) => FadeTransition(
+        opacity: _fade,
+        child: SlideTransition(
+          position: _slide,
+          child: widget.child,
+        ),
+      );
 }

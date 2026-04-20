@@ -1,0 +1,94 @@
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/providers/auth_provider.dart:78:29 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/providers/auth_provider.dart:84:27 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/providers/auth_provider.dart:94:27 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/providers/auth_provider.dart:123:25 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/providers/auth_provider.dart:132:27 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/providers/auth_provider.dart:169:31 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/account_details_screen.dart:54:14 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/account_details_screen.dart:98:14 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/add_bank_account_screen.dart:96:27 • argument_type_not_assignable
+  error • A negation operand must have a static type of 'bool' • lib/screens/add_nominee_screen.dart:102:12 • non_bool_negation_expression
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/add_nominee_screen.dart:106:34 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/bank_account_detail_screen.dart:41:14 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/bank_account_detail_screen.dart:77:14 • argument_type_not_assignable
+  error • Conditions must have a static type of 'bool' • lib/screens/change_password_screen.dart:66:9 • non_bool_condition
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/change_password_screen.dart:85:31 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/home_screen.dart:276:54 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>'.  • lib/screens/home_screen.dart:704:43 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>'.  • lib/screens/home_screen.dart:773:33 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/investment_calculator.dart:114:32 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/investment_calculator.dart:115:34 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/investment_calculator.dart:116:38 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/invoice_detail_screen.dart:181:22 • invalid_assignment
+  error • The argument type 'Animatable<num>' can't be assigned to the parameter type 'Animatable<double>'.  • lib/screens/main_screen.dart:351:13 • argument_type_not_assignable
+  error • The argument type 'Animatable<num>' can't be assigned to the parameter type 'Animatable<double>'.  • lib/screens/main_screen.dart:361:13 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>'.  • lib/screens/notification_center_screen.dart:54:11 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/notification_center_screen.dart:353:53 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/notification_center_screen.dart:395:27 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/screens/notification_center_screen.dart:408:37 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/notification_center_screen.dart:431:21 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/personal_details_screen.dart:480:16 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/personal_details_screen.dart:527:14 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>?'.  • lib/screens/portfolio_screen.dart:223:44 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/screens/profile/profile_screen.dart:437:23 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String?'.  • lib/screens/profile/profile_screen.dart:457:39 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/profile_screen.dart:474:31 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/profile_screen.dart:482:42 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/sheets/shield_management_sheet.dart:62:27 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/sheets/shield_management_sheet.dart:63:21 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/sheets/shield_management_sheet.dart:68:20 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/sheets/shield_management_sheet.dart:97:27 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/sheets/shield_management_sheet.dart:103:20 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/shield_screen.dart:63:29 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/shield_screen.dart:64:23 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/shield_screen.dart:69:22 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/shield_screen.dart:109:31 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/profile/shield_screen.dart:118:22 • invalid_assignment
+  error • Conditions must have a static type of 'bool' • lib/screens/profile/widgets/hero_section.dart:38:22 • non_bool_condition
+  error • Conditions must have a static type of 'bool' • lib/screens/profile/widgets/hero_section.dart:39:38 • non_bool_condition
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/widgets/hero_section.dart:68:27 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/widgets/hero_section.dart:78:13 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/profile/widgets/hero_section.dart:90:13 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/register_screen.dart:215:33 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'bool' • lib/screens/settings_screen.dart:42:25 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/transaction_history_screen.dart:336:15 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/transaction_history_screen.dart:351:19 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>'.  • lib/screens/transaction_history_screen.dart:723:33 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<String, dynamic>'.  • lib/screens/transaction_history_screen.dart:724:65 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/screens/transaction_history_screen.dart:1060:25 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/verify_otp_screen.dart:181:15 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/screens/verify_otp_screen.dart:223:33 • invalid_assignment
+  error • The returned type 'dynamic' isn't returnable from a 'int' function, as required by the closure's context • lib/services/notification_provider.dart:40:25 • return_of_invalid_type_from_closure
+  error • A value of type 'dynamic' can't be returned from the method 'createRazorpayOrder' because it has a return type of 'Future<Map<String, dynamic>>' • lib/services/wallet_api_service.dart:173:16 • return_of_invalid_type
+  error • A value of type 'dynamic' can't be returned from the method 'verifyPayment' because it has a return type of 'Future<Map<String, dynamic>>' • lib/services/wallet_api_service.dart:199:16 • return_of_invalid_type
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<dynamic, dynamic>'.  • lib/view_models/analytics_view_model.dart:21:49 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<dynamic, dynamic>'.  • lib/view_models/analytics_view_model.dart:24:49 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<dynamic, dynamic>'.  • lib/view_models/analytics_view_model.dart:43:49 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'Map<dynamic, dynamic>'.  • lib/view_models/analytics_view_model.dart:46:49 • argument_type_not_assignable
+  error • The returned type 'double' isn't returnable from a 'int' function, as required by the closure's context • lib/view_models/analytics_view_model.dart:88:58 • return_of_invalid_type_from_closure
+  error • The returned type 'double' isn't returnable from a 'int' function, as required by the closure's context • lib/view_models/analytics_view_model.dart:92:12 • return_of_invalid_type_from_closure
+  error • The argument type 'int' can't be assigned to the parameter type 'double'.  • lib/view_models/analytics_view_model.dart:125:5 • argument_type_not_assignable
+  error • The argument type 'int' can't be assigned to the parameter type 'double'.  • lib/view_models/analytics_view_model.dart:134:20 • argument_type_not_assignable
+  error • The argument type 'int' can't be assigned to the parameter type 'double'.  • lib/view_models/analytics_view_model.dart:135:19 • argument_type_not_assignable
+  error • The returned type 'double' isn't returnable from a 'int' function, as required by the closure's context • lib/view_models/analytics_view_model.dart:224:45 • return_of_invalid_type_from_closure
+  error • The argument type 'double' can't be assigned to the parameter type 'int'.  • lib/view_models/analytics_view_model.dart:347:33 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/view_models/auth_view_model.dart:60:27 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/view_models/auth_view_model.dart:64:41 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/view_models/auth_view_model.dart:68:25 • invalid_assignment
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/view_models/auth_view_model.dart:90:36 • argument_type_not_assignable
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/view_models/auth_view_model.dart:93:25 • invalid_assignment
+  error • A value of type 'dynamic' can't be assigned to a variable of type 'String?' • lib/view_models/auth_view_model.dart:127:29 • invalid_assignment
+  error • The argument type 'List<dynamic>' can't be assigned to the parameter type 'List<InvoiceItem>'.  • lib/view_models/marketplace_view_model.dart:92:22 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:297:19 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:298:16 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:299:19 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:300:19 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:301:20 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'num'.  • lib/view_models/marketplace_view_model.dart:302:20 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/widgets/analytics/analytics_charts.dart:458:31 • argument_type_not_assignable
+  error • The argument type 'double' can't be assigned to the parameter type 'int'.  • lib/widgets/analytics/earnings_card.dart:54:18 • argument_type_not_assignable
+  error • The argument type 'double' can't be assigned to the parameter type 'int'.  • lib/widgets/analytics/earnings_card.dart:54:41 • argument_type_not_assignable
+  error • The argument type 'int' can't be assigned to the parameter type 'double?'.  • lib/widgets/analytics/earnings_card.dart:86:27 • argument_type_not_assignable
+  error • Conditions must have a static type of 'bool' • lib/widgets/app_bar_action.dart:49:21 • non_bool_condition
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/widgets/app_bar_action.dart:111:30 • argument_type_not_assignable
+  error • The argument type 'dynamic' can't be assigned to the parameter type 'String'.  • lib/widgets/home/transaction_activity.dart:118:23 • argument_type_not_assignable

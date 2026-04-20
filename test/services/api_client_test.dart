@@ -29,7 +29,9 @@ void main() {
 
     test('hasMore returns true when nextCursor is not null', () {
       const page = InvoicePage(
-        items: [{'id': 1}],
+        items: [
+          {'id': 1},
+        ],
         nextCursor: 'abc123',
       );
       expect(page.hasMore, isTrue);
@@ -38,7 +40,9 @@ void main() {
 
     test('hasMore returns false when nextCursor is null', () {
       const page = InvoicePage(
-        items: [{'id': 1}],
+        items: [
+          {'id': 1},
+        ],
         nextCursor: null,
       );
       expect(page.hasMore, isFalse);

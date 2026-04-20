@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
 
 /// Pull-to-refresh with a frosted-glass reveal, spring-to-rest loading dock,
 /// and a haptic chord on completion.
@@ -11,20 +14,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Behaviour
 /// ─────────
 ///  1. Pull  →  rubber-band physics (live, no animation lag)
-///  2. Release at threshold  →  content springs back to [_kRestHeight] (72 px)
+///  2. Release at threshold  →  content springs back to a rest height
 ///  3. While [onRefresh] is running  →  spinner stays at rest height
 ///  4. Done  →  medium + light haptic chord, then smooth dismiss
 class LiquidityRefreshIndicator extends ConsumerStatefulWidget {
+  const LiquidityRefreshIndicator({
+    required this.child,
+    required this.onRefresh,
+    super.key,
+    this.color,
+  });
   final Widget child;
   final Future<void> Function() onRefresh;
   final Color? color;
-
-  const LiquidityRefreshIndicator({
-    super.key,
-    required this.child,
-    required this.onRefresh,
-    this.color,
-  });
 
   @override
   ConsumerState<LiquidityRefreshIndicator> createState() =>
@@ -33,16 +35,15 @@ class LiquidityRefreshIndicator extends ConsumerStatefulWidget {
 
 enum _RefreshState { idle, dragging, armed, refreshing, complete }
 
-class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndicator>
+class _LiquidityRefreshIndicatorState
+    extends ConsumerState<LiquidityRefreshIndicator>
     with TickerProviderStateMixin {
-
   // ── Controllers ─────────────────────────────────────────────────────────────
 
   /// Drives the orb animation (repeating wave).
   late final AnimationController _waveCtrl;
 
   /// Drives the spring-to-rest and dismiss height transitions.
-  /// value 0→1 maps to [_snapTween.begin] → [_snapTween.end].
   late final AnimationController _snapCtrl;
 
   /// The tween applied to [_snapCtrl] — swapped each phase.
@@ -50,19 +51,20 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
 
   // ── Drag state ───────────────────────────────────────────────────────────────
 
-  double _pullDistance = 0.0;
+  double _pullDistance = 0;
   _RefreshState _state = _RefreshState.idle;
+  bool _halfwayTickFired = false;
 
-  /// Locks [_triggerRefresh] so it can't be re-entered.
+  /// Locks refresh trigger so it can't be re-entered.
   bool _refreshing = false;
 
   // ── Constants ────────────────────────────────────────────────────────────────
 
-  static const double _kTriggerThreshold = 120.0;
-  static const double _kMaxPull          = 200.0;
+  static const double _kTriggerThreshold = 120;
+  static const double _kMaxPull = 200;
 
   /// Height the indicator rests at while data loads — roughly "half-way back".
-  static const double _kRestHeight       = 72.0;
+  static const double _kRestHeight = 72;
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -121,6 +123,13 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
       final pixels = n.metrics.pixels;
       if (pixels < 0) {
         final pull = pixels.abs();
+
+        // 50% threshold tick (Premium mechanical feel)
+        if (pull >= _kTriggerThreshold / 2 && !_halfwayTickFired) {
+          _halfwayTickFired = true;
+          HapticFeedback.lightImpact();
+        }
+
         if (pull >= _kTriggerThreshold && _state != _RefreshState.armed) {
           HapticFeedback.mediumImpact();
           setState(() {
@@ -137,6 +146,7 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
         setState(() {
           _pullDistance = 0;
           _state = _RefreshState.idle;
+          _halfwayTickFired = false;
         });
       }
     } else if (n is ScrollEndNotification) {
@@ -146,6 +156,7 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
         setState(() {
           _pullDistance = 0;
           _state = _RefreshState.idle;
+          _halfwayTickFired = false;
         });
       }
     }
@@ -175,7 +186,10 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
       return;
     }
 
-    if (!mounted) { _refreshing = false; return; }
+    if (!mounted) {
+      _refreshing = false;
+      return;
+    }
 
     // ② Hold at rest height while data is loading.
     try {
@@ -184,12 +198,18 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
       // Never let a refresh error crash the indicator.
     }
 
-    if (!mounted) { _refreshing = false; return; }
+    if (!mounted) {
+      _refreshing = false;
+      return;
+    }
 
     // ③ Success haptic chord: medium → 80 ms → light.
     HapticFeedback.mediumImpact();
-    await Future.delayed(const Duration(milliseconds: 80));
-    if (!mounted) { _refreshing = false; return; }
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (!mounted) {
+      _refreshing = false;
+      return;
+    }
     HapticFeedback.lightImpact();
 
     // ④ Dismiss: animate _kRestHeight → 0.
@@ -209,6 +229,7 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
       setState(() {
         _state = _RefreshState.idle;
         _pullDistance = 0;
+        _halfwayTickFired = false;
       });
     }
   }
@@ -293,17 +314,15 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
                           color: cs.surface.withValues(alpha: 0.15),
                           border: Border(
                             bottom: BorderSide(
-                              color: color.withValues(
-                                  alpha: 0.2 * dragProgress),
-                              width: 1,
+                              color:
+                                  color.withValues(alpha: 0.2 * dragProgress),
                             ),
                           ),
                         ),
                         alignment: Alignment.center,
                         child: Opacity(
                           opacity: (offset / 40.0).clamp(0.0, 1.0),
-                          child: _IndicatorContent(
-                              state: _state, color: color),
+                          child: _IndicatorContent(state: _state, color: color),
                         ),
                       ),
                     ),
@@ -320,10 +339,9 @@ class _LiquidityRefreshIndicatorState extends ConsumerState<LiquidityRefreshIndi
 // ── Indicator label / icon ────────────────────────────────────────────────────
 
 class _IndicatorContent extends ConsumerWidget {
+  const _IndicatorContent({required this.state, required this.color});
   final _RefreshState state;
   final Color color;
-
-  const _IndicatorContent({required this.state, required this.color});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -334,24 +352,29 @@ class _IndicatorContent extends ConsumerWidget {
       case _RefreshState.refreshing:
         label = 'SYNCING DATA...';
         icon = SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-              color: color, strokeWidth: 2.0),
+          width: 24,
+          height: 24,
+          child: LoadingAnimationWidget.hexagonDots(
+            color: color,
+            size: 24,
+          ),
         );
       case _RefreshState.complete:
         label = 'ALL DONE';
-        icon = Icon(Icons.check_circle_rounded, color: color, size: 22);
+        icon = Icon(AppIcons.check, color: color, size: 22);
       case _RefreshState.armed:
         label = 'RELEASE TO SYNC';
-        icon = Icon(Icons.unfold_less_rounded, color: color, size: 22);
-      default:
+        icon = Icon(AppIcons.unfoldLess, color: color, size: 22);
+      case _RefreshState.idle:
+      case _RefreshState.dragging:
         label = 'PULL TO REFRESH';
-        icon = Icon(Icons.unfold_more_rounded, color: color, size: 22);
+        icon = Icon(AppIcons.unfoldMore, color: color, size: 22);
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8), // Provide consistent padding for indicator elements
+      padding: const EdgeInsets.only(
+        top: 8,
+      ), // Provide consistent padding for indicator elements
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -378,29 +401,29 @@ class _IndicatorContent extends ConsumerWidget {
 // ── Glowing orb ───────────────────────────────────────────────────────────────
 
 class _GlowingOrb extends ConsumerWidget {
+  const _GlowingOrb({
+    required this.color,
+    required this.size,
+    required this.offset,
+  });
   final Color color;
   final double size;
   final Offset offset;
 
-  const _GlowingOrb(
-      {required this.color, required this.size, required this.offset});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Center(
-      child: Transform.translate(
-        offset: offset,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: [color, color.withValues(alpha: 0.0)],
+  Widget build(BuildContext context, WidgetRef ref) => Center(
+        child: Transform.translate(
+          offset: offset,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [color, color.withValues(alpha: 0)],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }

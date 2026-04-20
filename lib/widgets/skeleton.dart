@@ -45,7 +45,7 @@ class _SkeletonThemeState extends ConsumerState<SkeletonTheme>
     super.initState();
     ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2500),
     )..repeat();
   }
 
@@ -77,8 +77,8 @@ class SkeletonBox extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    final baseColor = cs.onSurface.withValues(alpha: 0.06);
-    final highlight = cs.onSurface.withValues(alpha: 0.14);
+    final baseColor = cs.onSurface.withValues(alpha: 0.04);
+    final highlight = cs.onSurface.withValues(alpha: 0.12);
     final ctrl = SkeletonTheme.ctrlOf(context);
 
     if (ctrl == null) {
@@ -1024,11 +1024,13 @@ class SkeletonPortfolioContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
-          child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-        physics: const NeverScrollableScrollPhysics(),
-        children: List.generate(4, (_) => const _SkeletonInvestmentCard()),
-      ));
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            children: List.generate(4, (_) => const _SkeletonInvestmentCard()),
+          ),
+        ),
+      );
 }
 
 class SkeletonAnalyticsContent extends ConsumerWidget {
@@ -1095,71 +1097,69 @@ class SkeletonHomeContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SkeletonTheme(
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics()),
+      child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: ConstrainedBox(
-          constraints:
-              BoxConstraints(minHeight: MediaQuery.of(context).size.height),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Portfolio Hero
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: SkeletonHeroCard(),
-              ),
-              const SizedBox(height: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Portfolio Hero
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: SkeletonHeroCard(),
+            ),
+            const SizedBox(height: 16),
 
-              // Quick Actions
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: SkeletonQuickActions(),
-              ),
-              const SizedBox(height: 28),
+            // Quick Actions
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: SkeletonQuickActions(),
+            ),
+            const SizedBox(height: 28),
 
-              // Section Title
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonBox(width: 160, height: 18),
-              ),
-              const SizedBox(height: 12),
+            // Section Title
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: SkeletonBox(width: 160, height: 18),
+            ),
+            const SizedBox(height: 12),
 
-              // Active Investments Horizontal
-              SizedBox(
-                height: 130,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: 3,
-                  itemBuilder: (_, __) => Container(
-                    width: 240,
-                    margin: const EdgeInsets.only(right: 12),
-                    child: SkeletonBox(
-                        borderRadius: BorderRadius.circular(20), height: 130),
+            // Active Investments Horizontal
+            SizedBox(
+              height: 130,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: List.generate(
+                    3,
+                    (_) => Container(
+                      width: 240,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: SkeletonBox(
+                          borderRadius: BorderRadius.circular(20), height: 130),
+                    ),
                   ),
                 ),
               ),
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 28),
 
-              // Recent Activity Title
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: SkeletonBox(width: 140, height: 18),
+            // Recent Activity Title
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: SkeletonBox(width: 140, height: 18),
+            ),
+            const SizedBox(height: 12),
+
+            // Activity List
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: List.generate(4, (_) => const SkeletonStatTile()),
               ),
-              const SizedBox(height: 12),
-
-              // Activity List
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: List.generate(4, (_) => const SkeletonStatTile()),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1216,6 +1216,7 @@ class SkeletonMarketplaceContent extends ConsumerWidget {
     );
   }
 }
+
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
@@ -1663,6 +1664,83 @@ class SkeletonShieldContent extends ConsumerWidget {
               height: 56,
               borderRadius: BorderRadius.circular(16)),
         ],
+      ),
+    );
+  }
+}
+
+class SkeletonSecondaryMarket extends ConsumerWidget {
+  const SkeletonSecondaryMarket({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SkeletonTheme(
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 3,
+        itemBuilder: (ctx, i) => const Padding(
+          padding: EdgeInsets.only(bottom: 16),
+          child: SkeletonCard(height: 180),
+        ),
+      ),
+    );
+  }
+}
+
+class SkeletonUpcomingInvoices extends ConsumerWidget {
+  const SkeletonUpcomingInvoices({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SkeletonTheme(
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        itemBuilder: (ctx, i) => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: SkeletonCard(height: 160),
+        ),
+      ),
+    );
+  }
+}
+class SkeletonECollect extends StatelessWidget {
+  const SkeletonECollect({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonTheme(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Balance Card
+            SkeletonBox(
+              width: double.infinity,
+              height: 160,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            const SizedBox(height: 24),
+
+            // Virtual Account Card
+            SkeletonBox(
+              width: double.infinity,
+              height: 300,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            const SizedBox(height: 24),
+
+            // Withdraw Button
+            SkeletonBox(
+              width: double.infinity,
+              height: 56,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ],
+        ),
       ),
     );
   }

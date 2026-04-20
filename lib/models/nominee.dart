@@ -17,7 +17,8 @@ class Nominee with _$Nominee {
 
   const Nominee._();
 
-  factory Nominee.fromJson(Map<String, dynamic> json) => _$NomineeFromJson(json);
+  factory Nominee.fromJson(Map<String, dynamic> json) =>
+      _$NomineeFromJson(json);
 
   factory Nominee.fromMap(Map<String, dynamic> m) => Nominee(
         id: m['id'] as int,

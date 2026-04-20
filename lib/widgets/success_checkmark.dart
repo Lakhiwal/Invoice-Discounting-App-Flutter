@@ -11,14 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 //   if (_isSuccess) SuccessCheckmark(color: AppColors.emerald, size: 64)
 
 class SuccessCheckmark extends ConsumerStatefulWidget {
-  final Color color;
-  final double size;
-
   const SuccessCheckmark({
-    super.key,
     required this.color,
+    super.key,
     this.size = 64,
   });
+  final Color color;
+  final double size;
 
   @override
   ConsumerState<SuccessCheckmark> createState() => _SuccessCheckmarkState();
@@ -44,10 +43,10 @@ class _SuccessCheckmarkState extends ConsumerState<SuccessCheckmark>
       duration: const Duration(milliseconds: 500),
     );
 
-    _scale = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _scale = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _scaleCtrl, curve: Curves.elasticOut),
     );
-    _draw = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _draw = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _drawCtrl, curve: Curves.easeOut),
     );
 
@@ -63,37 +62,34 @@ class _SuccessCheckmarkState extends ConsumerState<SuccessCheckmark>
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_scaleCtrl, _drawCtrl]),
-      builder: (_, __) => Transform.scale(
-        scale: _scale.value,
-        child: SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: CustomPaint(
-            painter: _CheckPainter(
-              progress: _draw.value,
-              color: widget.color,
-              strokeWidth: widget.size * 0.075,
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: Listenable.merge([_scaleCtrl, _drawCtrl]),
+        builder: (_, __) => Transform.scale(
+          scale: _scale.value,
+          child: SizedBox(
+            width: widget.size,
+            height: widget.size,
+            child: CustomPaint(
+              painter: _CheckPainter(
+                progress: _draw.value,
+                color: widget.color,
+                strokeWidth: widget.size * 0.075,
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _CheckPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  final double strokeWidth;
-
   const _CheckPainter({
     required this.progress,
     required this.color,
     required this.strokeWidth,
   });
+  final double progress;
+  final Color color;
+  final double strokeWidth;
 
   @override
   void paint(Canvas canvas, Size size) {

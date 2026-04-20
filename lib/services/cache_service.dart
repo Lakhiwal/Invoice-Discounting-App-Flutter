@@ -8,12 +8,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 /// and "Instant-On" loading.
 class CacheService {
   static const String _boxName = 'api_cache';
-  static late Box _box;
+  static late Box<dynamic> _box;
 
   /// Initialize Hive and the cache box.
   static Future<void> initialize() async {
     await Hive.initFlutter();
-    _box = await Hive.openBox(_boxName);
+    _box = await Hive.openBox<dynamic>(_boxName);
   }
 
   /// Save raw JSON data for a specific endpoint/key.
@@ -28,7 +28,7 @@ class CacheService {
 
   /// Retrieve cached JSON data. Returns null if missing.
   static Map<String, dynamic>? get(String key) {
-    final raw = _box.get(key);
+    final raw = _box.get(key) as String?;
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
@@ -41,7 +41,7 @@ class CacheService {
   static int? getAgeInHours(String key) {
     final entry = get(key);
     if (entry == null) return null;
-    final timestamp = DateTime.parse(entry['timestamp']);
+    final timestamp = DateTime.parse(entry['timestamp'] as String);
     return DateTime.now().difference(timestamp).inHours;
   }
 

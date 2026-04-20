@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/invoice_item.dart';
-import '../../screens/invoice_detail_screen.dart';
-import '../../theme/theme_provider.dart';
-import '../../utils/app_haptics.dart';
-import '../../utils/formatters.dart';
-import '../animated_amount_text.dart';
-import '../pressable.dart';
+import 'package:invoice_discounting_app/models/invoice_item.dart';
+import 'package:invoice_discounting_app/screens/invoice_detail_screen.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/formatters.dart';
+import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
+import 'package:invoice_discounting_app/widgets/pressable.dart';
 
 class ActiveInvestmentCard extends ConsumerWidget {
+  const ActiveInvestmentCard({
+    required this.investment,
+    required this.index,
+    super.key,
+    this.isBlackMode = false,
+  });
   final Map<String, dynamic> investment;
   final int index;
   final bool isBlackMode;
-
-  const ActiveInvestmentCard({
-    super.key,
-    required this.investment,
-    required this.index,
-    this.isBlackMode = false,
-  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,9 +29,11 @@ class ActiveInvestmentCard extends ConsumerWidget {
     final amount =
         double.tryParse(investment['amount']?.toString() ?? '0') ?? 0;
     final daysLeft = (investment['days_left'] as num?)?.toInt() ?? 0;
-    final roi = double.tryParse(investment['investor_rate']?.toString() ??
-            investment['roi']?.toString() ??
-            '0') ??
+    final roi = double.tryParse(
+          investment['investor_rate']?.toString() ??
+              investment['roi']?.toString() ??
+              '0',
+        ) ??
         0;
     final invoiceId = investment['invoice_id']?.toString() ?? '0';
 
@@ -75,9 +78,8 @@ class ActiveInvestmentCard extends ConsumerWidget {
         onTap: () async {
           await AppHaptics.selection();
           if (!context.mounted) return;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
+          Navigator.of(context, rootNavigator: true).push(
+            SmoothPageRoute<void>(
               builder: (_) => InvoiceDetailScreen(item: invoiceItem),
             ),
           );
@@ -86,10 +88,10 @@ class ActiveInvestmentCard extends ConsumerWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(UI.radiusMd),
           ),
           foregroundDecoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(UI.radiusMd),
             border: Border(
               left: BorderSide(
                 color: colorScheme.primary
@@ -123,7 +125,7 @@ class ActiveInvestmentCard extends ConsumerWidget {
                         const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
                       color: urgencyColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(UI.radiusSm),
                     ),
                     child: Text(
                       '${daysLeft}d',

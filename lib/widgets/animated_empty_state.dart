@@ -1,24 +1,26 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 class AnimatedEmptyState extends ConsumerStatefulWidget {
+  const AnimatedEmptyState({
+    required this.icon,
+    required this.title,
+    super.key,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+    this.color,
+  });
   final IconData icon;
   final String title;
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
   final Color? color;
-
-  const AnimatedEmptyState({
-    super.key,
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.actionLabel,
-    this.onAction,
-    this.color,
-  });
 
   @override
   ConsumerState<AnimatedEmptyState> createState() => _AnimatedEmptyStateState();
@@ -133,14 +135,18 @@ class _AnimatedEmptyStateState extends ConsumerState<AnimatedEmptyState>
           if (widget.actionLabel != null && widget.onAction != null) ...[
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: widget.onAction,
+              onPressed: () {
+                AppHaptics.buttonPress();
+                widget.onAction?.call();
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: cs.primary,
                 foregroundColor: cs.onPrimary,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(UI.radiusLg),
                 ),
               ),
               child: Text(

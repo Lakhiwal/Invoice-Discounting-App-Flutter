@@ -1,23 +1,27 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import '../models/bank_account.dart';
-import '../services/api_service.dart';
-import '../theme/theme_provider.dart';
-import '../utils/app_haptics.dart';
-import '../widgets/app_logo_header.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:invoice_discounting_app/models/bank_account.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 
 class BankAccountDetailScreen extends ConsumerStatefulWidget {
+  const BankAccountDetailScreen({required this.account, super.key});
   final BankAccount account;
 
-  const BankAccountDetailScreen({super.key, required this.account});
-
   @override
-  ConsumerState<BankAccountDetailScreen> createState() => _BankAccountDetailScreenState();
+  ConsumerState<BankAccountDetailScreen> createState() =>
+      _BankAccountDetailScreenState();
 }
 
-class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScreen> {
+class _BankAccountDetailScreenState
+    extends ConsumerState<BankAccountDetailScreen> {
   late BankAccount _account;
   bool _isSettingPrimary = false;
 
@@ -30,14 +34,16 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
   Future<void> _setPrimary() async {
     if (_account.isPrimary) return;
     setState(() => _isSettingPrimary = true);
-    await AppHaptics.selection();
+    unawaited(AppHaptics.selection());
     final result = await ApiService.setPrimaryBankAccount(_account.id);
     if (!mounted) return;
     if (result['success'] == true) {
       _snack('${_account.bankName} set as primary', isError: false);
-      Navigator.pop(context, true); // true indicates refresh needed
+      if (mounted) {
+        Navigator.pop(context, true); // true indicates refresh needed
+      }
     } else {
-      _snack(result['error'] ?? 'Failed to update', isError: true);
+      _snack((result['error'] as String?) ?? 'Failed to update', isError: true);
     }
     if (mounted) setState(() => _isSettingPrimary = false);
   }
@@ -46,18 +52,23 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UI.radiusLg)),
         title: const Text('Remove account?'),
         content: Text(
-            'Remove ${_account.bankName} ending in ${_account.maskedNumber}?'),
+          'Remove ${_account.bankName} ending in ${_account.maskedNumber}?',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: Text('Remove',
-                  style: TextStyle(color: AppColors.danger(context)))),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Remove',
+              style: TextStyle(color: AppColors.danger(context)),
+            ),
+          ),
         ],
       ),
     );
@@ -66,20 +77,22 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
     if (!mounted) return;
     if (result['success'] == true) {
       _snack('Account removed', isError: false);
-      Navigator.pop(context, true);
+      if (mounted) Navigator.pop(context, true);
     } else {
-      _snack(result['error'] ?? 'Failed to remove', isError: true);
+      _snack((result['error'] as String?) ?? 'Failed to remove', isError: true);
     }
   }
 
   void _snack(String msg, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor:
-          isError ? AppColors.danger(context) : AppColors.success(context),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor:
+            isError ? AppColors.danger(context) : AppColors.success(context),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UI.radiusSm)),
+      ),
+    );
   }
 
   void _copy(String text, String label) {
@@ -96,7 +109,7 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
       backgroundColor: cs.surface,
       body: CustomScrollView(
         slivers: [
-          AppLogoHeader(title: 'Account Detail'),
+          const AppLogoHeader(title: 'Account Detail'),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -110,7 +123,7 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
                   Container(
                     decoration: BoxDecoration(
                       color: cs.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(UI.radiusLg),
                       border: Border.all(
                         color: cs.outlineVariant.withValues(alpha: 0.1),
                       ),
@@ -118,35 +131,38 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
                     child: Column(
                       children: [
                         _DetailTile(
-                          icon: Icons.account_balance_rounded,
+                          icon: AppIcons.bank,
                           label: 'Full Bank Name',
                           value: _account.officialName,
-                          onCopy: () => _copy(_account.officialName, 'Bank name'),
+                          onCopy: () =>
+                              _copy(_account.officialName, 'Bank name'),
                         ),
                         _divider(cs),
                         _DetailTile(
-                          icon: Icons.numbers_rounded,
+                          icon: AppIcons.hashtag,
                           label: 'Account Number',
                           value: _account.accountNumber,
-                          onCopy: () => _copy(_account.accountNumber, 'Account number'),
+                          onCopy: () =>
+                              _copy(_account.accountNumber, 'Account number'),
                         ),
                         _divider(cs),
                         _DetailTile(
-                          icon: Icons.qr_code_rounded,
+                          icon: AppIcons.hashtag,
                           label: 'IFSC Code',
                           value: _account.ifscCode,
                           onCopy: () => _copy(_account.ifscCode, 'IFSC'),
                         ),
                         _divider(cs),
                         _DetailTile(
-                          icon: Icons.person_rounded,
+                          icon: AppIcons.user,
                           label: 'Beneficiary Name',
                           value: _account.beneficiaryName,
-                          onCopy: () => _copy(_account.beneficiaryName, 'Beneficiary'),
+                          onCopy: () =>
+                              _copy(_account.beneficiaryName, 'Beneficiary'),
                         ),
                         _divider(cs),
                         _DetailTile(
-                          icon: Icons.location_on_rounded,
+                          icon: AppIcons.location,
                           label: 'Branch Address',
                           value: _account.branchAddress,
                         ),
@@ -168,16 +184,22 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
                                 width: 18,
                                 height: 18,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.star_rounded, size: 20),
-                        label: const Text('Set as Primary Bank',
-                            style: TextStyle(fontWeight: FontWeight.w800)),
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Icon(AppIcons.star, size: 20, color: cs.primary),
+                        label: const Text(
+                          'Set as Primary Bank',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: cs.primary,
                           foregroundColor: cs.onPrimary,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(UI.radiusLg),
+                          ),
                         ),
                       ),
                     ),
@@ -189,15 +211,24 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
                     height: 54,
                     child: OutlinedButton.icon(
                       onPressed: _delete,
-                      icon: Icon(Icons.delete_outline_rounded,
-                          color: cs.error, size: 20),
-                      label: Text('Remove This Bank',
-                          style: TextStyle(
-                              color: cs.error, fontWeight: FontWeight.w700)),
+                      icon: Icon(
+                        AppIcons.delete,
+                        color: cs.error,
+                        size: 20,
+                      ),
+                      label: Text(
+                        'Remove This Bank',
+                        style: TextStyle(
+                          color: cs.error,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: cs.error.withValues(alpha: 0.3)),
+                        side:
+                            BorderSide(color: cs.error.withValues(alpha: 0.3)),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(UI.radiusLg),
+                        ),
                       ),
                     ),
                   ),
@@ -213,14 +244,14 @@ class _BankAccountDetailScreenState extends ConsumerState<BankAccountDetailScree
 
   Widget _divider(ColorScheme cs) => Padding(
         padding: const EdgeInsets.only(left: 60),
-        child: Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.1)),
+        child:
+            Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.1)),
       );
 }
 
 class _BankCardVisual extends ConsumerWidget {
-  final BankAccount account;
-
   const _BankCardVisual({required this.account});
+  final BankAccount account;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -232,7 +263,7 @@ class _BankCardVisual extends ConsumerWidget {
       height: 200,
       decoration: BoxDecoration(
         color: info.brandColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(UI.radiusLg),
         boxShadow: [
           BoxShadow(
             color: info.brandColor.withValues(alpha: 0.3),
@@ -289,33 +320,43 @@ class _BankCardVisual extends ConsumerWidget {
                           ? SvgPicture.network(
                               account.logoUrl!,
                               placeholderBuilder: (_) => Icon(
-                                Icons.account_balance_rounded,
+                                AppIcons.bank,
                                 color: info.brandColor,
                                 size: 24,
                               ),
                             )
-                          : Icon(Icons.account_balance_rounded,
-                              color: info.brandColor),
+                          : Icon(
+                              AppIcons.bank,
+                              color: info.brandColor,
+                            ),
                     ),
                     if (account.isPrimary)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(UI.radiusSm),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.star_rounded,
-                                color: Colors.white, size: 14),
-                            SizedBox(width: 4),
-                            Text('PRIMARY',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1)),
+                            Icon(
+                              AppIcons.star,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'PRIMARY',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -324,7 +365,9 @@ class _BankCardVisual extends ConsumerWidget {
                 const Spacer(),
                 Text(
                   account.accountNumber.replaceAllMapped(
-                      RegExp(r".{4}"), (match) => "${match.group(0)} "),
+                    RegExp('.{4}'),
+                    (match) => '${match.group(0)} ',
+                  ),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -340,33 +383,45 @@ class _BankCardVisual extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('BENEFICIARY',
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5)),
-                        Text(account.beneficiaryName.toUpperCase(),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700)),
+                        Text(
+                          'BENEFICIARY',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          account.beneficiaryName.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text('IFSC CODE',
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5)),
-                        Text(account.ifscCode,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700)),
+                        Text(
+                          'IFSC CODE',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          account.ifscCode,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -381,16 +436,16 @@ class _BankCardVisual extends ConsumerWidget {
 }
 
 class _DetailTile extends ConsumerWidget {
-  final IconData icon;
-  final String label, value;
-  final VoidCallback? onCopy;
-
   const _DetailTile({
     required this.icon,
     required this.label,
     required this.value,
     this.onCopy,
   });
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onCopy;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -398,7 +453,7 @@ class _DetailTile extends ConsumerWidget {
 
     return InkWell(
       onTap: onCopy,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(UI.radiusLg),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -417,25 +472,32 @@ class _DetailTile extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                        color: cs.onSurfaceVariant,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      )),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(value,
-                      style: TextStyle(
-                        color: cs.onSurface,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      )),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: cs.onSurface,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
             ),
             if (onCopy != null)
-              Icon(Icons.copy_rounded,
-                  size: 16, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+              Icon(
+                AppIcons.copy,
+                size: 16,
+                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+              ),
           ],
         ),
       ),

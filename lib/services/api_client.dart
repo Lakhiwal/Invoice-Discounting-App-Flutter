@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../config.dart';
-import 'secure_storage_service.dart';
+import 'package:invoice_discounting_app/config.dart';
+import 'package:invoice_discounting_app/services/secure_storage_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ApiClient — Core HTTP plumbing with auto-refresh on 401/403
@@ -12,10 +12,10 @@ import 'secure_storage_service.dart';
 /// Thrown when the user is unauthenticated and refresh failed.
 /// UI should catch this and navigate to login.
 class UnauthorizedException implements Exception {
+  const UnauthorizedException([
+    this.message = 'Session expired. Please log in again.',
+  ]);
   final String message;
-
-  const UnauthorizedException(
-      [this.message = 'Session expired. Please log in again.']);
 
   @override
   String toString() => message;
@@ -27,7 +27,7 @@ class ApiClient {
   static const String baseUrl = '${AppConfig.baseUrl}/api';
 
   // ── Timeout ──
-  static const _timeout = Duration(seconds: 10);
+  static const _timeout = Duration(seconds: 30);
 
   static http.Response _timeoutResponse() => http.Response(
         '{"error":"Request timed out. Check your connection."}',
@@ -36,13 +36,11 @@ class ApiClient {
 
   // ── Token Management ──
 
-  static Future<String?> getAccessToken() async {
-    return SecureStorageService.getAccessToken();
-  }
+  static Future<String?> getAccessToken() async =>
+      SecureStorageService.getAccessToken();
 
-  static Future<String?> getRefreshToken() async {
-    return SecureStorageService.getRefreshToken();
-  }
+  static Future<String?> getRefreshToken() async =>
+      SecureStorageService.getRefreshToken();
 
   static Future<void> saveTokens(String access, String refresh) async {
     await SecureStorageService.saveTokens(
@@ -92,11 +90,11 @@ class ApiClient {
             headers: publicHeaders,
             body: jsonEncode({'refresh': refreshToken}),
           )
-          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+          .timeout(_timeout, onTimeout: _timeoutResponse);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newAccess = data['access'];
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final newAccess = data['access'] as String?;
         if (newAccess != null) {
           await saveAccessToken(newAccess);
           return true;
@@ -114,7 +112,7 @@ class ApiClient {
   static Future<http.Response> get(String url) async {
     var response = await http
         .get(Uri.parse(url), headers: await authHeaders())
-        .timeout(_timeout, onTimeout: () => _timeoutResponse());
+        .timeout(_timeout, onTimeout: _timeoutResponse);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       final refreshed = await refreshAccessToken();
@@ -122,7 +120,7 @@ class ApiClient {
 
       response = await http
           .get(Uri.parse(url), headers: await authHeaders())
-          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+          .timeout(_timeout, onTimeout: _timeoutResponse);
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw const UnauthorizedException();
@@ -142,7 +140,7 @@ class ApiClient {
           headers: await authHeaders(),
           body: jsonEncode(body),
         )
-        .timeout(_timeout, onTimeout: () => _timeoutResponse());
+        .timeout(_timeout, onTimeout: _timeoutResponse);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       final refreshed = await refreshAccessToken();
@@ -154,7 +152,7 @@ class ApiClient {
             headers: await authHeaders(),
             body: jsonEncode(body),
           )
-          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+          .timeout(_timeout, onTimeout: _timeoutResponse);
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw const UnauthorizedException();
@@ -174,7 +172,7 @@ class ApiClient {
           headers: await authHeaders(),
           body: jsonEncode(body),
         )
-        .timeout(_timeout, onTimeout: () => _timeoutResponse());
+        .timeout(_timeout, onTimeout: _timeoutResponse);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       final refreshed = await refreshAccessToken();
@@ -186,7 +184,7 @@ class ApiClient {
             headers: await authHeaders(),
             body: jsonEncode(body),
           )
-          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+          .timeout(_timeout, onTimeout: _timeoutResponse);
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw const UnauthorizedException();
@@ -199,7 +197,7 @@ class ApiClient {
   static Future<http.Response> delete(String url) async {
     var response = await http
         .delete(Uri.parse(url), headers: await authHeaders())
-        .timeout(_timeout, onTimeout: () => _timeoutResponse());
+        .timeout(_timeout, onTimeout: _timeoutResponse);
 
     if (response.statusCode == 401 || response.statusCode == 403) {
       final refreshed = await refreshAccessToken();
@@ -207,7 +205,7 @@ class ApiClient {
 
       response = await http
           .delete(Uri.parse(url), headers: await authHeaders())
-          .timeout(_timeout, onTimeout: () => _timeoutResponse());
+          .timeout(_timeout, onTimeout: _timeoutResponse);
 
       if (response.statusCode == 401 || response.statusCode == 403) {
         throw const UnauthorizedException();

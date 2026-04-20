@@ -15,7 +15,6 @@ class AppLock {
 
       final authenticated = await _auth.authenticate(
         localizedReason: 'Authenticate to unlock Finworks360',
-        biometricOnly: false,
       );
 
       return authenticated;

@@ -21,6 +21,7 @@ public class MainActivity extends FlutterFragmentActivity {
     private static final String WIDGET_CHANNEL = "widget_navigation";
     private static final String SECURITY_CHANNEL = "app/security";
     private static final String HAPTICS_CHANNEL = "app/haptics";
+    private static final String SETTINGS_CHANNEL = "app/settings";
 
     private String pendingTab;
 
@@ -58,6 +59,7 @@ public class MainActivity extends FlutterFragmentActivity {
         setupWidgetChannel(flutterEngine);
         setupSecurityChannel(flutterEngine);
         setupHapticsChannel(flutterEngine);
+        setupSettingsChannel(flutterEngine);
     }
 
     private void setupWidgetChannel(FlutterEngine flutterEngine) {
@@ -155,6 +157,35 @@ public class MainActivity extends FlutterFragmentActivity {
                             break;
                         default:
                             result.notImplemented();
+                    }
+                });
+    }
+
+    private void setupSettingsChannel(FlutterEngine flutterEngine) {
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), SETTINGS_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if (call.method.equals("openAppSettings")) {
+                        try {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            intent.setData(android.net.Uri.fromParts("package", getPackageName(), null));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            result.success(true);
+                        } catch (Exception e) {
+                            result.error("UNAVAILABLE", "Could not open settings", e.getMessage());
+                        }
+                    } else if (call.method.equals("openBatteryOptimization")) {
+                        try {
+                            Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                            intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            result.success(true);
+                        } catch (Exception e) {
+                            result.error("UNAVAILABLE", "Could not open battery settings", e.getMessage());
+                        }
+                    } else {
+                        result.notImplemented();
                     }
                 });
     }

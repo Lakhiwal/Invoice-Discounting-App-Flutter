@@ -25,10 +25,10 @@ class AppHaptics {
     _loaded = true;
   }
 
-  static Future<void> setEnabled(bool v) async {
-    _enabled = v;
-    if (v) await HapticFeedback.mediumImpact(); // instant feedback
-    (await SharedPreferences.getInstance()).setBool(_kKey, v);
+  static Future<void> setEnabled({required bool enabled}) async {
+    _enabled = enabled;
+    if (enabled) await HapticFeedback.mediumImpact(); // instant feedback
+    (await SharedPreferences.getInstance()).setBool(_kKey, enabled);
   }
 
   // ── Core taps ─────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ class AppHaptics {
     } catch (_) {
       // Fallback
       await _heavy();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       await _medium();
     }
   }
@@ -112,9 +112,9 @@ class AppHaptics {
     if (!_loaded) await loadPreference();
     if (!_enabled) return;
     await _medium();
-    await Future.delayed(const Duration(milliseconds: 70));
+    await Future<void>.delayed(const Duration(milliseconds: 70));
     await _heavy();
-    await Future.delayed(const Duration(milliseconds: 80));
+    await Future<void>.delayed(const Duration(milliseconds: 80));
     await _medium();
   }
 }
