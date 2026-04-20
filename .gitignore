@@ -88,3 +88,18 @@ final_analyze_report.txt
 *.py
 *.log
 *.sh
+
+
+# Gradle
+.gradle/
+
+# Analysis/debug files
+analysis_*.txt
+analyze_*.txt
+*_analysis.txt
+*_errors.txt
+errors*.txt
+final_*.txt
+full_analysis_*.txt
+icons_*.txt
+test_file.txt
