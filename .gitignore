@@ -103,3 +103,32 @@ final_*.txt
 full_analysis_*.txt
 icons_*.txt
 test_file.txt
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+
+# IDE
+*.iml
+.idea/
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+replacements.txt
+
+# Optional (remove if not needed)
+claude.md
+iconsax_available.txt
+
+# Desktop builds (optional)
+linux/
+windows/
+macos/
