@@ -69,7 +69,7 @@ class _SecondaryMarketScreenState extends ConsumerState<SecondaryMarketScreen> {
               actions: [
                 IconButton(
                   icon: Icon(AppIcons.refresh),
-                  onPressed: () => _loadListings(),
+                  onPressed: _loadListings,
                 ),
               ],
             ),
@@ -230,7 +230,7 @@ class _SecondaryListingCard extends ConsumerWidget {
                   color: daysLeft < 7 ? AppColors.amber(context) : cs.onSurface,
                 ),
                 _MiniMetric(
-                  label: 'ROI (EST)',
+                  label: 'EST. RETURN',
                   value:
                       '₹${fmtAmount(double.tryParse(funding['expected_profit']?.toString() ?? '0') ?? 0)}',
                   color: AppColors.emerald(context),
@@ -289,7 +289,7 @@ class _SecondaryListingCard extends ConsumerWidget {
           ],
         );
       },
-    ));
+    ),);
   }
 
   Future<void> _handlePurchase(BuildContext context) async {
@@ -303,8 +303,8 @@ class _SecondaryListingCard extends ConsumerWidget {
           child: LoadingAnimationWidget.hexagonDots(
         color: Theme.of(context).colorScheme.primary,
         size: 40,
-      )),
-    ));
+      ),),
+    ),);
 
     final result = await SecondaryMarketApiService.buyListing(listing['id']);
 
@@ -351,8 +351,7 @@ class _MiniMetric extends StatelessWidget {
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
+  Widget build(BuildContext context) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -375,5 +374,4 @@ class _MiniMetric extends StatelessWidget {
         ),
       ],
     );
-  }
 }

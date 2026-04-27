@@ -8,6 +8,7 @@ import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ShieldManagementSheet extends ConsumerStatefulWidget {
   const ShieldManagementSheet({
@@ -443,13 +444,10 @@ class _ActionButton extends ConsumerWidget {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
           child: submitting
-              ? const SizedBox(
+              ? SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
+                  child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white, size: 24),
                 )
               : Text(
                   label,

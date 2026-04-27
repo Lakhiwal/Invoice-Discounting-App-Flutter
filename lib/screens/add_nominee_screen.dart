@@ -1,12 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/models/nominee.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class AddNomineeScreen extends ConsumerStatefulWidget {
   const AddNomineeScreen({super.key, this.nominee});
@@ -135,32 +138,35 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        title: Text(
-          isEdit ? 'Update Nominee' : 'Add Nominee',
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-        ),
-        backgroundColor: cs.surface,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(AppIcons.back, size: 20),
-          onPressed: () {
-            AppHaptics.selection();
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      body: Form(
+        key: _formKey,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 72,
+              leadingWidth: 64,
+              scrolledUnderElevation: 0,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: const ProfileBackButton(),
+              centerTitle: true,
+              title: Text(
+                isEdit ? 'Update Nominee' : 'Add Nominee',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  const SizedBox(height: 16),
                   Text(
                     'NOMINEE DETAILS',
                     style: TextStyle(
@@ -288,7 +294,6 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
                     icon: AppIcons.location,
                     maxLines: 3,
                   ),
-                  const Spacer(),
                   const SizedBox(height: 40),
 
                   SizedBox(
@@ -310,12 +315,12 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
                         elevation: 0,
                       ),
                       child: _saving
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
+                              child: LoadingAnimationWidget.staggeredDotsWave(
                                 color: Colors.white,
+                                size: 24,
                               ),
                             )
                           : Text(
@@ -327,10 +332,15 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
                             ),
                     ),
                   ),
-                ],
+                  const SizedBox(height: 24),
+                ]),
               ),
             ),
-          ),
+            SliverToBoxAdapter(
+              child:
+                  SizedBox(height: MediaQuery.paddingOf(context).bottom + 40),
+            ),
+          ],
         ),
       ),
     );
@@ -383,7 +393,7 @@ class _AddNomineeScreenState extends ConsumerState<AddNomineeScreen> {
     required String label,
     required String value,
     required List<String> items,
-    required Function(String?) onChanged,
+    required void Function(String?) onChanged,
     IconData? icon,
   }) {
     final cs = Theme.of(context).colorScheme;

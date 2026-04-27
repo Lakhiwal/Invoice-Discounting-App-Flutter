@@ -6,6 +6,7 @@ import 'package:invoice_discounting_app/services/status_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class StatusViewScreen extends ConsumerStatefulWidget {
   const StatusViewScreen({required this.status, super.key});
@@ -95,8 +96,7 @@ class _StatusViewScreenState extends ConsumerState<StatusViewScreen>
                     key: ValueKey(widget.status.imageUrls[_currentIndex]),
                     imageUrl: widget.status.imageUrls[_currentIndex],
                     fit: BoxFit.contain,
-                    placeholder: (context, url) => const Center(
-                      child: CircularProgressIndicator(color: Colors.white24),
+                    placeholder: (context, url) => Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white24, size: 24),
                     ),
                     imageBuilder: (context, imageProvider) {
                       // Only start animation if not already running and at start

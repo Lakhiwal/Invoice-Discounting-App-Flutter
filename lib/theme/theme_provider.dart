@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -238,22 +239,26 @@ ThemeData _build(
     final Color surface;
     final Color surfaceContainer;
     final Color surfaceContainerHigh;
+    final Color surfaceContainerHighest;
 
     if (isBlack) {
       // True AMOLED black
       surface = const Color(0xFF000000);
-      surfaceContainer = const Color(0xFF000000);
-      surfaceContainerHigh = const Color(0xFF0D0D0D);
+      surfaceContainer = const Color(0xFF050505);
+      surfaceContainerHigh = const Color(0xFF121212);
+      surfaceContainerHighest = const Color(0xFF222222);
     } else if (isDark) {
       // Dark mode — very dark but not pure black
       surface = const Color(0xFF050508);
-      surfaceContainer = const Color(0xFF0A0A0F);
-      surfaceContainerHigh = const Color(0xFF111118);
+      surfaceContainer = const Color(0xFF0D0D14);
+      surfaceContainerHigh = const Color(0xFF161622);
+      surfaceContainerHighest = const Color(0xFF282838);
     } else {
-      // Light mode
+      // Light mode - slightly stronger blue for nav bar separation
       surface = const Color(0xFFF4F7FF);
       surfaceContainer = const Color(0xFFFFFFFF);
-      surfaceContainerHigh = const Color(0xFFEEF2FF);
+      surfaceContainerHigh = const Color(0xFFF8FAFF);
+      surfaceContainerHighest = const Color(0xFFDCE4FF);
     }
 
     colorScheme = ColorScheme.fromSeed(
@@ -262,6 +267,7 @@ ThemeData _build(
       surface: surface,
       surfaceContainer: surfaceContainer,
       surfaceContainerHigh: surfaceContainerHigh,
+      surfaceContainerHighest: surfaceContainerHighest,
     ).copyWith(
       primary: brandSeed,
       onPrimary: Colors.white,
@@ -273,6 +279,9 @@ ThemeData _build(
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
+    actionIconTheme: ActionIconThemeData(
+      backButtonIconBuilder: (context) => Icon(AppIcons.back, size: 24),
+    ),
     scaffoldBackgroundColor: colorScheme.surface,
     fontFamily: 'Inter',
     extensions: [
@@ -335,7 +344,8 @@ ThemeData _build(
         elevation: 0,
         minimumSize: const Size.fromHeight(56),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(UI.radiusMd),),
+          borderRadius: BorderRadius.circular(UI.radiusMd),
+        ),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     ),
@@ -344,7 +354,8 @@ ThemeData _build(
         foregroundColor: colorScheme.primary,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(UI.radiusSm),),
+          borderRadius: BorderRadius.circular(UI.radiusSm),
+        ),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -352,7 +363,8 @@ ThemeData _build(
         foregroundColor: colorScheme.primary,
         side: BorderSide(color: colorScheme.outlineVariant),
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(UI.radiusMd),),
+          borderRadius: BorderRadius.circular(UI.radiusMd),
+        ),
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     ),

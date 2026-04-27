@@ -99,7 +99,6 @@ class _RootBackHandlerState extends ConsumerState<RootBackHandler> {
                 borderRadius: BorderRadius.circular(100),
                 side: BorderSide(
                   color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
                 ),
               ),
             ),

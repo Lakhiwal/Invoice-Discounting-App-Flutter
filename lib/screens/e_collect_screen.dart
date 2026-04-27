@@ -1,16 +1,18 @@
+import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
+import 'package:invoice_discounting_app/screens/withdraw_request_screen.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/formatters.dart';
-import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
-import 'package:invoice_discounting_app/screens/withdraw_request_screen.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ECollectScreen extends StatefulWidget {
   const ECollectScreen({super.key});
@@ -21,6 +23,7 @@ class ECollectScreen extends StatefulWidget {
 
 class _ECollectScreenState extends State<ECollectScreen> {
   Map<String, dynamic>? _walletData;
+  Map<String, dynamic>? _profile;
   bool _isLoading = true;
   bool _hasError = false;
 
@@ -40,10 +43,15 @@ class _ECollectScreenState extends State<ECollectScreen> {
       }
     }
     try {
-      final wallet = await ApiService.getWallet(forceRefresh: true);
+      final results = await Future.wait([
+        ApiService.getWallet(forceRefresh: true),
+        ApiService.getProfile(forceRefresh: true),
+      ]);
+
       if (mounted) {
         setState(() {
-          _walletData = wallet;
+          _walletData = results[0];
+          _profile = results[1];
           _isLoading = false;
         });
       }
@@ -62,6 +70,8 @@ class _ECollectScreenState extends State<ECollectScreen> {
 
   Map<String, dynamic>? get _ecollect =>
       _walletData?['ecollect'] as Map<String, dynamic>?;
+
+  String get _profileName => (_profile?['name'] as String?) ?? '—';
 
   bool get _hasECollect => _ecollect != null;
 
@@ -89,10 +99,10 @@ class _ECollectScreenState extends State<ECollectScreen> {
         color: cs.primary,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),
+          ),
           slivers: [
-            const AppLogoHeader(title: 'E-Collect'),
-
+            AppLogoHeader(title: 'E-Collect'),
             if (_isLoading)
               const SliverFillRemaining(
                 hasScrollBody: false,
@@ -121,7 +131,9 @@ class _ECollectScreenState extends State<ECollectScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: UI.lg, vertical: UI.sm),
+                    horizontal: UI.lg,
+                    vertical: UI.sm,
+                  ),
                   child: _buildBalanceCard(cs, tt),
                 ),
               ),
@@ -167,165 +179,162 @@ class _ECollectScreenState extends State<ECollectScreen> {
   // BALANCE CARD
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildBalanceCard(ColorScheme cs, TextTheme tt) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.primary,
-            cs.primary.withValues(alpha: 0.85),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(UI.radiusXl),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+  Widget _buildBalanceCard(ColorScheme cs, TextTheme tt) => Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              cs.primary,
+              cs.primary.withValues(alpha: 0.85),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    AppIcons.bank,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'E-Collect Balance',
-                  style: tt.titleSmall?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              Formatters.currency(_balance),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 36,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -1.5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _hasECollect ? '● Account Active' : '○ No Account Linked',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+          borderRadius: BorderRadius.circular(UI.radiusXl),
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withValues(alpha: 0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-      ),
-    );
-  }
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      AppIcons.bank,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'E-Collect Balance',
+                    style: tt.titleSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                Formatters.currency(_balance),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _hasECollect ? '● Account Active' : '○ No Account Linked',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE A: NO BENEFICIARY — Prompt to add one
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildNoBeneficiaryCard(ColorScheme cs, TextTheme tt) {
-    return Container(
-      margin: const EdgeInsets.only(top: UI.md),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(UI.radiusXl),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.2),
-          width: 1.5,
+  Widget _buildNoBeneficiaryCard(ColorScheme cs, TextTheme tt) => Container(
+        margin: const EdgeInsets.only(top: UI.md),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(UI.radiusXl),
+          border: Border.all(
+            color: cs.primary.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(AppIcons.bank, size: 36, color: cs.primary),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Link Your Bank Account',
-              style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add a beneficiary bank account to receive your assigned virtual E-Collect account for fund transfers.',
-              textAlign: TextAlign.center,
-              style: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: cs.primary,
-                  foregroundColor: cs.onPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(UI.radiusMd),
-                  ),
-                  elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cs.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () async {
-                  unawaited(AppHaptics.buttonPress());
-                  final result = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const _AddBeneficiaryScreen(),
+                child: Icon(AppIcons.bank, size: 36, color: cs.primary),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Link Your Bank Account',
+                style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add a beneficiary bank account to receive your assigned virtual E-Collect account for fund transfers.',
+                textAlign: TextAlign.center,
+                style: tt.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(UI.radiusMd),
                     ),
-                  );
-                  if (result == true && mounted) {
-                    await _loadData();
-                  }
-                },
-                icon: Icon(AppIcons.addCircle, size: 20),
-                label: const Text(
-                  'Add Beneficiary',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
+                    unawaited(AppHaptics.buttonPress());
+                    final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _AddBeneficiaryScreen(),
+                      ),
+                    );
+                    if (result == true && mounted) {
+                      await _loadData();
+                    }
+                  },
+                  icon: Icon(AppIcons.addCircle, size: 20),
+                  label: const Text(
+                    'Add Beneficiary',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STATE C: ACCOUNT ASSIGNED — Show Virtual Account Details
@@ -397,6 +406,18 @@ class _ECollectScreenState extends State<ECollectScreen> {
                 _accountDetailRow(
                   cs,
                   tt,
+                  label: 'Beneficiary Name',
+                  value:
+                      (ec['beneficiary_name']?.toString().isNotEmpty ?? false)
+                          ? ec['beneficiary_name'].toString()
+                          : _profileName,
+                  icon: AppIcons.user,
+                  copyable: true,
+                ),
+                const SizedBox(height: 14),
+                _accountDetailRow(
+                  cs,
+                  tt,
                   label: 'Bank',
                   value: ec['bank_name']?.toString() ?? '—',
                   icon: AppIcons.bank,
@@ -453,6 +474,74 @@ class _ECollectScreenState extends State<ECollectScreen> {
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 12),
+
+                // ── Bank Partnership Attribution (compliance) ──────────
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(UI.radiusMd),
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(AppIcons.shield,
+                          size: 14, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'This virtual account is provided in partnership '
+                          'with IDFC FIRST Bank via E-Collect services. '
+                          'Funds remain in your control and are used for '
+                          'invoice financing transactions on the platform.',
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            height: 1.45,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // ── Platform Role + Regulatory Context ─────────────────
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(UI.radiusMd),
+                    border: Border.all(
+                      color: cs.outlineVariant.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(AppIcons.info, size: 14, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Finworks360 is a technology platform and does not '
+                          'hold or custody user funds. This is not a savings '
+                          'or deposit product and is not insured by DICGC.',
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            height: 1.45,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -468,93 +557,90 @@ class _ECollectScreenState extends State<ECollectScreen> {
     required String value,
     required IconData icon,
     bool copyable = false,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
+  }) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: cs.onSurfaceVariant),
           ),
-          child: Icon(icon, size: 16, color: cs.onSurfaceVariant),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: tt.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontSize: 11,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: tt.labelSmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: tt.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: label == 'Account Number' ? 1.2 : 0,
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: tt.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: label == 'Account Number' ? 1.2 : 0,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        if (copyable)
-          GestureDetector(
-            onTap: () => _copyToClipboard(value, label),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(AppIcons.copy, size: 18, color: cs.primary),
+              ],
             ),
           ),
-      ],
-    );
-  }
+          if (copyable)
+            GestureDetector(
+              onTap: () => _copyToClipboard(value, label),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(AppIcons.copy, size: 18, color: cs.primary),
+              ),
+            ),
+        ],
+      );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // WITHDRAW BUTTON
   // ═══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildWithdrawButton(ColorScheme cs) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: cs.primaryContainer,
-          foregroundColor: cs.onPrimaryContainer,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(UI.radiusMd),
-          ),
-          elevation: 0,
-        ),
-        onPressed: () async {
-          unawaited(AppHaptics.buttonPress());
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WithdrawRequestScreen(
-                ecollectData: _ecollect,
-                balance: _balance,
-              ),
+  Widget _buildWithdrawButton(ColorScheme cs) => SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: cs.primaryContainer,
+            foregroundColor: cs.onPrimaryContainer,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(UI.radiusMd),
             ),
-          );
-          if (result == true) {
-            unawaited(_loadData(silent: true));
-          }
-        },
-        icon: Icon(AppIcons.withdraw, size: 20),
-        label: const Text(
-          'Withdraw Funds',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            elevation: 0,
+          ),
+          onPressed: () async {
+            unawaited(AppHaptics.buttonPress());
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WithdrawRequestScreen(
+                  ecollectData: _ecollect,
+                  balance: _balance,
+                ),
+              ),
+            );
+            if (result == true) {
+              unawaited(_loadData(silent: true));
+            }
+          },
+          icon: Icon(AppIcons.withdraw, size: 20),
+          label: const Text(
+            'Withdraw Funds',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
         ),
-      ),
-    );
-  }
+      );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // HOW IT WORKS — Shown when no account is linked
@@ -697,7 +783,8 @@ class _AddBeneficiaryScreenState extends State<_AddBeneficiaryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Beneficiary added! Your virtual account has been assigned.'),
+              'Beneficiary added! Your virtual account has been assigned.',
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -740,13 +827,7 @@ class _AddBeneficiaryScreenState extends State<_AddBeneficiaryScreen> {
           'Add Beneficiary',
           style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-        leading: IconButton(
-          icon: Icon(AppIcons.back),
-          onPressed: () {
-            unawaited(AppHaptics.navTap());
-            Navigator.pop(context);
-          },
-        ),
+        leading: const ProfileBackButton(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(UI.lg),
@@ -858,9 +939,9 @@ class _AddBeneficiaryScreenState extends State<_AddBeneficiaryScreen> {
                       ? SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                          child: LoadingAnimationWidget.staggeredDotsWave(
                             color: cs.onPrimary,
+                            size: 24,
                           ),
                         )
                       : const Text(
@@ -888,31 +969,30 @@ class _AddBeneficiaryScreenState extends State<_AddBeneficiaryScreen> {
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
     String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(UI.radiusMd),
-          borderSide: BorderSide(color: cs.outlineVariant),
+  }) =>
+      TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Icon(icon, size: 20),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(UI.radiusMd),
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(UI.radiusMd),
+            borderSide: BorderSide(color: cs.outlineVariant),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(UI.radiusMd),
+            borderSide: BorderSide(color: cs.primary, width: 2),
+          ),
+          filled: true,
+          fillColor: cs.surfaceContainerLow,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(UI.radiusMd),
-          borderSide: BorderSide(color: cs.outlineVariant),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(UI.radiusMd),
-          borderSide: BorderSide(color: cs.primary, width: 2),
-        ),
-        filled: true,
-        fillColor: cs.surfaceContainerLow,
-      ),
-    );
-  }
+      );
 }

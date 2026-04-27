@@ -1,12 +1,15 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/screens/login_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart'; // Item #8
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
@@ -105,162 +108,171 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       },
       child: Scaffold(
         backgroundColor: cs.surface,
-        appBar: AppBar(
-          title: const Text(
-            'Change Password',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        body: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
           ),
-          backgroundColor: cs.surface,
-          scrolledUnderElevation: 0,
-          automaticallyImplyLeading: !_loading,
-          leading: !_loading
-              ? IconButton(
-                  icon: Icon(AppIcons.back, size: 20),
-                  onPressed: () {
-                    AppHaptics.selection();
-                    Navigator.pop(context);
-                  },
-                )
-              : null,
-        ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'SECURITY UPDATE',
-                style: TextStyle(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 72,
+              leadingWidth: 64,
+              scrolledUnderElevation: 0,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: !_loading ? const ProfileBackButton() : null,
+              automaticallyImplyLeading: !_loading,
+              centerTitle: true,
+              title: Text(
+                'Change Password',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: 0.3),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  Text(
+                    'SECURITY UPDATE',
+                    style: TextStyle(
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    _passwordInput(
-                      label: 'Current Password',
-                      controller: _currentController,
-                      icon: AppIcons.lock,
-                      show: _showCurrent,
-                      toggle: () =>
-                          setState(() => _showCurrent = !_showCurrent),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: cs.outlineVariant.withValues(alpha: 0.3),
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    _passwordInput(
-                      label: 'New Password',
-                      controller: _newController,
-                      icon: AppIcons.password,
-                      show: _showNew,
-                      toggle: () => setState(() => _showNew = !_showNew),
+                    child: Column(
+                      children: [
+                        _passwordInput(
+                          label: 'Current Password',
+                          controller: _currentController,
+                          icon: AppIcons.lock,
+                          show: _showCurrent,
+                          toggle: () =>
+                              setState(() => _showCurrent = !_showCurrent),
+                        ),
+                        const SizedBox(height: 16),
+                        _passwordInput(
+                          label: 'New Password',
+                          controller: _newController,
+                          icon: AppIcons.password,
+                          show: _showNew,
+                          toggle: () => setState(() => _showNew = !_showNew),
+                        ),
+                        const SizedBox(height: 16),
+                        _passwordInput(
+                          label: 'Confirm New Password',
+                          controller: _confirmController,
+                          icon: AppIcons.check,
+                          show: _showConfirm,
+                          toggle: () =>
+                              setState(() => _showConfirm = !_showConfirm),
+                          isLast: true,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    _passwordInput(
-                      label: 'Confirm New Password',
-                      controller: _confirmController,
-                      icon: AppIcons.check,
-                      show: _showConfirm,
-                      toggle: () =>
-                          setState(() => _showConfirm = !_showConfirm),
-                      isLast: true,
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color:
+                            AppColors.danger(context).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color:
+                              AppColors.danger(context).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            AppIcons.error,
+                            color: AppColors.danger(context),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: TextStyle(
+                                color: AppColors.danger(context),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.danger(context).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.danger(context).withValues(alpha: 0.2),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _loading
+                          ? SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: LoadingAnimationWidget.staggeredDotsWave(
+                                  color: Colors.white, size: 24,),
+                            )
+                          : const Text(
+                              'Update Password',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        AppIcons.error,
-                        color: AppColors.danger(context),
-                        size: 18,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: AppColors.danger(context),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'After changing your password you will be logged out and need to log in again.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: cs.onSurfaceVariant,
+                          fontSize: 12,
+                          height: 1.5,
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: cs.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Update Password',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    'After changing your password you will be logged out and need to log in again.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant,
-                      fontSize: 12,
-                      height: 1.5,
                     ),
                   ),
-                ),
+                ]),
               ),
-            ],
-          ),
+            ),
+            SliverToBoxAdapter(
+              child:
+                  SizedBox(height: MediaQuery.paddingOf(context).bottom + 40),
+            ),
+          ],
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -251,402 +253,413 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         body: Stack(
           children: [
             // ── Decorative glow (matches login) ─────────────────────────────
-          Positioned(
-            top: -80,
-            right: -80,
-            child: IgnorePointer(
-              child: Container(
-                width: 480,
-                height: 480,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      AppColors.blue(context)
-                          .withValues(alpha: isDark ? 0.15 : 0.08),
-                      Colors.transparent,
-                    ],
+            Positioned(
+              top: -80,
+              right: -80,
+              child: IgnorePointer(
+                child: Container(
+                  width: 480,
+                  height: 480,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppColors.blue(context)
+                            .withValues(alpha: isDark ? 0.15 : 0.08),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ── Content ─────────────────────────────────────────────────────
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _slideAnim,
-                child: LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints:
-                          BoxConstraints(minHeight: constraints.maxHeight),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28),
-                        child: IntrinsicHeight(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 40),
+            // ── Content ─────────────────────────────────────────────────────
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 28),
+                          child: IntrinsicHeight(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 40),
 
-                              // ── Logo (matches login: dark-mode aware) ───────────
-                              Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? AppColors.navyCard(context)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(UI.radiusLg),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.blue(context)
-                                            .withValues(alpha: 0.12),
-                                        blurRadius: 24,
-                                        spreadRadius: 2,
-                                        offset: const Offset(0, 6),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Image.asset(
-                                    'assets/images/logo-colored.png',
-                                    height: 48,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 36),
-
-                              // ── Heading ─────────────────────────────────────────
-                              Text(
-                                'Create account.',
-                                style: TextStyle(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary(context),
-                                  height: 1.15,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Join Finworks360 as an investor or partner',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppColors.textSecondary(context),
-                                ),
-                              ),
-
-                              const SizedBox(height: 28),
-
-                              // ── Account type ────────────────────────────────────
-                              Text(
-                                'Account type',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary(context),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              _buildUserTypeSelector(isDark),
-
-                              const SizedBox(height: 20),
-
-                              // ── Form fields ─────────────────────────────────────
-                              _buildField(
-                                controller: _nameController,
-                                label: 'Full name',
-                                icon: AppIcons.user,
-                                inputType: TextInputType.name,
-                                capitalization: TextCapitalization.words,
-                              ),
-                              const SizedBox(height: 14),
-
-                              _buildField(
-                                controller: _emailController,
-                                label: 'Email address',
-                                icon: AppIcons.mail,
-                                inputType: TextInputType.emailAddress,
-                              ),
-                              const SizedBox(height: 14),
-
-                              _buildField(
-                                controller: _mobileController,
-                                label: 'Mobile number',
-                                icon: AppIcons.phone,
-                                inputType: TextInputType.phone,
-                              ),
-                              const SizedBox(height: 14),
-
-                              _buildField(
-                                controller: _panController,
-                                label: 'PAN number',
-                                icon: AppIcons.card,
-                                capitalization: TextCapitalization.characters,
-                                maxLength: 10,
-                              ),
-                              const SizedBox(height: 14),
-
-                              // ── Password ────────────────────────────────────────
-                              TextField(
-                                controller: _passwordController,
-                                obscureText: _obscurePassword,
-                                style: TextStyle(
-                                  color: AppColors.textPrimary(context),
-                                ),
-                                decoration: InputDecoration(
-                                  labelText: 'Password',
-                                  labelStyle: TextStyle(
-                                    color: AppColors.textSecondary(context),
-                                  ),
-                                  prefixIcon: Icon(
-                                    AppIcons.lock,
-                                    color: AppColors.textSecondary(context),
-                                    size: 20,
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? AppIcons.eyeSlash
-                                          : AppIcons.eye,
-                                      color: AppColors.textSecondary(context),
-                                      size: 20,
+                                // ── Logo (matches login: dark-mode aware) ───────────
+                                Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 24,
+                                      vertical: 16,
                                     ),
-                                    onPressed: () async {
-                                      unawaited(AppHaptics.selection());
-                                      setState(
-                                        () => _obscurePassword =
-                                            !_obscurePassword,
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-
-                              // ── Password strength bar ──────────────────────────
-                              if (_passwordController.text.isNotEmpty) ...[
-                                const SizedBox(height: UI.sm),
-                                Row(
-                                  children: [
-                                    ...List.generate(
-                                      4,
-                                      (i) => Expanded(
-                                        child: Container(
-                                          height: 3,
-                                          margin: EdgeInsets.only(
-                                            right: i < 3 ? 4 : 0,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: i < _passwordStrength
-                                                ? _strengthColor()
-                                                : AppColors.divider(context),
-                                            borderRadius:
-                                                BorderRadius.circular(2),
-                                          ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius:
+                                          BorderRadius.circular(UI.radiusLg),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: AppColors.blue(context)
+                                              .withValues(alpha: 0.12),
+                                          blurRadius: 24,
+                                          spreadRadius: 2,
+                                          offset: const Offset(0, 6),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: UI.sm),
-                                    Text(
-                                      _strengthLabel(),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: _strengthColor(),
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                    child: Image.asset(
+                                      'assets/images/logo-colored.png',
+                                      height: 48,
+                                      fit: BoxFit.contain,
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ],
 
-                              const SizedBox(height: 14),
+                                const SizedBox(height: 36),
 
-                              // ── Confirm Password ───────────────────────────────
-                              TextField(
-                                controller: _confirmPasswordController,
-                                obscureText: _obscureConfirm,
-                                style: TextStyle(
-                                  color: AppColors.textPrimary(context),
+                                // ── Heading ─────────────────────────────────────────
+                                Text(
+                                  'Create account.',
+                                  style: TextStyle(
+                                    fontSize: 34,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary(context),
+                                    height: 1.15,
+                                  ),
                                 ),
-                                onSubmitted: (_) => _handleRegister(),
-                                decoration: InputDecoration(
-                                  labelText: 'Confirm password',
-                                  labelStyle: TextStyle(
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Join Finworks360 as an investor or partner',
+                                  style: TextStyle(
+                                    fontSize: 14,
                                     color: AppColors.textSecondary(context),
                                   ),
-                                  prefixIcon: Icon(
-                                    AppIcons.lock,
+                                ),
+
+                                const SizedBox(height: 28),
+
+                                // ── Account type ────────────────────────────────────
+                                Text(
+                                  'Account type',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                     color: AppColors.textSecondary(context),
-                                    size: 20,
                                   ),
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirm
-                                          ? AppIcons.eyeSlash
-                                          : AppIcons.eye,
+                                ),
+                                const SizedBox(height: 10),
+                                _buildUserTypeSelector(isDark),
+
+                                const SizedBox(height: 20),
+
+                                // ── Form fields ─────────────────────────────────────
+                                _buildField(
+                                  controller: _nameController,
+                                  label: 'Full name',
+                                  icon: AppIcons.user,
+                                  inputType: TextInputType.name,
+                                  capitalization: TextCapitalization.words,
+                                ),
+                                const SizedBox(height: 14),
+
+                                _buildField(
+                                  controller: _emailController,
+                                  label: 'Email address',
+                                  icon: AppIcons.mail,
+                                  inputType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 14),
+
+                                _buildField(
+                                  controller: _mobileController,
+                                  label: 'Mobile number',
+                                  icon: AppIcons.phone,
+                                  inputType: TextInputType.phone,
+                                ),
+                                const SizedBox(height: 14),
+
+                                _buildField(
+                                  controller: _panController,
+                                  label: 'PAN number',
+                                  icon: AppIcons.card,
+                                  capitalization: TextCapitalization.characters,
+                                  maxLength: 10,
+                                ),
+                                const SizedBox(height: 14),
+
+                                // ── Password ────────────────────────────────────────
+                                TextField(
+                                  controller: _passwordController,
+                                  obscureText: _obscurePassword,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary(context),
+                                  ),
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    labelStyle: TextStyle(
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                    prefixIcon: Icon(
+                                      AppIcons.lock,
                                       color: AppColors.textSecondary(context),
                                       size: 20,
                                     ),
-                                    onPressed: () async {
-                                      unawaited(AppHaptics.selection());
-                                      setState(
-                                        () =>
-                                            _obscureConfirm = !_obscureConfirm,
-                                      );
-                                    },
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? AppIcons.eyeSlash
+                                            : AppIcons.eye,
+                                        color: AppColors.textSecondary(context),
+                                        size: 20,
+                                      ),
+                                      onPressed: () async {
+                                        unawaited(AppHaptics.selection());
+                                        setState(
+                                          () => _obscurePassword =
+                                              !_obscurePassword,
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
-                              ),
 
-                              // ── Error banner ──────────────────────────────────
-                              AnimatedSize(
-                                duration: const Duration(milliseconds: 250),
-                                curve: Curves.easeInOut,
-                                child: _errorMessage != null
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(top: 12),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.rose(context)
-                                                .withValues(alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(UI.radiusSm),
-                                            border: Border.all(
-                                              color: AppColors.rose(context)
-                                                  .withValues(alpha: 0.3),
+                                // ── Password strength bar ──────────────────────────
+                                if (_passwordController.text.isNotEmpty) ...[
+                                  const SizedBox(height: UI.sm),
+                                  Row(
+                                    children: [
+                                      ...List.generate(
+                                        4,
+                                        (i) => Expanded(
+                                          child: Container(
+                                            height: 3,
+                                            margin: EdgeInsets.only(
+                                              right: i < 3 ? 4 : 0,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: i < _passwordStrength
+                                                  ? _strengthColor()
+                                                  : AppColors.divider(context),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                UI.radiusSm,
+                                              ),
                                             ),
                                           ),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  top: 1,
-                                                ),
-                                                child: Icon(
-                                                  AppIcons.error,
-                                                  color:
-                                                      AppColors.rose(context),
-                                                  size: 16,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  _errorMessage!,
-                                                  style: TextStyle(
-                                                    color: AppColors.rose(
-                                                      context,
-                                                    ),
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                              GestureDetector(
-                                                onTap: () async {
-                                                  unawaited(
-                                                      AppHaptics.selection(),);
-                                                  _dismissError();
-                                                },
-                                                child: Icon(
-                                                  AppIcons.close,
-                                                  color:
-                                                      AppColors.rose(context),
-                                                  size: 16,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
                                         ),
-                                      )
-                                    : const SizedBox.shrink(),
-                              ),
-
-                              const Spacer(),
-                              const SizedBox(height: 32),
-
-                              // ── Create Account button ──────────────────────────
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed:
-                                      _isLoading ? null : _handleRegister,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary(context),
-                                    foregroundColor: Colors.white,
-                                    disabledBackgroundColor:
-                                        AppColors.primary(context)
-                                            .withValues(alpha: 0.6),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(UI.radiusMd),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Create Account',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 28),
-
-                              // ── Sign in link ───────────────────────────────────
-                              Center(
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.textSecondary(context),
-                                    ),
-                                    children: [
-                                      const TextSpan(
-                                        text: 'Already have an account? ',
                                       ),
-                                      TextSpan(
-                                        text: 'Sign in',
+                                      const SizedBox(width: UI.sm),
+                                      Text(
+                                        _strengthLabel(),
                                         style: TextStyle(
-                                          color: AppColors.primary(context),
-                                          fontWeight: FontWeight.w700,
+                                          fontSize: 11,
+                                          color: _strengthColor(),
+                                          fontWeight: FontWeight.w600,
                                         ),
-                                        recognizer: _signInRecognizer,
                                       ),
                                     ],
                                   ),
-                                ),
-                              ),
+                                ],
 
-                              // ── Bottom padding ─────────────────────────────────
-                              SizedBox(
-                                height:
-                                    MediaQuery.of(context).padding.bottom + 24,
-                              ),
-                            ],
+                                const SizedBox(height: 14),
+
+                                // ── Confirm Password ───────────────────────────────
+                                TextField(
+                                  controller: _confirmPasswordController,
+                                  obscureText: _obscureConfirm,
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary(context),
+                                  ),
+                                  onSubmitted: (_) => _handleRegister(),
+                                  decoration: InputDecoration(
+                                    labelText: 'Confirm password',
+                                    labelStyle: TextStyle(
+                                      color: AppColors.textSecondary(context),
+                                    ),
+                                    prefixIcon: Icon(
+                                      AppIcons.lock,
+                                      color: AppColors.textSecondary(context),
+                                      size: 20,
+                                    ),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirm
+                                            ? AppIcons.eyeSlash
+                                            : AppIcons.eye,
+                                        color: AppColors.textSecondary(context),
+                                        size: 20,
+                                      ),
+                                      onPressed: () async {
+                                        unawaited(AppHaptics.selection());
+                                        setState(
+                                          () => _obscureConfirm =
+                                              !_obscureConfirm,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+
+                                // ── Error banner ──────────────────────────────────
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeInOut,
+                                  child: _errorMessage != null
+                                      ? Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 12),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.rose(context)
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                UI.radiusSm,
+                                              ),
+                                              border: Border.all(
+                                                color: AppColors.rose(context)
+                                                    .withValues(alpha: 0.3),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                    top: 1,
+                                                  ),
+                                                  child: Icon(
+                                                    AppIcons.error,
+                                                    color:
+                                                        AppColors.rose(context),
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: Text(
+                                                    _errorMessage!,
+                                                    style: TextStyle(
+                                                      color: AppColors.rose(
+                                                        context,
+                                                      ),
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ),
+                                                GestureDetector(
+                                                  onTap: () async {
+                                                    unawaited(
+                                                      AppHaptics.selection(),
+                                                    );
+                                                    _dismissError();
+                                                  },
+                                                  child: Icon(
+                                                    AppIcons.close,
+                                                    color:
+                                                        AppColors.rose(context),
+                                                    size: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+
+                                const Spacer(),
+                                const SizedBox(height: 32),
+
+                                // ── Create Account button ──────────────────────────
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: ElevatedButton(
+                                    onPressed:
+                                        _isLoading ? null : _handleRegister,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          AppColors.primary(context),
+                                      foregroundColor: Colors.white,
+                                      disabledBackgroundColor:
+                                          AppColors.primary(context)
+                                              .withValues(alpha: 0.6),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(UI.radiusMd),
+                                      ),
+                                      elevation: 0,
+                                    ),
+                                    child: _isLoading
+                                        ? SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: LoadingAnimationWidget
+                                                .staggeredDotsWave(
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
+                                          )
+                                        : const Text(
+                                            'Create Account',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 28),
+
+                                // ── Sign in link ───────────────────────────────────
+                                Center(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: AppColors.textSecondary(context),
+                                      ),
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Already have an account? ',
+                                        ),
+                                        TextSpan(
+                                          text: 'Sign in',
+                                          style: TextStyle(
+                                            color: AppColors.primary(context),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          recognizer: _signInRecognizer,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+
+                                // ── Bottom padding ─────────────────────────────────
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).padding.bottom +
+                                          24,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -655,10 +668,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 

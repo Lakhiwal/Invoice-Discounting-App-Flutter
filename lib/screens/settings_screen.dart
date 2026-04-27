@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/screens/profile/sheets/time_tile.dart';
 import 'package:invoice_discounting_app/screens/profile/shield_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/screens/profile/widgets/menu_widgets.dart';
 import 'package:invoice_discounting_app/screens/profile/widgets/status_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
@@ -16,6 +17,7 @@ import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/deep_link_test_util.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:invoice_discounting_app/widgets/common/app_switch.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -391,236 +393,240 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        backgroundColor: cs.surface,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            AppIcons.back,
-            color: cs.onSurface,
-            size: 18,
-          ),
-          onPressed: () {
-            unawaited(AppHaptics.selection());
-            Navigator.pop(context);
-          },
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
-        centerTitle: true,
-        title: Text(
-          'Settings',
-          style: TextStyle(
-            color: cs.onSurface,
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          const SizedBox(height: 8),
-
-          // ── Appearance ──────────────────────────────────────────
-          const _SectionLabel(label: 'Appearance'),
-          const SizedBox(height: 10),
-          _AppearancePicker(
-            current: mode,
-            onChanged: (newMode) async {
-              unawaited(AppHaptics.selection());
-              ref.read(themeProvider).setMode(newMode);
-            },
-          ),
-          const SizedBox(height: 24),
-          const Divider(height: 1),
-          const _SectionLabel(label: 'Notifications'),
-          const SizedBox(height: 10),
-          _SettingsGroup(
-            children: [
-              ProfileCardGroup(
-                children: [
-                  _SwitchRow(
-                    icon: AppIcons.notification,
-                    label: 'Push notifications',
-                    subtitle:
-                        _pushEnabled ? 'New invoices, repayments' : 'Disabled',
-                    value: _pushEnabled,
-                    onChanged: _handlePushToggle,
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            toolbarHeight: 72,
+            leadingWidth: 64,
+            scrolledUnderElevation: 0,
+            backgroundColor: cs.surface,
+            surfaceTintColor: Colors.transparent,
+            leading: const ProfileBackButton(),
+            centerTitle: true,
+            title: Text(
+              'Settings',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
                   ),
-                  _MenuRow(
-                    icon: AppIcons.quiet,
-                    label: 'Quiet hours',
-                    subtitle: quietLabel,
-                    subtitleColor:
-                        _quietActiveNow ? AppColors.warning(context) : null,
-                    onTap: () async {
-                      unawaited(AppHaptics.selection());
-                      _showQuietHoursPicker();
-                    },
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 8),
+
+              // ── Appearance ──────────────────────────────────────────
+              const _SectionLabel(label: 'Appearance'),
+              const SizedBox(height: 10),
+              _AppearancePicker(
+                current: mode,
+                onChanged: (newMode) async {
+                  unawaited(AppHaptics.selection());
+                  ref.read(themeProvider).setMode(newMode);
+                },
+              ),
+              const SizedBox(height: 24),
+              const Divider(height: 1),
+              const _SectionLabel(label: 'Notifications'),
+              const SizedBox(height: 10),
+              _SettingsGroup(
+                children: [
+                  ProfileCardGroup(
+                    children: [
+                      _SwitchRow(
+                        icon: AppIcons.notification,
+                        label: 'Push notifications',
+                        subtitle: _pushEnabled
+                            ? 'New invoices, repayments'
+                            : 'Disabled',
+                        value: _pushEnabled,
+                        onChanged: _handlePushToggle,
+                      ),
+                      _MenuRow(
+                        icon: AppIcons.quiet,
+                        label: 'Quiet hours',
+                        subtitle: quietLabel,
+                        subtitleColor:
+                            _quietActiveNow ? AppColors.warning(context) : null,
+                        onTap: () async {
+                          unawaited(AppHaptics.selection());
+                          _showQuietHoursPicker();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // ── Security ───────────────────────────────────────────
-          const Divider(height: 1),
-          const _SectionLabel(label: 'Security'),
-          const SizedBox(height: 10),
-          _SettingsGroup(
-            children: [
-              ProfileCardGroup(
+              // ── Security ───────────────────────────────────────────
+              const Divider(height: 1),
+              const _SectionLabel(label: 'Security'),
+              const SizedBox(height: 10),
+              _SettingsGroup(
                 children: [
-                  if (_isLoading2FA)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                  ProfileCardGroup(
+                    children: [
+                      if (_isLoading2FA)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: LoadingAnimationWidget.staggeredDotsWave(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 24,),
+                            ),
+                          ),
+                        )
+                      else
+                        _SwitchRow(
+                          icon: AppIcons.shield,
+                          label: 'Two-Factor Authentication',
+                          subtitle: _is2FAEnabled
+                              ? 'Authenticator app active'
+                              : 'Protect your account with 2FA',
+                          value: _is2FAEnabled,
+                          onChanged: _handle2FAToggle,
                         ),
-                      ),
-                    )
-                  else
-                    _SwitchRow(
-                      icon: AppIcons.shield,
-                      label: 'Two-Factor Authentication',
-                      subtitle: _is2FAEnabled
-                          ? 'Authenticator app active'
-                          : 'Protect your account with 2FA',
-                      value: _is2FAEnabled,
-                      onChanged: _handle2FAToggle,
-                    ),
-                  _SwitchRow(
-                    icon: AppIcons
-                        .timer, // Using timer icon for lock logic or AppIcons.shield if preferred
-                    label: 'Biometric Lock',
-                    subtitle:
-                        ref.watch(themeProvider.select((p) => p.useBiometrics))
+                      _SwitchRow(
+                        icon: AppIcons
+                            .timer, // Using timer icon for lock logic or AppIcons.shield if preferred
+                        label: 'Biometric Lock',
+                        subtitle: ref.watch(
+                                themeProvider.select((p) => p.useBiometrics),)
                             ? 'Authenticated on startup/resume'
                             : 'Security login only',
-                    value:
-                        ref.watch(themeProvider.select((p) => p.useBiometrics)),
-                    onChanged: (v) async {
-                      unawaited(AppHaptics.selection());
-                      ref.read(themeProvider).setUseBiometrics(useOrNot: v);
-                    },
+                        value: ref.watch(
+                            themeProvider.select((p) => p.useBiometrics),),
+                        onChanged: (v) async {
+                          unawaited(AppHaptics.selection());
+                          ref.read(themeProvider).setUseBiometrics(useOrNot: v);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // ── Display ─────────────────────────────────────────────
-          const Divider(height: 1),
-          const _SectionLabel(label: 'Display'),
-          const SizedBox(height: 10),
-          _SettingsGroup(
-            children: [
-              ProfileCardGroup(
+              // ── Display ─────────────────────────────────────────────
+              const Divider(height: 1),
+              const _SectionLabel(label: 'Display'),
+              const SizedBox(height: 10),
+              _SettingsGroup(
                 children: [
-                  _SwitchRow(
-                    icon: AppIcons.eyeSlash,
-                    label: 'Hide balances',
-                    subtitle: hideBalance
-                        ? 'Amounts hidden everywhere'
-                        : 'All amounts visible',
-                    value: hideBalance,
-                    onChanged: (v) async {
-                      unawaited(AppHaptics.selection());
-                      ref.read(themeProvider).setHideBalance(hide: v);
-                    },
-                  ),
-                  _SwitchRow(
-                    icon: AppIcons.fullscreen,
-                    label: 'Fullscreen',
-                    subtitle:
-                        isFullscreen ? 'Immersive mode active' : 'Default',
-                    value: isFullscreen,
-                    onChanged: (v) async {
-                      unawaited(AppHaptics.selection());
-                      ref.read(themeProvider).setFullscreen(enabled: v);
-                    },
-                  ),
-                  _SwitchRow(
-                    icon: AppIcons.vibration,
-                    label: 'Haptics',
-                    subtitle:
-                        _hapticsEnabled ? 'Premium touch feedback' : 'Off',
-                    value: _hapticsEnabled,
-                    onChanged: (v) async {
-                      unawaited(AppHaptics.setEnabled(enabled: v));
-                      setState(() => _hapticsEnabled = v);
-                    },
+                  ProfileCardGroup(
+                    children: [
+                      _SwitchRow(
+                        icon: AppIcons.eyeSlash,
+                        label: 'Hide balances',
+                        subtitle: hideBalance
+                            ? 'Amounts hidden everywhere'
+                            : 'All amounts visible',
+                        value: hideBalance,
+                        onChanged: (v) async {
+                          unawaited(AppHaptics.selection());
+                          ref.read(themeProvider).setHideBalance(hide: v);
+                        },
+                      ),
+                      _SwitchRow(
+                        icon: AppIcons.fullscreen,
+                        label: 'Fullscreen',
+                        subtitle:
+                            isFullscreen ? 'Immersive mode active' : 'Default',
+                        value: isFullscreen,
+                        onChanged: (v) async {
+                          unawaited(AppHaptics.selection());
+                          ref.read(themeProvider).setFullscreen(enabled: v);
+                        },
+                      ),
+                      _SwitchRow(
+                        icon: AppIcons.vibration,
+                        label: 'Haptics',
+                        subtitle:
+                            _hapticsEnabled ? 'Premium touch feedback' : 'Off',
+                        value: _hapticsEnabled,
+                        onChanged: (v) async {
+                          unawaited(AppHaptics.setEnabled(enabled: v));
+                          setState(() => _hapticsEnabled = v);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // ── Performance ──────────────────────────────────────────
-          const Divider(height: 1),
-          const _SectionLabel(label: 'Performance'),
-          const SizedBox(height: 10),
-          _SettingsGroup(
-            children: [
-              ProfileCardGroup(
+              // ── Performance ──────────────────────────────────────────
+              const Divider(height: 1),
+              const _SectionLabel(label: 'Performance'),
+              const SizedBox(height: 10),
+              _SettingsGroup(
                 children: [
-                  _MenuRow(
-                    icon: AppIcons.battery,
-                    label: 'Disable battery optimization',
-                    subtitle: 'Reduces app closes and delays',
-                    showTrailing: false,
-                    onTap: () async {
-                      unawaited(AppHaptics.selection());
-                      try {
-                        const MethodChannel('app/settings')
-                            .invokeMethod('openBatteryOptimization');
-                      } catch (_) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Could not open system settings'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      }
-                    },
+                  ProfileCardGroup(
+                    children: [
+                      _MenuRow(
+                        icon: AppIcons.battery,
+                        label: 'Disable battery optimization',
+                        subtitle: 'Reduces app closes and delays',
+                        showTrailing: false,
+                        onTap: () async {
+                          unawaited(AppHaptics.selection());
+                          try {
+                            const MethodChannel('app/settings')
+                                .invokeMethod('openBatteryOptimization');
+                          } catch (_) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content:
+                                      Text('Could not open system settings'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // ── Debug & Testing ─────────────────────────────────────
-          const Divider(height: 1),
-          const _SectionLabel(label: 'Debug & Testing'),
-          const SizedBox(height: 10),
-          _SettingsGroup(
-            children: [
-              ProfileCardGroup(
+              // ── Debug & Testing ─────────────────────────────────────
+              const Divider(height: 1),
+              const _SectionLabel(label: 'Debug & Testing'),
+              const SizedBox(height: 10),
+              _SettingsGroup(
                 children: [
-                  _MenuRow(
-                    icon: AppIcons.bug,
-                    label: 'Simulate Deep Link',
-                    subtitle: 'Tests Skeleton Transition for Invoice',
-                    onTap: () async {
-                      unawaited(AppHaptics.navTap());
-                      // We use a sample invoice ID (e.g. 1)
-                      DeepLinkTestUtil.simulateNewInvoice(1);
-                    },
+                  ProfileCardGroup(
+                    children: [
+                      _MenuRow(
+                        icon: AppIcons.bug,
+                        label: 'Simulate Deep Link',
+                        subtitle: 'Tests Skeleton Transition for Invoice',
+                        onTap: () async {
+                          unawaited(AppHaptics.navTap());
+                          // We use a sample invoice ID (e.g. 1)
+                          DeepLinkTestUtil.simulateNewInvoice(1);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ]),
           ),
-          const SizedBox(height: 60),
+          SliverToBoxAdapter(
+            child: SizedBox(height: MediaQuery.paddingOf(context).bottom + 40),
+          ),
         ],
       ),
     );

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:invoice_discounting_app/services/secure_storage_service.dart';
+import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:local_auth/local_auth.dart';
-import '../services/api_service.dart';
-import '../services/secure_storage_service.dart';
-import '../utils/app_haptics.dart';
 
 // ── Riverpod provider ─────────────────────────────────────────────────────────
 final authViewModelProvider =
@@ -11,7 +11,11 @@ final authViewModelProvider =
 
 enum AuthStatus { initial, loading, authenticated, needs2FA, error }
 
-class AuthViewModel extends ChangeNotifier {
+class AuthViewModel extends ChangeNotifier { // Token for 2FA verification
+
+  AuthViewModel() {
+    checkBiometrics();
+  }
   final _localAuth = LocalAuthentication();
   
   AuthStatus _status = AuthStatus.initial;
@@ -23,11 +27,7 @@ class AuthViewModel extends ChangeNotifier {
   bool _isBiometricAvailable = false;
   bool get isBiometricAvailable => _isBiometricAvailable;
 
-  String? _preAuthToken; // Token for 2FA verification
-
-  AuthViewModel() {
-    checkBiometrics();
-  }
+  String? _preAuthToken;
 
   Future<void> checkBiometrics() async {
     try {

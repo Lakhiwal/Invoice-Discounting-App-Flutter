@@ -5,8 +5,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 /// Pull-to-refresh with a frosted-glass reveal, spring-to-rest loading dock,
 /// and a haptic chord on completion.

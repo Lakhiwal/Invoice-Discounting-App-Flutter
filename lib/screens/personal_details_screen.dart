@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
@@ -15,6 +17,7 @@ import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
 import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PersonalDetailsScreen — Personal details page with crop & preview
@@ -595,116 +598,123 @@ class _PersonalDetailsScreenState extends ConsumerState<PersonalDetailsScreen> {
 
     return Scaffold(
       backgroundColor: cs.surface,
-      appBar: AppBar(
-        title: const Text(
-          'Personal Details',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-        ),
-        backgroundColor: cs.surface,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(AppIcons.back, size: 20),
-        ),
-      ),
       body: LiquidityRefreshIndicator(
         onRefresh: _load,
         color: cs.primary,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          child: _profile == null
-              ? const SingleChildScrollView(
-                  padding: EdgeInsets.all(24),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 72,
+              leadingWidth: 64,
+              scrolledUnderElevation: 0,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: const ProfileBackButton(),
+              centerTitle: true,
+              title: Text(
+                'Personal Details',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
+              ),
+            ),
+            if (_profile == null)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
                   child: SkeletonPersonalDetails(),
-                )
-              : SingleChildScrollView(
-                  key: const ValueKey('personal_details_content'),
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 24),
-                      // ── Profile Picture Section ──
-                      _buildPictureSection(cs),
-                      const SizedBox(height: 40),
-
-                      // ── Personal Info Category ──
-                      const _CategoryHeader(label: 'Identity'),
-                      _SharpCard(
-                        children: [
-                          _DetailTile(
-                            icon: AppIcons.user,
-                            label: 'Full Name',
-                            value: name,
-                          ),
-                          _DetailTile(
-                            icon: AppIcons.cake,
-                            label: 'Date of Birth',
-                            value: _maskDob(dob),
-                            onCopy: (dob != null && dob.isNotEmpty)
-                                ? () => _copyToClipboard(dob, 'DOB')
-                                : null,
-                          ),
-                          _DetailTile(
-                            icon: AppIcons.user,
-                            label: 'Gender',
-                            value: (gender != null && gender.isNotEmpty)
-                                ? (gender[0].toUpperCase() +
-                                    gender.substring(1))
-                                : '--',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Contact Detail Category ──
-                      const _CategoryHeader(label: 'Contact'),
-                      _SharpCard(
-                        children: [
-                          _DetailTile(
-                            icon: AppIcons.smartphone,
-                            label: 'Mobile Number',
-                            value: _maskMobile(mobile),
-                            onCopy: mobile.isNotEmpty
-                                ? () => _copyToClipboard(mobile, 'Mobile')
-                                : null,
-                          ),
-                          _DetailTile(
-                            icon: AppIcons.mail,
-                            label: 'Email Address',
-                            value: _maskEmail(email),
-                            onCopy: email.isNotEmpty
-                                ? () => _copyToClipboard(email, 'Email')
-                                : null,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // ── Security & Tax Category ──
-                      const _CategoryHeader(label: 'Security & Tax'),
-                      _SharpCard(
-                        children: [
-                          _DetailTile(
-                            icon: AppIcons.badge,
-                            label: 'PAN Number',
-                            value: _maskPan(pan),
-                            onCopy: pan.isNotEmpty
-                                ? () => _copyToClipboard(pan, 'PAN')
-                                : null,
-                          ),
-                          _DetailTile(
-                            icon: AppIcons.fingerPrint,
-                            label: 'Unique ID',
-                            value: 'CX${_profile?['customer_index'] ?? '--'}',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: 24),
+                    // ── Profile Picture Section ──
+                    _buildPictureSection(cs),
+                    const SizedBox(height: 40),
+
+                    // ── Personal Info Category ──
+                    const _CategoryHeader(label: 'Identity'),
+                    _SharpCard(
+                      children: [
+                        _DetailTile(
+                          icon: AppIcons.user,
+                          label: 'Full Name',
+                          value: name,
+                        ),
+                        _DetailTile(
+                          icon: AppIcons.cake,
+                          label: 'Date of Birth',
+                          value: _maskDob(dob),
+                          onCopy: (dob != null && dob.isNotEmpty)
+                              ? () => _copyToClipboard(dob, 'DOB')
+                              : null,
+                        ),
+                        _DetailTile(
+                          icon: AppIcons.user,
+                          label: 'Gender',
+                          value: (gender != null && gender.isNotEmpty)
+                              ? (gender[0].toUpperCase() + gender.substring(1))
+                              : '--',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Contact Detail Category ──
+                    const _CategoryHeader(label: 'Contact'),
+                    _SharpCard(
+                      children: [
+                        _DetailTile(
+                          icon: AppIcons.smartphone,
+                          label: 'Mobile Number',
+                          value: _maskMobile(mobile),
+                          onCopy: mobile.isNotEmpty
+                              ? () => _copyToClipboard(mobile, 'Mobile')
+                              : null,
+                        ),
+                        _DetailTile(
+                          icon: AppIcons.mail,
+                          label: 'Email Address',
+                          value: _maskEmail(email),
+                          onCopy: email.isNotEmpty
+                              ? () => _copyToClipboard(email, 'Email')
+                              : null,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Security & Tax Category ──
+                    const _CategoryHeader(label: 'Security & Tax'),
+                    _SharpCard(
+                      children: [
+                        _DetailTile(
+                          icon: AppIcons.badge,
+                          label: 'PAN Number',
+                          value: _maskPan(pan),
+                          onCopy: pan.isNotEmpty
+                              ? () => _copyToClipboard(pan, 'PAN')
+                              : null,
+                        ),
+                        _DetailTile(
+                          icon: AppIcons.fingerPrint,
+                          label: 'Unique ID',
+                          value: 'CX${_profile?['customer_index'] ?? '--'}',
+                        ),
+                      ],
+                    ),
+                  ]),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -742,10 +752,8 @@ class _PersonalDetailsScreenState extends ConsumerState<PersonalDetailsScreen> {
                         child: SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: cs.primary,
-                          ),
+                          child: LoadingAnimationWidget.staggeredDotsWave(
+                              color: cs.primary, size: 24,),
                         ),
                       )
                     : _hasPicture

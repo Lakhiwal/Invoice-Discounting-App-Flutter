@@ -43,7 +43,7 @@ class Marketplace extends _$Marketplace {
     'Partially Funded',
   ];
   static const List<String> quickFilters = [
-    'High ROI',
+    'High Est. ROI',
     'Short Tenure',
     'Almost Funded',
   ];
@@ -173,7 +173,7 @@ class Marketplace extends _$Marketplace {
     } else {
       next = current.copyWith(
         activeQuickFilter: f,
-        minRoi: f == 'High ROI' ? 13 : 0,
+        minRoi: f == 'High Est. ROI' ? 13 : 0,
         maxDays: f == 'Short Tenure' ? 30 : 365,
         minFunding: f == 'Almost Funded' ? 75 : 0,
       );

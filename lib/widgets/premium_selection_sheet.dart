@@ -6,7 +6,11 @@ import 'package:invoice_discounting_app/utils/app_haptics.dart';
 
 class PremiumSelectionSheet extends StatelessWidget {
   const PremiumSelectionSheet({
-    required this.title, required this.items, required this.selectedValue, required this.onSelected, super.key,
+    required this.title,
+    required this.items,
+    required this.selectedValue,
+    required this.onSelected,
+    super.key,
   });
 
   final String title;
@@ -51,7 +55,7 @@ class PremiumSelectionSheet extends StatelessWidget {
         borderRadius: UI.sheetRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -71,10 +75,10 @@ class PremiumSelectionSheet extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   decoration: BoxDecoration(
-                    color: cs.surface.withOpacity(0.5),
+                    color: cs.surface.withValues(alpha: 0.5),
                     border: Border(
                       bottom: BorderSide(
-                        color: cs.outlineVariant.withOpacity(0.2),
+                        color: cs.outlineVariant.withValues(alpha: 0.2),
                       ),
                     ),
                   ),
@@ -84,7 +88,7 @@ class PremiumSelectionSheet extends StatelessWidget {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: cs.onSurfaceVariant.withOpacity(0.3),
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -108,10 +112,11 @@ class PremiumSelectionSheet extends StatelessWidget {
                               padding: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: cs.onSurfaceVariant.withOpacity(0.1),
+                                color:
+                                    cs.onSurfaceVariant.withValues(alpha: 0.1),
                               ),
                               child: Icon(
-                                Icons.close,
+                                AppIcons.close,
                                 size: 18,
                                 color: cs.onSurfaceVariant,
                               ),
@@ -135,7 +140,7 @@ class PremiumSelectionSheet extends StatelessWidget {
                   height: 1,
                   indent: 24,
                   endIndent: 24,
-                  color: cs.outlineVariant.withOpacity(0.15),
+                  color: cs.outlineVariant.withValues(alpha: 0.15),
                 ),
                 itemBuilder: (context, index) {
                   final item = items[index];
@@ -155,7 +160,7 @@ class PremiumSelectionSheet extends StatelessWidget {
                         vertical: 16,
                       ),
                       color: isSelected
-                          ? cs.primary.withOpacity(isDark ? 0.08 : 0.06)
+                          ? cs.primary.withValues(alpha: isDark ? 0.08 : 0.06)
                           : Colors.transparent,
                       child: Row(
                         children: [

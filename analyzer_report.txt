@@ -1,0 +1,207 @@
+Analyzing Invoice-Discounting-App-Flutter...                    
+
+   info • Unreachable member 'saveRefreshRate' in an executable library • lib/main.dart:50:14 • unreachable_from_main
+   info • Don't use 'BuildContext's across async gaps • lib/main.dart:285:24 • use_build_context_synchronously
+   info • Unreachable member 'RefreshRatePicker' in an executable library • lib/main.dart:477:7 • unreachable_from_main
+   info • Unreachable member 'RefreshRatePicker.new' in an executable library • lib/main.dart:478:9 • unreachable_from_main
+warning • The type of 'e' can't be inferred; a type must be explicitly provided • lib/providers/auth_provider.dart:203:43 • inference_failure_on_untyped_parameter
+warning • The declaration '_setPrimary' isn't referenced • lib/screens/account_details_screen.dart:47:16 • unused_element
+warning • The declaration '_delete' isn't referenced • lib/screens/account_details_screen.dart:65:16 • unused_element
+warning • The declaration '_copy' isn't referenced • lib/screens/account_details_screen.dart:115:8 • unused_element
+warning • The value of the local variable 'account' isn't used • lib/screens/account_details_screen.dart:128:11 • unused_local_variable
+  error • Undefined name 'child' • lib/screens/account_details_screen.dart:158:9 • undefined_identifier
+  error • Expected to find ')' • lib/screens/account_details_screen.dart:158:14 • expected_token
+  error • Expected to find ']' • lib/screens/account_details_screen.dart:158:14 • expected_token
+  error • Expected to find ')' • lib/screens/account_details_screen.dart:354:6 • expected_token
+  error • Expected to find ']' • lib/screens/account_details_screen.dart:354:6 • expected_token
+warning • The declaration '_dottedDivider' isn't referenced • lib/screens/account_details_screen.dart:357:10 • unused_element
+   info • Use 'isEven' rather than '% 2' • lib/screens/account_details_screen.dart:364:24 • use_is_even_rather_than_modulo
+warning • The declaration '_DetailRow' isn't referenced • lib/screens/account_details_screen.dart:375:7 • unused_element
+  error • All final variables must be initialized, but 'onTap' isn't • lib/screens/account_details_screen.dart:376:9 • final_not_initialized_constructor
+warning • The declaration '_ActionButton' isn't referenced • lib/screens/account_details_screen.dart:432:7 • unused_element
+  error • All final variables must be initialized, but 'isLoading' isn't • lib/screens/account_details_screen.dart:433:9 • final_not_initialized_constructor
+  error • The name '_RequirementItem' isn't a class • lib/screens/add_nominee_screen.dart:334:25 • creation_with_non_type
+warning • The return type of ' Function(String?)' can't be inferred • lib/screens/add_nominee_screen.dart:395:14 • inference_failure_on_function_return_type
+warning • The value of the local variable 'cs' isn't used • lib/screens/bank_account_detail_screen.dart:257:11 • unused_local_variable
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/bank_accounts_screen.dart:57:17 • inference_failure_on_instance_creation
+   info • The imported package 'intl' isn't a dependency of the importing package • lib/screens/basic_information_screen.dart:4:8 • depend_on_referenced_packages
+warning • The type argument(s) of the constructor 'MaterialPageRoute' can't be inferred • lib/screens/e_collect_screen.dart:568:13 • inference_failure_on_instance_creation
+warning • The declaration '_kMaskedShort' isn't referenced • lib/screens/home_screen.dart:29:14 • unused_element
+warning • The declaration '_totalReturns' isn't referenced • lib/screens/home_screen.dart:63:14 • unused_element
+warning • The generic type 'List<dynamic>' should have explicit type arguments but doesn't • lib/screens/home_screen.dart:68:3 • strict_raw_type
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/home_screen.dart:91:13 • inference_failure_on_instance_creation
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/home_screen.dart:180:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:204:17 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:211:41 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/home_screen.dart:213:33 • avoid_dynamic_calls
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/home_screen.dart:247:5 • inference_failure_on_function_invocation
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:375:66 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:394:62 • use_build_context_synchronously
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/home_screen.dart:503:5 • inference_failure_on_function_invocation
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/home_screen.dart:620:43 • use_build_context_synchronously
+warning • The value of the local variable 'summary' isn't used • lib/screens/home_screen.dart:663:11 • unused_local_variable
+warning • The value of the local variable 'transactions' isn't used • lib/screens/home_screen.dart:664:11 • unused_local_variable
+warning • The value of the local variable 'dividerColor' isn't used • lib/screens/home_screen.dart:667:11 • unused_local_variable
+warning • The type argument(s) of the constructor 'SmoothPageRoute' can't be inferred • lib/screens/home_screen.dart:768:27 • inference_failure_on_instance_creation
+warning • The type argument(s) of the constructor 'SmoothPageRoute' can't be inferred • lib/screens/home_screen.dart:842:31 • inference_failure_on_instance_creation
+warning • The return type of ' Function(double)?' can't be inferred • lib/screens/investment_calculator.dart:25:9 • inference_failure_on_function_return_type
+   info • Unnecessary use of a block function body • lib/screens/marketplace_screen.dart:482:32 • prefer_expression_function_bodies
+warning • The return type of ' Function(bool)' can't be inferred • lib/screens/marketplace_screen.dart:512:9 • inference_failure_on_function_return_type
+   info • 'bool' parameters should be named parameters • lib/screens/marketplace_screen.dart:512:18 • avoid_positional_boolean_parameters
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/nominee_screen.dart:53:17 • inference_failure_on_instance_creation
+   info • The imported package 'intl' isn't a dependency of the importing package • lib/screens/personal_details_screen.dart:10:8 • depend_on_referenced_packages
+warning • The value of the field '<unnamed>' isn't used • lib/screens/personal_details_screen.dart:41:7 • unused_field
+warning • The declaration '_initials' isn't referenced • lib/screens/personal_details_screen.dart:73:14 • unused_element
+warning • The declaration '_viewFullImage' isn't referenced • lib/screens/personal_details_screen.dart:114:8 • unused_element
+warning • The declaration '_showPictureSheet' isn't referenced • lib/screens/personal_details_screen.dart:143:8 • unused_element
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:647:25 • use_of_void_result
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:652:25 • use_of_void_result
+  error • The named parameter 'onCopy' isn't defined • lib/screens/personal_details_screen.dart:656:27 • undefined_named_parameter
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:660:25 • use_of_void_result
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:675:25 • use_of_void_result
+  error • The named parameter 'onCopy' isn't defined • lib/screens/personal_details_screen.dart:679:27 • undefined_named_parameter
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:683:25 • use_of_void_result
+  error • The named parameter 'onCopy' isn't defined • lib/screens/personal_details_screen.dart:687:27 • undefined_named_parameter
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:699:25 • use_of_void_result
+  error • The named parameter 'onCopy' isn't defined • lib/screens/personal_details_screen.dart:703:27 • undefined_named_parameter
+  error • This expression has a type of 'void' so its value can't be used • lib/screens/personal_details_screen.dart:707:25 • use_of_void_result
+  error • Expected a class member • lib/screens/personal_details_screen.dart:722:33 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:722:35 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:722:39 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:723:27 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:723:28 • expected_class_member
+  error • Expected to find ';' • lib/screens/personal_details_screen.dart:724:27 • expected_token
+  error • Expected an identifier • lib/screens/personal_details_screen.dart:724:32 • missing_identifier
+   info • The variable name '_DetailTile' isn't a lowerCamelCase identifier • lib/screens/personal_details_screen.dart:724:37 • non_constant_identifier_names
+   info • Missing type annotation • lib/screens/personal_details_screen.dart:725:29 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/personal_details_screen.dart:725:34 • named_parameter_outside_group
+  error • The default value of an optional parameter must be constant • lib/screens/personal_details_screen.dart:725:36 • non_constant_default_value
+   info • Missing type annotation • lib/screens/personal_details_screen.dart:726:29 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/personal_details_screen.dart:726:35 • named_parameter_outside_group
+   info • Missing type annotation • lib/screens/personal_details_screen.dart:727:29 • strict_top_level_inference
+  error • Named parameters must be enclosed in curly braces ('{' and '}') • lib/screens/personal_details_screen.dart:727:35 • named_parameter_outside_group
+  error • The default value of an optional parameter must be constant • lib/screens/personal_details_screen.dart:727:42 • non_constant_default_value
+  error • A function body must be provided • lib/screens/personal_details_screen.dart:728:28 • missing_function_body
+  error • Expected a class member • lib/screens/personal_details_screen.dart:728:28 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:729:25 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:729:26 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:730:23 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:730:24 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:731:21 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:731:22 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:732:19 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:732:20 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:733:17 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:733:18 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:734:9 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:734:10 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:735:7 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:735:8 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:736:5 • expected_class_member
+  error • Expected a class member • lib/screens/personal_details_screen.dart:736:6 • expected_class_member
+  error • Undefined name '_hasPicture' • lib/screens/personal_details_screen.dart:743:13 • undefined_identifier
+  error • The function '_viewFullImage' isn't defined • lib/screens/personal_details_screen.dart:743:27 • undefined_function
+  error • The function '_showPictureSheet' isn't defined • lib/screens/personal_details_screen.dart:743:46 • undefined_function
+  error • Undefined name '_uploading' • lib/screens/personal_details_screen.dart:766:24 • undefined_identifier
+  error • Undefined name '_hasPicture' • lib/screens/personal_details_screen.dart:774:23 • undefined_identifier
+  error • Undefined name '_pictureUrl' • lib/screens/personal_details_screen.dart:776:39 • undefined_identifier
+  error • Undefined name '_uploading' • lib/screens/personal_details_screen.dart:783:20 • undefined_identifier
+  error • The function '_showPictureSheet' isn't defined • lib/screens/personal_details_screen.dart:790:23 • undefined_function
+  error • Undefined name '_initials' • lib/screens/personal_details_screen.dart:814:11 • undefined_identifier
+  error • Expected a method, getter, setter or operator declaration • lib/screens/personal_details_screen.dart:830:1 • expected_executable
+warning • The declaration '_DetailTile' isn't referenced • lib/screens/personal_details_screen.dart:832:7 • unused_element
+  error • All final variables must be initialized, but 'onCopy' isn't • lib/screens/personal_details_screen.dart:833:9 • final_not_initialized_constructor
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/portfolio_screen.dart:109:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:132:30 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:132:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:134:29 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:137:30 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:137:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:139:29 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:179:46 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:189:46 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:245:56 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/portfolio_screen.dart:248:56 • avoid_dynamic_calls
+warning • The type argument(s) of the function 'showModalBottomSheet' can't be inferred • lib/screens/portfolio_screen.dart:1095:11 • inference_failure_on_function_invocation
+   info • Don't use 'BuildContext's across async gaps • lib/screens/portfolio_screen.dart:1678:23 • use_build_context_synchronously
+warning • The type argument(s) of the function 'showDialog' can't be inferred • lib/screens/portfolio_screen.dart:1688:11 • inference_failure_on_function_invocation
+warning • The value of the field '_portfolio' isn't used • lib/screens/profile/profile_screen.dart:45:25 • unused_field
+warning • The value of the field '_totalReturns' isn't used • lib/screens/profile/profile_screen.dart:52:10 • unused_field
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/profile/profile_screen.dart:110:17 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:121:27 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:123:27 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/profile/profile_screen.dart:124:28 • avoid_dynamic_calls
+warning • The type of 'e' can't be inferred; a type must be explicitly provided • lib/screens/profile/profile_screen.dart:283:39 • inference_failure_on_untyped_parameter
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/profile/profile_screen.dart:522:34 • use_build_context_synchronously
+   info • Statements in an if should be enclosed in a block • lib/screens/profile/sheets/shield_management_sheet.dart:356:38 • curly_braces_in_flow_control_structures
+   info • Don't use 'BuildContext's across async gaps • lib/screens/profile/widgets/app_bar_widgets.dart:27:31 • use_build_context_synchronously
+warning • The value of the local variable 'doneCount' isn't used • lib/screens/profile/widgets/hero_section.dart:47:11 • unused_local_variable
+warning • The value of the field '_masked' isn't used • lib/screens/profile/widgets/stats_row.dart:22:23 • unused_field
+warning • The value of the local variable 'hideBalance' isn't used • lib/screens/profile/widgets/stats_row.dart:27:11 • unused_local_variable
+warning • The value of the local variable 'isDark' isn't used • lib/screens/profile/widgets/stats_row.dart:96:11 • unused_local_variable
+warning • The value of the local variable 'acceptsAll' isn't used • lib/screens/profile_webview_screen.dart:168:11 • unused_local_variable
+warning • The type argument(s) of 'Map' can't be inferred • lib/screens/secondary_market_screen.dart:148:43 • inference_failure_on_collection_literal
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:149:21 • avoid_dynamic_calls
+warning • The type argument(s) of 'Map' can't be inferred • lib/screens/secondary_market_screen.dart:149:43 • inference_failure_on_collection_literal
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:153:25 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:154:35 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:183:25 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/screens/secondary_market_screen.dart:235:53 • avoid_dynamic_calls
+warning • The type argument(s) of the constructor 'Future.delayed' can't be inferred • lib/screens/withdraw_request_screen.dart:72:13 • inference_failure_on_instance_creation
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:63:13 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:67:31 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:71:36 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:71:52 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:73:55 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:76:19 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:77:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:80:44 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:129:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:134:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:174:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:180:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:215:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:220:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:257:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:262:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:305:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:311:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:336:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:342:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:381:20 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:382:15 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:402:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:404:42 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:416:45 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:420:18 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:447:41 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:448:36 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:448:52 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:450:55 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:453:19 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:454:22 • avoid_dynamic_calls
+   info • Method invocation or property access on a 'dynamic' target • lib/services/auth_api_service.dart:459:20 • avoid_dynamic_calls
+   info • Missing a message in an assert • lib/services/notification_api_service.dart:21:7 • prefer_asserts_with_message
+   info • Unreachable member 'initialize' in an executable library • lib/services/notification_service.dart:84:23 • unreachable_from_main
+   info • Missing a message in an assert • lib/services/notification_service.dart:158:7 • prefer_asserts_with_message
+   info • Unreachable member 'requestPermission' in an executable library • lib/services/notification_service.dart:261:23 • unreachable_from_main
+   info • Unreachable member 'revokePermission' in an executable library • lib/services/notification_service.dart:271:23 • unreachable_from_main
+   info • Unreachable member 'setPushEnabled' in an executable library • lib/services/notification_service.dart:291:23 • unreachable_from_main
+   info • 'bool' parameters should be named parameters • lib/services/notification_service.dart:291:38 • avoid_positional_boolean_parameters
+   info • Unreachable member 'setQuietHours' in an executable library • lib/services/notification_service.dart:315:23 • unreachable_from_main
+   info • Unreachable member 'sendSmartLiquidityAlert' in an executable library • lib/services/notification_service.dart:366:23 • unreachable_from_main
+   info • Empty catch block • lib/services/notification_service.dart:410:17 • empty_catches
+   info • 'bool' parameters should be named parameters • lib/theme/ui_constants.dart:27:35 • avoid_positional_boolean_parameters
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_date_sheet.dart:66:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_date_sheet.dart:85:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_date_sheet.dart:88:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_date_sheet.dart:98:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:54:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:74:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:77:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:87:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:111:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:138:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/premium_selection_sheet.dart:158:40 • deprecated_member_use
+
+203 issues found. (ran in 4.1s)

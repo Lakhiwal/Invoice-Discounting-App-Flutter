@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/view_models/auth_view_model.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ShieldVerificationForm extends ConsumerStatefulWidget {
   const ShieldVerificationForm({super.key});
@@ -101,13 +102,10 @@ class _ShieldVerificationFormState
               backgroundColor: AppColors.success(context),
             ),
             child: auth.status == AuthStatus.loading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 24,
                     height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
+                    child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white, size: 24),
                   )
                 : const Text(
                     'Verify Shield',

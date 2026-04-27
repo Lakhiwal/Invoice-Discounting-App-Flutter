@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/services/portfolio_cache.dart';
 import 'package:invoice_discounting_app/services/secondary_market_api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
@@ -11,15 +12,14 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/formatters.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
+import 'package:invoice_discounting_app/utils/momentum_haptics.dart';
 import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
 import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
 import 'package:invoice_discounting_app/widgets/pressable.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
-import 'package:invoice_discounting_app/utils/momentum_haptics.dart';
 import 'package:invoice_discounting_app/widgets/stagger_list.dart';
-import 'package:invoice_discounting_app/services/api_service.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -151,7 +151,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen>
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 AppLogoHeader(
                   title: 'Portfolio',
-                  pinned: true,
                   actions: [
                     IconButton(
                       icon: Icon(AppIcons.refresh),
@@ -223,7 +222,8 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen>
                                       width: 3.5,
                                     ),
                                     insets: const EdgeInsets.symmetric(
-                                        horizontal: 16),
+                                      horizontal: 16,
+                                    ),
                                   ),
                                   indicatorSize: TabBarIndicatorSize.tab,
                                   labelColor: colorScheme.primary,
@@ -242,11 +242,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen>
                                   ),
                                   tabs: [
                                     Tab(
-                                        text:
-                                            'Active (${_portfolio?['summary']?['active_count'] ?? active.length})'),
+                                      text:
+                                          'Active (${_portfolio?['summary']?['active_count'] ?? active.length})',
+                                    ),
                                     Tab(
-                                        text:
-                                            'Repaid (${_portfolio?['summary']?['repaid_count'] ?? repaid.length})'),
+                                      text:
+                                          'Repaid (${_portfolio?['summary']?['repaid_count'] ?? repaid.length})',
+                                    ),
                                   ],
                                 ),
                         ),
@@ -278,7 +280,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen>
               ),
             ),
             _buildFloatingSummary(
-                context, _portfolio?['summary'] as Map<String, dynamic>?),
+              context,
+              _portfolio?['summary'] as Map<String, dynamic>?,
+            ),
           ],
         ),
       ),
@@ -439,7 +443,7 @@ class _SummaryTile extends ConsumerWidget {
     return Expanded(
       child: Pressable(
         scale: 0.98,
-        onTap: () => AppHaptics.selection(),
+        onTap: AppHaptics.selection,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(UI.radiusMd),
           child: BackdropFilter(
@@ -474,7 +478,9 @@ class _SummaryTile extends ConsumerWidget {
                   Text(
                     label,
                     style: TextStyle(
-                        color: colorScheme.onSurfaceVariant, fontSize: 12),
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -507,12 +513,12 @@ class _SummaryTile extends ConsumerWidget {
 
 class _PagedPortfolioView extends ConsumerStatefulWidget {
   const _PagedPortfolioView({
-    super.key,
     required this.mainCategory,
     required this.primaryList,
     required this.secondaryList,
     required this.isLoading,
     required this.isBlackMode,
+    super.key,
   });
 
   final String mainCategory;
@@ -827,7 +833,6 @@ class _PortfolioPageState extends State<_PortfolioPage>
 
       final data = await ApiService.getPortfolio(
         page: nextPage,
-        limit: 20,
         type: type,
         isSecondary: isSecondary,
       );
@@ -869,17 +874,23 @@ class _PortfolioPageState extends State<_PortfolioPage>
           SliverPersistentHeader(
             pinned: true,
             delegate: _SectionHeaderDelegate(
-                label: widget.label, count: widget.count),
+              label: widget.label,
+              count: widget.count,
+            ),
           ),
           if (widget.showTopHint)
             SliverToBoxAdapter(
-                child: _PullHint(text: widget.hintText, pointingUp: false)),
+              child: _PullHint(text: widget.hintText, pointingUp: false),
+            ),
           if (_items.isEmpty)
             SliverToBoxAdapter(
               child: SizedBox(
-                  height: 400,
-                  child: _MiniEmptyState(
-                      label: widget.label, isRepaid: widget.isRepaid)),
+                height: 400,
+                child: _MiniEmptyState(
+                  label: widget.label,
+                  isRepaid: widget.isRepaid,
+                ),
+              ),
             )
           else
             SliverPadding(
@@ -912,7 +923,8 @@ class _PortfolioPageState extends State<_PortfolioPage>
             ),
           if (widget.showBottomHint)
             SliverToBoxAdapter(
-                child: _PullHint(text: widget.hintText, pointingUp: true)),
+              child: _PullHint(text: widget.hintText, pointingUp: true),
+            ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
@@ -1566,7 +1578,12 @@ class _InvestmentDetailSheet extends ConsumerWidget {
                 'This platform is not a bank or NBFC; funds are not covered by '
                 "RBI's Deposit Insurance & Credit Guarantee Scheme (DICGC). "
                 'Past performance does not guarantee future returns. '
-                'Invest only funds you can afford to lock in for the tenure.',
+                'Invest only funds you can afford to lock in for the tenure.\n\n'
+                'Funds are managed via an escrow account operated by our '
+                'regulated banking partner.\n\n'
+                'Finworks360 is a technology platform facilitating invoice '
+                'financing between businesses and investors. It does not '
+                'provide investment advice or guaranteed returns.',
             color: AppColors.rose(context),
           ),
           const SizedBox(height: 10),
@@ -1664,16 +1681,18 @@ class _InvestmentDetailSheet extends ConsumerWidget {
     if (confirmed == true) {
       if (!context.mounted) return;
 
-      unawaited(showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => Center(
-          child: LoadingAnimationWidget.hexagonDots(
-            color: Theme.of(context).colorScheme.primary,
-            size: 40,
+      unawaited(
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Center(
+            child: LoadingAnimationWidget.hexagonDots(
+              color: Theme.of(context).colorScheme.primary,
+              size: 40,
+            ),
           ),
         ),
-      ));
+      );
 
       final result = await SecondaryMarketApiService.requestExit(inv['id']);
 
@@ -2016,9 +2035,9 @@ class _Metric extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _MiniEmptyState extends StatelessWidget {
+  const _MiniEmptyState({required this.label, required this.isRepaid});
   final String label;
   final bool isRepaid;
-  const _MiniEmptyState({required this.label, required this.isRepaid});
 
   @override
   Widget build(BuildContext context) {

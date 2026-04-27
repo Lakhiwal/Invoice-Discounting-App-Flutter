@@ -8,6 +8,7 @@ import 'package:invoice_discounting_app/widgets/marketplace/invoice_card.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
 import 'package:invoice_discounting_app/widgets/stagger_list.dart';
 import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class MarketplaceList extends ConsumerWidget {
   const MarketplaceList({
@@ -56,9 +57,9 @@ class MarketplaceList extends ConsumerWidget {
               final invoiceIndex = index - 1;
               if (invoiceIndex >= state.filtered.length) {
                 if (state.isLoadingMore) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator()),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: Center(child: LoadingAnimationWidget.staggeredDotsWave(color: Theme.of(context).colorScheme.primary, size: 24)),
                   );
                 }
                 return null;

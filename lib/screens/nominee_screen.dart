@@ -1,9 +1,11 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/models/nominee.dart';
 import 'package:invoice_discounting_app/screens/add_nominee_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
@@ -92,13 +94,7 @@ class _NomineeScreenState extends ConsumerState<NomineeScreen> {
         ),
         backgroundColor: cs.surface,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(AppIcons.back, size: 18),
-          onPressed: () {
-            AppHaptics.selection();
-            Navigator.pop(context);
-          },
-        ),
+        leading: const ProfileBackButton(),
         actions: [
           if (!_isLoading && _nominee != null)
             Padding(

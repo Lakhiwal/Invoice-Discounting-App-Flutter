@@ -1,21 +1,22 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/models/invoice_item.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/screens/secondary_market_screen.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
+import 'package:invoice_discounting_app/utils/momentum_haptics.dart';
 import 'package:invoice_discounting_app/view_models/marketplace_view_model.dart';
-import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
 import 'package:invoice_discounting_app/widgets/marketplace/fast_scrollbar.dart';
 import 'package:invoice_discounting_app/widgets/marketplace/invoice_card.dart';
 import 'package:invoice_discounting_app/widgets/marketplace/marketplace_filters.dart';
 import 'package:invoice_discounting_app/widgets/marketplace/marketplace_list.dart';
 import 'package:invoice_discounting_app/widgets/marketplace/marketplace_search.dart';
-import 'package:invoice_discounting_app/utils/momentum_haptics.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
@@ -83,10 +84,23 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     return Scaffold(
       backgroundColor: cs.surface,
       body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            AppLogoHeader(
-              title: 'Marketplace',
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 72,
+              leadingWidth: 64,
+              scrolledUnderElevation: 0,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: const ProfileBackButton(),
+              centerTitle: true,
+              title: Text(
+                'Marketplace',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
+              ),
               actions: [
                 IconButton(
                   icon: Icon(
@@ -116,7 +130,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                         unawaited(AppHaptics.selection());
                         if (mounted && marketplaceAsync.valueOrNull != null) {
                           _showFilterSheet(
-                              context, marketplaceAsync.value!, notifier);
+                              context, marketplaceAsync.value!, notifier,);
                         }
                       },
                     ),
@@ -135,6 +149,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                       ),
                   ],
                 ),
+                const SizedBox(width: 8),
               ],
               bottom: TabBar(
                 controller: _tabController,
@@ -143,7 +158,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                 labelColor: cs.primary,
                 unselectedLabelColor: cs.onSurfaceVariant,
                 indicatorSize: TabBarIndicatorSize.label,
-                isScrollable: false,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -159,8 +173,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                 ],
               ),
             ),
-          ];
-        },
+          ],
         body: TabBarView(
           controller: _tabController,
           children: [
@@ -182,8 +195,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
     AsyncValue<MarketplaceState> marketplaceAsync,
     MarketplaceNotifier notifier,
     ColorScheme cs,
-  ) {
-    return LiquidityRefreshIndicator(
+  ) => LiquidityRefreshIndicator(
       onRefresh: () => notifier.refresh(silent: true),
       color: cs.primary,
       child: marketplaceAsync.when(
@@ -264,7 +276,6 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
         ),
       ),
     );
-  }
 
   void _showFilterSheet(
     BuildContext context,
@@ -317,7 +328,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen>
                 runSpacing: 10,
                 children: [
                   _SortChip(
-                    label: 'ROI (High to Low)',
+                    label: 'Est. ROI (High to Low)',
                     selected: data.sortBy == 'roi_high',
                     onSelected: (s) =>
                         notifier.setSortBy(s ? 'roi_high' : 'default'),
@@ -389,7 +400,7 @@ class _UpcomingInvoicesTabState extends State<_UpcomingInvoicesTab> {
     });
 
     try {
-      final raw = await ApiService.getInvoices(limit: 50, status: 'upcoming');
+      final raw = await ApiService.getInvoices(status: 'upcoming');
       if (mounted) {
         setState(() {
           _invoices = raw
@@ -427,7 +438,7 @@ class _UpcomingInvoicesTabState extends State<_UpcomingInvoicesTab> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(AppIcons.error,
-                size: 40, color: Theme.of(context).colorScheme.error),
+                size: 40, color: Theme.of(context).colorScheme.error,),
             const SizedBox(height: 16),
             const Text('Error loading Upcoming Invoices'),
             TextButton(
@@ -445,7 +456,7 @@ class _UpcomingInvoicesTabState extends State<_UpcomingInvoicesTab> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(AppIcons.searchOff,
-                size: 48, color: Theme.of(context).colorScheme.outline),
+                size: 48, color: Theme.of(context).colorScheme.outline,),
             const SizedBox(height: 16),
             const Text(
               'No upcoming invoices',
@@ -455,7 +466,7 @@ class _UpcomingInvoicesTabState extends State<_UpcomingInvoicesTab> {
             Text(
               'Check back later',
               style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,),
             ),
           ],
         ),

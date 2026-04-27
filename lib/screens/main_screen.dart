@@ -4,10 +4,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:invoice_discounting_app/screens/analytics_screen.dart';
 import 'package:invoice_discounting_app/screens/e_collect_screen.dart';
 import 'package:invoice_discounting_app/screens/home_screen.dart';
 import 'package:invoice_discounting_app/screens/portfolio_screen.dart';
+import 'package:invoice_discounting_app/screens/receivable_statement_screen.dart';
 import 'package:invoice_discounting_app/screens/unlock_screen.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
@@ -25,7 +25,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const platform = MethodChannel('widget_navigation');
 
-  static const int _tabCount = 3;
+  static const int _tabCount = 4;
   int _currentIndex = 0;
 
   /// Tab history for back-navigation. Only stores unique consecutive entries.
@@ -114,6 +114,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
       HomeScreen(),
       ECollectScreen(),
       PortfolioScreen(),
+      ReceivableStatementScreen(),
     ];
 
     // No NavigatorPopHandler — we handle pops manually in _handleBackPressed.
@@ -174,6 +175,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RootBackHandler(
       onBackPressed: _handleBackPressed,
@@ -203,10 +205,21 @@ class _MainScreenState extends ConsumerState<MainScreen>
                     filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainer.withValues(alpha: 0.8),
+                        color: cs.surface == Colors.black ||
+                                cs.surface == const Color(0xFF000000)
+                            ? Colors.black
+                            : cs.surfaceContainerHighest
+                                .withValues(alpha: 0.98),
                         border: Border(
                           top: BorderSide(
-                            color: cs.outlineVariant.withValues(alpha: 0.1),
+                            color: cs.surface == Colors.black ||
+                                    cs.surface == const Color(0xFF000000)
+                                ? cs.outlineVariant.withValues(alpha: 0.5)
+                                : cs.outlineVariant.withValues(alpha: 0.15),
+                            width: cs.surface == Colors.black ||
+                                    cs.surface == const Color(0xFF000000)
+                                ? 0.8
+                                : 1.0,
                           ),
                         ),
                         boxShadow: [
@@ -239,19 +252,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
                                   child: FractionallySizedBox(
                                     widthFactor: 1 / _tabCount,
                                     child: Container(
-                                      alignment: const Alignment(0, -0.28),
+                                      alignment: const Alignment(0, -0.29),
                                       child: Container(
-                                        width: 56,
-                                        height: 32,
+                                        width: 54,
+                                        height: 31,
                                         decoration: BoxDecoration(
-                                          color: cs.primary
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: cs.primary
-                                                .withValues(alpha: 0.15),
+                                          color: cs.primary.withValues(
+                                            alpha: isDark ? 0.22 : 0.18,
                                           ),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
                                         ),
                                       ),
                                     ),
@@ -287,6 +297,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
                                         activeIcon: AppIcons.portfolioBold,
                                         label: 'Portfolio',
                                         index: 2,
+                                        current: _currentIndex,
+                                        onTap: _changeTab,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _NavItem(
+                                        icon: AppIcons.document,
+                                        activeIcon: AppIcons.document,
+                                        label: 'Statement',
+                                        index: 3,
                                         current: _currentIndex,
                                         onTap: _changeTab,
                                       ),

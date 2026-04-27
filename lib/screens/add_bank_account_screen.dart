@@ -1,14 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/bank_resolver.dart';
-import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class AddBankAccountScreen extends ConsumerStatefulWidget {
   const AddBankAccountScreen({required this.existingCount, super.key});
@@ -123,7 +125,23 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
       backgroundColor: cs.surface,
       body: CustomScrollView(
         slivers: [
-          const AppLogoHeader(title: 'Add Bank'),
+          SliverAppBar(
+            pinned: true,
+            toolbarHeight: 72,
+            leadingWidth: 64,
+            scrolledUnderElevation: 0,
+            backgroundColor: cs.surface,
+            surfaceTintColor: Colors.transparent,
+            leading: const ProfileBackButton(),
+            centerTitle: true,
+            title: Text(
+              'Add Bank',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+            ),
+          ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -287,13 +305,11 @@ class _AddBankAccountScreenState extends ConsumerState<AddBankAccountScreen> {
                           ),
                         ),
                         child: _saving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 24,
                                 height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 3,
-                                  color: Colors.white,
-                                ),
+                                child: LoadingAnimationWidget.staggeredDotsWave(
+                                    color: Colors.white, size: 24,),
                               )
                             : const Text(
                                 'Confirm & Add',

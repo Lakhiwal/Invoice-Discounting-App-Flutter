@@ -70,7 +70,7 @@ class _EarningsCardState extends ConsumerState<EarningsCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Monthly earnings',
+            'Monthly returns (estimated)',
             style: TextStyle(
               color: cs.onSurface,
               fontSize: 16,

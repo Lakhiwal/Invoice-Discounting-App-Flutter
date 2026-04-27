@@ -6,7 +6,8 @@ import 'package:invoice_discounting_app/utils/app_haptics.dart';
 // ── Back button ─────────────────────────────────────────────────────────────
 
 class ProfileBackButton extends ConsumerWidget {
-  const ProfileBackButton({super.key});
+  const ProfileBackButton({super.key, this.onPressed});
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,23 +21,16 @@ class ProfileBackButton extends ConsumerWidget {
             customBorder: const CircleBorder(),
             onTap: () async {
               await AppHaptics.selection();
-              Navigator.pop(context);
+              if (onPressed != null) {
+                onPressed!();
+              } else {
+                if (context.mounted) Navigator.pop(context);
+              }
             },
-            child: Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Icon(
-                AppIcons.back,
-                size: 18,
-                color: colorScheme.onSurface,
-              ),
+            child: Icon(
+              AppIcons.back,
+              size: 24,
+              color: colorScheme.onSurface,
             ),
           ),
         ),

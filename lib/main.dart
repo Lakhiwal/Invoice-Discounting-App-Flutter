@@ -20,7 +20,6 @@ import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/no_glow_scroll.dart';
 import 'package:invoice_discounting_app/utils/refresh_rate_controller.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -158,6 +157,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   DateTime? _pausedAt;
   bool _authInProgress = false;
+  bool _isFirstLaunch = false;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeIn;
@@ -197,7 +197,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     unawaited(_animCtrl.forward());
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkAuth());
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initFirstLaunch();
+      if (mounted) _checkAuth();
+    });
   }
 
   @override
@@ -245,49 +248,89 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _authInProgress = false;
   }
 
+  Future<void> _initFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _isFirstLaunch = prefs.getBool('first_launch_done') != true;
+      });
+    }
+  }
+
+  Future<void> _markFirstLaunchDone() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('first_launch_done', true);
+  }
+
+  Future<void> _setProgress(double val, String status) async {
+    if (!mounted) return;
+
+    if (_isFirstLaunch) {
+      final start = _loadingProgress;
+      final diff = val - start;
+      final steps = (diff.abs() * 100).clamp(5, 30).toInt();
+      final stepDuration = Duration(milliseconds: 1800 ~/ steps);
+
+      for (int i = 1; i <= steps; i++) {
+        await Future<void>.delayed(stepDuration);
+        if (!mounted) return;
+        setState(() {
+          _loadingProgress = start + (diff * (i / steps));
+          _loadingStatus = status;
+        });
+      }
+    } else {
+      setState(() {
+        _loadingProgress = val;
+        _loadingStatus = status;
+      });
+    }
+
+    // Milestone haptic tick
+    if (val < 1.0) {
+      unawaited(AppHaptics.selection());
+    } else {
+      // Completion haptic — satisfying success chord
+      unawaited(AppHaptics.success());
+    }
+  }
+
   Future<void> _checkAuth() async {
     if (_authInProgress) return;
     _authInProgress = true;
 
     try {
-      if (!mounted) return;
-      setState(() {
-        _loadingProgress = 0.05;
-        _loadingStatus = 'Initializing Secure Gateway...';
-      });
+      await _setProgress(0.15, 'Initializing Secure Gateway...');
 
-      await precacheImage(
-        const AssetImage('assets/images/logo-colored.png'),
-        context,
-      );
+      if (mounted) {
+        await precacheImage(
+          const AssetImage('assets/images/logo-colored.png'),
+          context,
+        );
+      }
 
       if (!mounted) return;
-      setState(() {
-        _loadingProgress = 0.15;
-        _loadingStatus = 'Syncing Market Intelligence...';
-      });
+      await _setProgress(0.35, 'Syncing Market Intelligence...');
 
       // PROACTIVE SYNC: Don't just check for token existence, verify it with the server.
       final isSessionValid = await AuthApiService.refreshWithStoredToken();
 
       if (!mounted) return;
-      setState(() {
-        _loadingProgress = 0.45;
-        _loadingStatus = 'Validating Encrypted Ledger...';
-      });
+      await _setProgress(0.60, 'Validating Encrypted Ledger...');
 
       if (!isSessionValid) {
         await AuthApiService.logout();
-        setState(() {
-          _loadingProgress = 1.0;
-          _loadingStatus = 'Ready';
-        });
-        unawaited(
-          Navigator.of(context).pushAndRemoveUntil(
-            SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
-            (route) => false,
-          ),
-        );
+        await _setProgress(1.0, 'Ready');
+        if (_isFirstLaunch) await _markFirstLaunchDone();
+        await Future<void>.delayed(const Duration(milliseconds: 1000));
+        if (mounted) {
+          unawaited(
+            Navigator.of(context).pushAndRemoveUntil(
+              SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+              (route) => false,
+            ),
+          );
+        }
         return;
       }
 
@@ -299,23 +342,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
       if (!canAuth || !useBiometrics) {
         if (!mounted) return;
-        setState(() {
-          _loadingProgress = 1.0;
-          _loadingStatus = 'Ready';
-        });
-        unawaited(
-          Navigator.of(context).pushAndRemoveUntil(
-            SmoothPageRoute<void>(builder: (_) => const MainScreen()),
-            (route) => false,
-          ),
-        );
+        await _setProgress(1.0, 'Ready');
+        if (_isFirstLaunch) await _markFirstLaunchDone();
+        await Future<void>.delayed(const Duration(milliseconds: 1000));
+        if (mounted) {
+          unawaited(
+            Navigator.of(context).pushAndRemoveUntil(
+              SmoothPageRoute<void>(builder: (_) => const MainScreen()),
+              (route) => false,
+            ),
+          );
+        }
         return;
       }
 
-      setState(() {
-        _loadingProgress = 0.70;
-        _loadingStatus = 'Finalizing Portfolio Integrity...';
-      });
+      await _setProgress(0.85, 'Finalizing Portfolio Integrity...');
 
       final success = await auth
           .authenticate(
@@ -325,31 +366,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           .timeout(const Duration(seconds: 10), onTimeout: () => false);
 
       if (!mounted) return;
-      setState(() {
-        _loadingProgress = 1.0;
-        _loadingStatus = 'Ready';
-      });
+      await _setProgress(1.0, 'Ready');
+      if (_isFirstLaunch) await _markFirstLaunchDone();
+      await Future<void>.delayed(const Duration(milliseconds: 1000));
 
-      unawaited(
-        Navigator.of(context).pushAndRemoveUntil(
-          SmoothPageRoute<void>(
-            builder: (_) => success ? const MainScreen() : const LoginScreen(),
-          ),
-          (route) => false,
-        ),
-      );
-    } catch (_) {
       if (mounted) {
-        setState(() {
-          _loadingProgress = 1.0;
-          _loadingStatus = 'Error';
-        });
         unawaited(
           Navigator.of(context).pushAndRemoveUntil(
-            SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+            SmoothPageRoute<void>(
+              builder: (_) =>
+                  success ? const MainScreen() : const LoginScreen(),
+            ),
             (route) => false,
           ),
         );
+      }
+    } catch (_) {
+      if (mounted) {
+        await _setProgress(1.0, 'Error');
+        if (mounted) {
+          unawaited(
+            Navigator.of(context).pushAndRemoveUntil(
+              SmoothPageRoute<void>(builder: (_) => const LoginScreen()),
+              (route) => false,
+            ),
+          );
+        }
       }
     } finally {
       _authInProgress = false;
@@ -390,7 +432,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       vertical: 18,
                     ),
                     decoration: BoxDecoration(
-                      color: isDark ? cs.surfaceContainerHigh : Colors.white,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(UI.radiusLg),
                       boxShadow: [
                         BoxShadow(
@@ -421,8 +463,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   children: [
                     Container(
-                      width: 200,
-                      height: 8,
+                      width: MediaQuery.of(context).size.width * 0.72,
+                      height: 6,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
@@ -438,7 +480,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         child: TweenAnimationBuilder<double>(
                           tween: Tween<double>(begin: 0, end: _loadingProgress),
                           duration: const Duration(milliseconds: 600),
-                          curve: Curves.easeInOutCubic,
+                          curve: Curves.easeOutExpo,
                           builder: (context, value, child) =>
                               LinearProgressIndicator(
                             value: value,

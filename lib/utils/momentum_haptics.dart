@@ -3,6 +3,11 @@ import 'package:flutter/services.dart';
 /// A utility to trigger tactile "pips" during high-speed scrolling.
 /// This mimics a mechanical click/haptic sensation when momentum is high.
 class MomentumHaptics {
+
+  MomentumHaptics({
+    this.interval = 120.0,
+    this.velocityThreshold = 1500.0,
+  });
   double _lastPosition = 0;
   double _accumulatedDelta = 0;
   DateTime _lastTime = DateTime.now();
@@ -12,11 +17,6 @@ class MomentumHaptics {
   
   /// The minimum velocity (pixels/sec) required to trigger haptics.
   final double velocityThreshold;
-
-  MomentumHaptics({
-    this.interval = 120.0,
-    this.velocityThreshold = 1500.0,
-  });
 
   /// Processes a scroll update and triggers haptics if conditions are met.
   void onScroll(double pixels) {

@@ -15,6 +15,7 @@ import 'package:invoice_discounting_app/widgets/animated_amount_text.dart';
 import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'package:invoice_discounting_app/widgets/pressable.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:local_auth/local_auth.dart';
 
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
@@ -393,7 +394,7 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
                       Row(
                         children: [
                           _DetailMetric(
-                            label: 'Investor ROI',
+                            label: 'Expected ROI (p.a.)',
                             color: AppColors.emerald(context),
                             icon: AppIcons.trendingUp,
                             value: AnimatedAmountText(
@@ -581,6 +582,47 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen>
                         ),
                       ],
 
+                      const SizedBox(height: UI.md),
+
+                      // ── Risk disclosure — compliance requirement ───────────
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.amber(context).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(UI.radiusMd),
+                          border: Border.all(
+                            color: AppColors.amber(context).withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              AppIcons.warning,
+                              size: 14,
+                              color: AppColors.amber(context),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Returns are not guaranteed. Subject to debtor '
+                                'repayment risk. Past performance does not '
+                                'indicate future results.',
+                                style: TextStyle(
+                                  color: AppColors.amber(context),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: UI.lg),
 
                       // ── How it works — quick edu block ─────────────────────
@@ -730,14 +772,11 @@ class _BottomCTA extends ConsumerWidget {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: isInvesting
-                      ? const SizedBox(
-                          key: ValueKey('loading'),
+                      ? SizedBox(
+                          key: const ValueKey('loading'),
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
+                          child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white, size: 24),
                         )
                       : isSuccess
                           ? ScaleTransition(
@@ -846,12 +885,12 @@ class _HowItWorks extends ConsumerWidget {
           _HowItWorksStep(
             number: '2',
             text:
-                "The debtor repays in $days days. You earn ₹${fmtAmount(profit)} on ₹${fmtAmount(examplePrincipal)} — that's ${roi.toStringAsFixed(1)}% p.a.",
+                "The debtor repays in $days days. You could earn an estimated ₹${fmtAmount(profit)} on ₹${fmtAmount(examplePrincipal)} — that's ${roi.toStringAsFixed(1)}% p.a. (expected).",
           ),
           const SizedBox(height: 8),
           const _HowItWorksStep(
             number: '3',
-            text: 'Principal + returns credited to your wallet automatically.',
+            text: 'Principal + estimated returns credited to your wallet automatically.',
           ),
         ],
       ),

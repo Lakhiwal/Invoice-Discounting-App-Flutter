@@ -9,6 +9,7 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class BasicInformationScreen extends StatefulWidget {
   const BasicInformationScreen({super.key});
@@ -81,7 +82,7 @@ class _BasicInformationScreenState extends State<BasicInformationScreen>
             ),
             dialogTheme: DialogThemeData(
                 backgroundColor:
-                    isDark ? const Color(0xFF151D33) : Colors.white),
+                    isDark ? const Color(0xFF151D33) : Colors.white,),
           ),
           child: child!,
         );
@@ -337,7 +338,7 @@ class _BasicInformationScreenState extends State<BasicInformationScreen>
                               _buildGenderCard('Female', 'F', AppIcons.female),
                               const SizedBox(width: 12),
                               _buildGenderCard(
-                                  'Other', 'O', AppIcons.nonBinary),
+                                  'Other', 'O', AppIcons.nonBinary,),
                             ],
                           ),
                           const SizedBox(height: 24),
@@ -393,13 +394,10 @@ class _BasicInformationScreenState extends State<BasicInformationScreen>
                                 elevation: 0,
                               ),
                               child: _isLoading
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
-                                      ),
+                                      child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white, size: 24),
                                     )
                                   : const Text(
                                       'Save and Continue',

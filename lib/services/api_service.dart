@@ -19,10 +19,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:invoice_discounting_app/services/api_client.dart';
 import 'package:invoice_discounting_app/services/auth_api_service.dart';
+import 'package:invoice_discounting_app/services/e_collect_api_service.dart';
 import 'package:invoice_discounting_app/services/notification_api_service.dart';
 import 'package:invoice_discounting_app/services/portfolio_api_service.dart';
 import 'package:invoice_discounting_app/services/profile_api_service.dart';
-import 'package:invoice_discounting_app/services/e_collect_api_service.dart';
 
 // Re-export so existing `import 'api_service.dart'` still finds these types
 export 'api_client.dart' show UnauthorizedException;
@@ -131,6 +131,15 @@ class ApiService {
         limit: limit,
         type: type,
         isSecondary: isSecondary,
+      );
+
+  static Future<Map<String, dynamic>?> getReceivableStatement({
+    String? asOnDate,
+    bool forceRefresh = false,
+  }) =>
+      PortfolioApiService.getReceivableStatement(
+        asOnDate: asOnDate,
+        forceRefresh: forceRefresh,
       );
 
   static Future<InvoicePage> getInvoicesCursor({

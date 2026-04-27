@@ -31,7 +31,7 @@ class InvoiceCard extends ConsumerWidget {
           color: cs.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(UI.radiusLg),
           border: Border.all(
-              color: cs.onSurface.withValues(alpha: 0.08), width: 0.8),
+              color: cs.onSurface.withValues(alpha: 0.08), width: 0.8,),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -113,7 +113,7 @@ class InvoiceCard extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _MetricItem(
-                    label: 'ROI',
+                    label: 'Est. ROI',
                     value: item.roiDisplay,
                     color: cs.primary,
                   ),

@@ -10,6 +10,7 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 const Color _kGreen = Color(0xFF10B981);
 
@@ -195,7 +196,8 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
             backgroundColor: _kGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(UI.radiusSm),),
+              borderRadius: BorderRadius.circular(UI.radiusSm),
+            ),
           ),
         );
       } else {
@@ -284,23 +286,10 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
                               AppHaptics.selection();
                               Navigator.of(context).pop();
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF1A2540)
-                                    : Colors.white,
-                                borderRadius:
-                                    BorderRadius.circular(UI.radiusMd),
-                                border: Border.all(
-                                  color: AppColors.divider(context),
-                                ),
-                              ),
-                              child: Icon(
-                                AppIcons.back,
-                                size: 18,
-                                color: AppColors.textPrimary(context),
-                              ),
+                            child: Icon(
+                              AppIcons.back,
+                              size: 24,
+                              color: AppColors.textPrimary(context),
                             ),
                           ),
                         ),
@@ -400,13 +389,14 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
                                 elevation: 0,
                               ),
                               child: _isVerifying
-                                  ? const SizedBox(
+                                  ? SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        color: Colors.white,
-                                      ),
+                                      child: LoadingAnimationWidget
+                                          .staggeredDotsWave(
+                                              color: Colors.white,
+                                              size: 24,
+                                            ),
                                     )
                                   : const Text(
                                       'Verify Email',
@@ -543,9 +533,9 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
+              child: LoadingAnimationWidget.staggeredDotsWave(
                 color: AppColors.primary(context),
+                size: 24,
               ),
             )
           else if (_canResend)
@@ -641,9 +631,9 @@ class _VerifyOtpScreenState extends ConsumerState<VerifyOtpScreen>
           SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
+            child: LoadingAnimationWidget.staggeredDotsWave(
               color: AppColors.primary(context),
+              size: 24,
             ),
           ),
         ],

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,13 +7,13 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:invoice_discounting_app/models/bank_account.dart';
 import 'package:invoice_discounting_app/screens/account_details_screen.dart';
 import 'package:invoice_discounting_app/screens/add_bank_account_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
-import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
 import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
 
@@ -141,8 +142,22 @@ class _BankAccountsScreenState extends ConsumerState<BankAccountsScreen> {
           ),
           slivers: [
             // App bar
-            const AppLogoHeader(
-              title: 'Bank Accounts',
+            SliverAppBar(
+              pinned: true,
+              toolbarHeight: 72,
+              leadingWidth: 64,
+              scrolledUnderElevation: 0,
+              backgroundColor: cs.surface,
+              surfaceTintColor: Colors.transparent,
+              leading: const ProfileBackButton(),
+              centerTitle: true,
+              title: Text(
+                'Bank Accounts',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
+              ),
             ),
 
             if (_isLoading)

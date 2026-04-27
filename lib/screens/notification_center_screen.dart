@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/screens/invoice_detail_screen.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/notification_provider.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
@@ -110,13 +111,7 @@ class _NotificationCenterScreenState
               backgroundColor: colorScheme.surface.withValues(alpha: 0.8),
               surfaceTintColor: Colors.transparent,
               elevation: 0,
-              leading: IconButton(
-                icon: Icon(AppIcons.back),
-                onPressed: () {
-                  AppHaptics.selection();
-                  Navigator.pop(context);
-                },
-              ),
+              leading: const ProfileBackButton(),
               flexibleSpace: ClipRect(
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
@@ -132,7 +127,7 @@ class _NotificationCenterScreenState
                     ),
                     centerTitle: false,
                     titlePadding: const EdgeInsets.symmetric(
-                        horizontal: 56, vertical: 16),
+                        horizontal: 56, vertical: 16,),
                   ),
                 ),
               ),

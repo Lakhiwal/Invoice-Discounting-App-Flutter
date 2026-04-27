@@ -10,6 +10,7 @@ import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/smooth_page_route.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
@@ -479,10 +480,7 @@ class _ProfileWebViewScreenState extends ConsumerState<ProfileWebViewScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(
-                        color: AppColors.primary(context),
-                        strokeWidth: 2.5,
-                      ),
+                      LoadingAnimationWidget.staggeredDotsWave(color: AppColors.primary(context), size: 24),
                       const SizedBox(height: UI.md),
                       Text(
                         _statusText,

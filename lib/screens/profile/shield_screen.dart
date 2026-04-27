@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:invoice_discounting_app/screens/profile/widgets/app_bar_widgets.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/theme/theme_provider.dart';
@@ -11,6 +12,7 @@ import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
 import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ShieldScreen extends ConsumerStatefulWidget {
   const ShieldScreen({
@@ -161,10 +163,7 @@ class _ShieldScreenState extends ConsumerState<ShieldScreen> {
         ),
         backgroundColor: cs.surface,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(AppIcons.back, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: const ProfileBackButton(),
       ),
       body: VibeStateWrapper(
         state: _loading
@@ -446,13 +445,10 @@ class _ActionButton extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(UI.radiusMd),),
           ),
           child: submitting
-              ? const SizedBox(
+              ? SizedBox(
                   width: 24,
                   height: 24,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
+                  child: LoadingAnimationWidget.staggeredDotsWave(color: Colors.white, size: 24),
                 )
               : Text(
                   label,

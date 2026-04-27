@@ -6,7 +6,7 @@ part of 'marketplace_view_model.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$marketplaceHash() => r'9ec7ec5acda583c2bb97a0a9a060f2b8967a2af4';
+String _$marketplaceHash() => r'86cac96fe85fa1230352309be9a3f7c09e6fd927';
 
 /// See also [Marketplace].
 @ProviderFor(Marketplace)

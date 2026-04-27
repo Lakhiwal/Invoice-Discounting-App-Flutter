@@ -66,6 +66,21 @@ class PortfolioApiService {
     return null;
   }
 
+  static Future<Map<String, dynamic>?> getReceivableStatement({
+    String? asOnDate,
+    bool forceRefresh = false,
+  }) async {
+    try {
+      var url = '$_base/portfolio/receivable-statement/';
+      if (asOnDate != null) url += '?as_on_date=$asOnDate';
+      final response = await ApiClient.get(url);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   // ── Invoices (cursor pagination) ──────────────────────────────────────────
 
   static Future<InvoicePage> getInvoicesCursor({

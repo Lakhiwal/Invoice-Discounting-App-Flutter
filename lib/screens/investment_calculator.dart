@@ -277,7 +277,43 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
               child: _resultSection(context),
             ),
 
-            const SizedBox(height: UI.xl),
+            const SizedBox(height: UI.md),
+
+            // ── Risk disclaimer (compliance) ────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.amber(context).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(UI.radiusMd),
+                border: Border.all(
+                  color: AppColors.amber(context).withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    AppIcons.warning,
+                    size: 13,
+                    color: AppColors.amber(context),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Returns are not guaranteed. Subject to debtor repayment risk.',
+                      style: TextStyle(
+                        color: AppColors.amber(context),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: UI.lg),
 
             // Item #6: removed Pressable wrapper — was double-firing onInvest
             // (Pressable.onTap + ElevatedButton.onPressed both called onInvest)
@@ -354,7 +390,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
                 ),
               ),
               Text(
-                'annualized return',
+                'est. annualized return',
                 style: TextStyle(
                   color: AppColors.textSecondary(context),
                   fontSize: 15,
@@ -365,7 +401,7 @@ class _InvestmentCalculatorState extends ConsumerState<InvestmentCalculator> {
           if (_amount == 0) ...[
             const SizedBox(height: UI.lg),
             Text(
-              'Enter amount above to see returns',
+              'Enter amount above to see estimated returns',
               style: TextStyle(color: AppColors.textSecondary(context)),
             ),
           ],

@@ -178,8 +178,8 @@ class _TransactionHistoryScreenState
         (sum, tx) =>
             sum +
             (double.tryParse(
-                    (tx as Map<String, dynamic>)['amount']?.toString() ??
-                        '0',) ??
+                  (tx as Map<String, dynamic>)['amount']?.toString() ?? '0',
+                ) ??
                 0),
       );
 
@@ -195,8 +195,8 @@ class _TransactionHistoryScreenState
         (sum, tx) =>
             sum +
             (double.tryParse(
-                    (tx as Map<String, dynamic>)['amount']?.toString() ??
-                        '0',) ??
+                  (tx as Map<String, dynamic>)['amount']?.toString() ?? '0',
+                ) ??
                 0),
       );
 
@@ -1337,7 +1337,10 @@ class _WithdrawalStepper extends StatelessWidget {
                               end: Alignment.bottomCenter,
                               colors: [
                                 color,
-                                if (i + 1 < currentStep || s == 'completed') AppColors.success(context) else cs.outlineVariant.withValues(alpha: 0.3),
+                                if (i + 1 < currentStep || s == 'completed')
+                                  AppColors.success(context)
+                                else
+                                  cs.outlineVariant.withValues(alpha: 0.3),
                               ],
                             ),
                           ),

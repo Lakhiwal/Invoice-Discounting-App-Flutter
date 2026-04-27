@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:invoice_discounting_app/models/invoice_item.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:invoice_discounting_app/screens/marketplace_screen.dart';
 import 'package:invoice_discounting_app/screens/payment_status_screen.dart';
 import 'package:invoice_discounting_app/services/api_service.dart';
@@ -25,6 +24,7 @@ import 'package:invoice_discounting_app/widgets/liquidity_refresh_indicator.dart
 import 'package:invoice_discounting_app/widgets/marketplace/invoice_card.dart';
 import 'package:invoice_discounting_app/widgets/skeleton.dart';
 import 'package:invoice_discounting_app/widgets/vibe_state_wrapper.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 const String _kMaskedShort = '● ● ●';
 
@@ -128,7 +128,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (mounted) {
         final newInvoices = results
             .map((e) => InvoiceItem.fromMap(e as Map<String, dynamic>))
-            .where((i) => i.status.toLowerCase() == 'available' && i.fundingPct == 0)
+            .where(
+              (i) => i.status.toLowerCase() == 'available' && i.fundingPct == 0,
+            )
             .toList();
 
         setState(() {
@@ -201,7 +203,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // 2. Calculate Portfolio IRR (Weighted Avg Yield)
         final active = portfolio?['active'] as List? ?? [];
         final totalInvested = double.tryParse(
-                portfolio?['summary']?['total_invested']?.toString() ?? '0') ??
+              portfolio?['summary']?['total_invested']?.toString() ?? '0',
+            ) ??
             0;
 
         var irr = 0.0;
@@ -480,12 +483,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           );
                         },
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
+                          child: LoadingAnimationWidget.staggeredDotsWave(
                             color: Colors.white,
+                            size: 24,
                           ),
                         )
                       : const Text('Confirm Deposit'),
@@ -643,12 +646,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           }
                         },
                   child: isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 24,
                           height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
+                          child: LoadingAnimationWidget.staggeredDotsWave(
                             color: Colors.white,
+                            size: 24,
                           ),
                         )
                       : const Text('Withdraw Funds'),
@@ -772,7 +775,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Navigator.push(
                           context,
                           SmoothPageRoute(
-                              builder: (_) => const MarketplaceScreen()),
+                            builder: (_) => const MarketplaceScreen(),
+                          ),
                         );
                       },
                     ),
@@ -844,9 +848,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   _buildSectionHeader(
                     context,
                     title: 'Unfunded Invoices',
-                    onViewAll: () => Navigator.of(context, rootNavigator: true)
-                        .push(SmoothPageRoute(
-                            builder: (_) => const MarketplaceScreen())),
+                    onViewAll: () =>
+                        Navigator.of(context, rootNavigator: true).push(
+                      SmoothPageRoute(
+                        builder: (_) => const MarketplaceScreen(),
+                      ),
+                    ),
                   ),
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),

@@ -109,9 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: isDark
-                                      ? cs.surfaceContainerHigh
-                                      : Colors.white,
+                                  color: Colors.white,
                                   borderRadius:
                                       BorderRadius.circular(UI.radiusLg),
                                   boxShadow: [

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../theme/theme_provider.dart';
-import '../theme/ui_constants.dart';
+import 'package:invoice_discounting_app/theme/theme_provider.dart';
+import 'package:invoice_discounting_app/theme/ui_constants.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Skeleton loading system — Finworks360
@@ -12,9 +12,9 @@ import '../theme/ui_constants.dart';
 
 // InheritedWidget carries the controller down the tree in O(1).
 class _SkeletonScope extends InheritedWidget {
-  final AnimationController ctrl;
 
   const _SkeletonScope({required this.ctrl, required super.child});
+  final AnimationController ctrl;
 
   static _SkeletonScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_SkeletonScope>();
@@ -24,9 +24,9 @@ class _SkeletonScope extends InheritedWidget {
 }
 
 class SkeletonTheme extends ConsumerStatefulWidget {
-  final Widget child;
 
-  const SkeletonTheme({super.key, required this.child});
+  const SkeletonTheme({required this.child, super.key});
+  final Widget child;
 
   @override
   ConsumerState<SkeletonTheme> createState() => _SkeletonThemeState();
@@ -63,16 +63,15 @@ class _SkeletonThemeState extends ConsumerState<SkeletonTheme>
 // ─── Bone ────────────────────────────────────────────────────────────────────
 
 class SkeletonBox extends ConsumerWidget {
+
+  const SkeletonBox({
+    required this.height, super.key,
+    this.width,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  });
   final double? width;
   final double height;
   final BorderRadiusGeometry borderRadius;
-
-  const SkeletonBox({
-    super.key,
-    this.width,
-    required this.height,
-    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -122,12 +121,13 @@ class SkeletonBox extends ConsumerWidget {
 // ─── Hero bone (for primaryFixed gradient cards) ─────────────────────────────
 
 class _HeroBoneTheme extends InheritedWidget {
-  final Color boneColor, boneHighlight;
 
   const _HeroBoneTheme(
       {required this.boneColor,
       required this.boneHighlight,
-      required super.child});
+      required super.child,});
+  final Color boneColor;
+  final Color boneHighlight;
 
   static _HeroBoneTheme of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_HeroBoneTheme>()!;
@@ -138,14 +138,13 @@ class _HeroBoneTheme extends InheritedWidget {
 }
 
 class _HeroBone extends ConsumerWidget {
+
+  const _HeroBone(
+      {required this.height, this.width,
+      this.borderRadius = const BorderRadius.all(Radius.circular(6)),});
   final double? width;
   final double height;
   final BorderRadiusGeometry borderRadius;
-
-  const _HeroBone(
-      {this.width,
-      required this.height,
-      this.borderRadius = const BorderRadius.all(Radius.circular(6))});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -156,7 +155,7 @@ class _HeroBone extends ConsumerWidget {
           width: width,
           height: height,
           decoration: BoxDecoration(
-              color: theme.boneColor, borderRadius: borderRadius));
+              color: theme.boneColor, borderRadius: borderRadius,),);
     }
     return AnimatedBuilder(
       animation: ctrl,
@@ -176,7 +175,7 @@ class _HeroBone extends ConsumerWidget {
                 theme.boneColor,
                 theme.boneHighlight,
                 theme.boneColor,
-                theme.boneColor
+                theme.boneColor,
               ],
               stops: [
                 0.0,
@@ -197,10 +196,10 @@ class _HeroBone extends ConsumerWidget {
 // ─── Reusable building blocks ────────────────────────────────────────────────
 
 class SkeletonCard extends ConsumerWidget {
-  final double height;
-  final EdgeInsetsGeometry? margin;
 
   const SkeletonCard({super.key, this.height = 148, this.margin});
+  final double height;
+  final EdgeInsetsGeometry? margin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -220,35 +219,35 @@ class SkeletonCard extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               FractionallySizedBox(
-                  widthFactor: 0.6, child: SkeletonBox(height: 9)),
-              const SizedBox(height: 4),
+                  widthFactor: 0.6, child: SkeletonBox(height: 9),),
+              SizedBox(height: 4),
               FractionallySizedBox(
-                  widthFactor: 0.8, child: SkeletonBox(height: 14)),
-            ]),
+                  widthFactor: 0.8, child: SkeletonBox(height: 14),),
+            ],),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
+              const Row(children: [
                 Expanded(
                     flex: 4,
                     child: FractionallySizedBox(
                         widthFactor: 0.7,
                         alignment: Alignment.centerLeft,
-                        child: SkeletonBox(height: 10))),
-                const SizedBox(width: 6),
+                        child: SkeletonBox(height: 10),),),
+                SizedBox(width: 6),
                 Expanded(
                     flex: 3,
                     child: Align(
                         alignment: Alignment.centerRight,
                         child: FractionallySizedBox(
-                            widthFactor: 0.8, child: SkeletonBox(height: 14)))),
-              ]),
+                            widthFactor: 0.8, child: SkeletonBox(height: 14),),),),
+              ],),
               const SizedBox(height: 14),
               SkeletonBox(
                   width: double.infinity,
                   height: 6,
-                  borderRadius: BorderRadius.circular(3)),
-            ]),
+                  borderRadius: BorderRadius.circular(3),),
+            ],),
           ],
         ),
       ),
@@ -268,7 +267,7 @@ class SkeletonQuickActions extends ConsumerWidget {
         color: isBlack ? Colors.transparent : cs.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: isBlack ? 0.06 : 0.3)),
+            color: cs.outlineVariant.withValues(alpha: isBlack ? 0.06 : 0.3),),
       ),
       child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -278,18 +277,18 @@ class SkeletonQuickActions extends ConsumerWidget {
                     SkeletonBox(
                         width: 36,
                         height: 36,
-                        borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),),
                     const SizedBox(height: 8),
-                    SkeletonBox(width: 50, height: 10),
-                  ]))),
+                    const SkeletonBox(width: 50, height: 10),
+                  ],),),),
     );
   }
 }
 
 class SkeletonHeroCard extends ConsumerWidget {
-  final double height;
 
   const SkeletonHeroCard({super.key, this.height = 300});
+  final double height;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -306,7 +305,7 @@ class SkeletonHeroCard extends ConsumerWidget {
             : LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [cs.primaryFixedDim, cs.primaryFixed]),
+                colors: [cs.primaryFixedDim, cs.primaryFixed],),
         borderRadius: BorderRadius.circular(22),
         border: isBlack
             ? Border.all(color: Colors.white.withValues(alpha: 0.06))
@@ -324,23 +323,23 @@ class SkeletonHeroCard extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _HeroBone(
-                width: 110, height: 20, borderRadius: BorderRadius.circular(6)),
+                width: 110, height: 20, borderRadius: BorderRadius.circular(6),),
             _HeroBone(
-                width: 200, height: 42, borderRadius: BorderRadius.circular(8)),
+                width: 200, height: 42, borderRadius: BorderRadius.circular(8),),
             Row(
                 children: List.generate(3, (i) => i)
                     .expand((i) => [
                           Expanded(
                               child: _HeroBone(
                                   height: 56,
-                                  borderRadius: BorderRadius.circular(14))),
+                                  borderRadius: BorderRadius.circular(14),),),
                           if (i < 2) const SizedBox(width: 8),
-                        ])
-                    .toList()),
+                        ],)
+                    .toList(),),
             _HeroBone(
                 width: double.infinity,
                 height: 52,
-                borderRadius: BorderRadius.circular(14)),
+                borderRadius: BorderRadius.circular(14),),
           ],
         ),
       ),
@@ -349,9 +348,9 @@ class SkeletonHeroCard extends ConsumerWidget {
 }
 
 class SkeletonStatChips extends ConsumerWidget {
-  final int count;
 
   const SkeletonStatChips({super.key, this.count = 4});
+  final int count;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Row(
@@ -359,16 +358,16 @@ class SkeletonStatChips extends ConsumerWidget {
           .expand((i) => [
                 Expanded(
                     child: SkeletonBox(
-                        height: 72, borderRadius: BorderRadius.circular(20))),
+                        height: 72, borderRadius: BorderRadius.circular(20),),),
                 if (i < count - 1) const SizedBox(width: 12),
-              ])
-          .toList());
+              ],)
+          .toList(),);
 }
 
 class SkeletonDonutChart extends ConsumerWidget {
-  final double size;
 
   const SkeletonDonutChart({super.key, this.size = 160});
+  final double size;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -377,7 +376,7 @@ class SkeletonDonutChart extends ConsumerWidget {
     final hi = cs.onSurface.withValues(alpha: 0.14);
     final hole = cs.surface;
     final ctrl = SkeletonTheme.ctrlOf(context);
-    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+    return Row(children: [
       SizedBox(
         width: size,
         height: size,
@@ -389,7 +388,7 @@ class SkeletonDonutChart extends ConsumerWidget {
             final shimmer =
                 Color.lerp(base, hi, (1.0 - (dist / 0.5)).clamp(0.0, 1.0))!;
             return CustomPaint(
-                painter: _DonutPainter(ringColor: shimmer, holeColor: hole));
+                painter: _DonutPainter(ringColor: shimmer, holeColor: hole),);
           },
         ),
       ),
@@ -406,18 +405,19 @@ class SkeletonDonutChart extends ConsumerWidget {
                         SkeletonBox(
                             width: 10,
                             height: 10,
-                            borderRadius: BorderRadius.circular(5)),
+                            borderRadius: BorderRadius.circular(5),),
                         const SizedBox(width: 8),
                         SkeletonBox(width: 60 + (i % 3) * 16.0, height: 10),
-                      ]))))),
-    ]);
+                      ],),),),),),
+    ],);
   }
 }
 
 class _DonutPainter extends CustomPainter {
-  final Color ringColor, holeColor;
 
   const _DonutPainter({required this.ringColor, required this.holeColor});
+  final Color ringColor;
+  final Color holeColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -446,15 +446,15 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
             height: MediaQuery.of(context).padding.top + 72,
             width: double.infinity,
             padding: EdgeInsets.fromLTRB(
-                20, MediaQuery.of(context).padding.top, 20, 0),
+                20, MediaQuery.of(context).padding.top, 20, 0,),
             child: Row(
               children: [
                 SkeletonBox(
                     width: 38,
                     height: 38,
-                    borderRadius: BorderRadius.circular(19)),
+                    borderRadius: BorderRadius.circular(19),),
                 const SizedBox(width: 14),
-                SkeletonBox(width: 140, height: 22),
+                const SkeletonBox(width: 140, height: 22),
               ],
             ),
           ),
@@ -470,20 +470,20 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                     SkeletonBox(
                         width: 80,
                         height: 24,
-                        borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),),
                     const SizedBox(width: 8),
                     SkeletonBox(
                         width: 100,
                         height: 24,
-                        borderRadius: BorderRadius.circular(10)),
+                        borderRadius: BorderRadius.circular(10),),
                   ],
                 ),
                 const SizedBox(height: 24),
 
                 // Description line
-                SkeletonBox(width: double.infinity, height: 14),
+                const SkeletonBox(width: double.infinity, height: 14),
                 const SizedBox(height: 8),
-                SkeletonBox(width: 250, height: 14),
+                const SkeletonBox(width: 250, height: 14),
 
                 const SizedBox(height: 32),
 
@@ -493,12 +493,12 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                     Expanded(
                         child: SkeletonBox(
                             height: 80,
-                            borderRadius: BorderRadius.circular(16))),
+                            borderRadius: BorderRadius.circular(16),),),
                     const SizedBox(width: 12),
                     Expanded(
                         child: SkeletonBox(
                             height: 80,
-                            borderRadius: BorderRadius.circular(16))),
+                            borderRadius: BorderRadius.circular(16),),),
                   ],
                 ),
 
@@ -511,11 +511,11 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                     color: cs.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.3)),
+                        color: cs.outlineVariant.withValues(alpha: 0.3),),
                   ),
                   child: Column(
                     children: [
-                      Row(
+                      const Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           SkeletonBox(width: 100, height: 12),
@@ -526,7 +526,7 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                       SkeletonBox(
                           width: double.infinity,
                           height: 8,
-                          borderRadius: BorderRadius.circular(4)),
+                          borderRadius: BorderRadius.circular(4),),
                     ],
                   ),
                 ),
@@ -537,7 +537,7 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                 SkeletonBox(
                     width: double.infinity,
                     height: 44,
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),),
 
                 const SizedBox(height: 32),
 
@@ -550,15 +550,15 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
                     border:
                         Border.all(color: cs.primary.withValues(alpha: 0.15)),
                   ),
-                  child: Column(
+                  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SkeletonBox(width: 120, height: 16),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       SkeletonBox(width: double.infinity, height: 12),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       SkeletonBox(width: double.infinity, height: 12),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       SkeletonBox(width: 150, height: 12),
                     ],
                   ),
@@ -573,26 +573,26 @@ class SkeletonInvoiceDetail extends ConsumerWidget {
 }
 
 class SkeletonBarRow extends ConsumerWidget {
-  final double barWidthFraction;
 
   const SkeletonBarRow({super.key, this.barWidthFraction = 0.7});
+  final double barWidthFraction;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(children: [
-        SkeletonBox(width: 80, height: 11),
+        const SkeletonBox(width: 80, height: 11),
         const SizedBox(width: 12),
         Expanded(
             child: LayoutBuilder(
                 builder: (_, c) => SkeletonBox(
                     width: c.maxWidth * barWidthFraction,
                     height: 8,
-                    borderRadius: BorderRadius.circular(4)))),
+                    borderRadius: BorderRadius.circular(4),),),),
         const SizedBox(width: 10),
         SkeletonBox(
-            width: 38, height: 20, borderRadius: BorderRadius.circular(10)),
-      ]));
+            width: 38, height: 20, borderRadius: BorderRadius.circular(10),),
+      ],),);
 }
 
 class SkeletonStatTile extends ConsumerWidget {
@@ -611,11 +611,11 @@ class SkeletonStatTile extends ConsumerWidget {
       ),
       child: Row(children: [
         SkeletonBox(
-            width: 20, height: 20, borderRadius: BorderRadius.circular(4)),
+            width: 20, height: 20, borderRadius: BorderRadius.circular(4),),
         const SizedBox(width: 16),
-        Expanded(child: SkeletonBox(width: 120, height: 12)),
-        SkeletonBox(width: 44, height: 14),
-      ]),
+        const Expanded(child: SkeletonBox(width: 120, height: 12)),
+        const SkeletonBox(width: 44, height: 14),
+      ],),
     );
   }
 }
@@ -627,16 +627,16 @@ class SkeletonSectionHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => Padding(
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        SkeletonBox(width: 160, height: 16),
+        const SkeletonBox(width: 160, height: 16),
         SkeletonBox(
-            width: 72, height: 26, borderRadius: BorderRadius.circular(20)),
-      ]));
+            width: 72, height: 26, borderRadius: BorderRadius.circular(20),),
+      ],),);
 }
 
 class SkeletonActiveStrip extends ConsumerWidget {
-  final int count;
 
   const SkeletonActiveStrip({super.key, this.count = 3});
+  final int count;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -654,7 +654,7 @@ class SkeletonActiveStrip extends ConsumerWidget {
                       width: 200,
                       margin: EdgeInsets.only(
                           left: i == 0 ? 20 : 0,
-                          right: i < count - 1 ? 12 : 20),
+                          right: i < count - 1 ? 12 : 20,),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: isBlack
@@ -665,7 +665,7 @@ class SkeletonActiveStrip extends ConsumerWidget {
                             ? null
                             : Border.all(
                                 color:
-                                    cs.outlineVariant.withValues(alpha: 0.5)),
+                                    cs.outlineVariant.withValues(alpha: 0.5),),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -674,22 +674,22 @@ class SkeletonActiveStrip extends ConsumerWidget {
                           Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                SkeletonBox(width: 110, height: 12),
+                                const SkeletonBox(width: 110, height: 12),
                                 SkeletonBox(
                                     width: 30,
                                     height: 20,
-                                    borderRadius: BorderRadius.circular(8)),
-                              ]),
-                          Column(
+                                    borderRadius: BorderRadius.circular(8),),
+                              ],),
+                          const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SkeletonBox(width: 90, height: 20),
-                                const SizedBox(height: 6),
+                                SizedBox(height: 6),
                                 SkeletonBox(width: 60, height: 10),
-                              ]),
+                              ],),
                         ],
                       ),
-                    ))),
+                    ),),),
       ),
     );
   }
@@ -714,20 +714,20 @@ class SkeletonTabBar extends ConsumerWidget {
         Expanded(
             child: SkeletonBox(
                 height: double.infinity,
-                borderRadius: BorderRadius.circular(10))),
+                borderRadius: BorderRadius.circular(10),),),
         const SizedBox(width: 4),
         Expanded(
             child: SkeletonBox(
                 height: double.infinity,
-                borderRadius: BorderRadius.circular(10))),
-      ]),
+                borderRadius: BorderRadius.circular(10),),),
+      ],),
     );
   }
 }
 
 class SkeletonListTile extends ConsumerWidget {
-  final EdgeInsetsGeometry? margin;
   const SkeletonListTile({super.key, this.margin});
+  final EdgeInsetsGeometry? margin;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
@@ -742,29 +742,29 @@ class SkeletonListTile extends ConsumerWidget {
       ),
       child: Row(children: [
         SkeletonBox(
-            width: 40, height: 40, borderRadius: BorderRadius.circular(10)),
+            width: 40, height: 40, borderRadius: BorderRadius.circular(10),),
         const SizedBox(width: 12),
-        Expanded(
+        const Expanded(
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
               SkeletonBox(width: double.infinity, height: 12),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               SkeletonBox(width: 100, height: 10),
-            ])),
+            ],),),
         const SizedBox(width: 12),
-        SkeletonBox(width: 56, height: 12),
-      ]),
+        const SkeletonBox(width: 56, height: 12),
+      ],),
     );
   }
 }
 
 class SkeletonCardList extends ConsumerWidget {
-  final int count;
-  final double cardHeight;
 
   const SkeletonCardList({super.key, this.count = 4, this.cardHeight = 148});
+  final int count;
+  final double cardHeight;
   @override
   Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
           child: ListView.separated(
@@ -773,7 +773,7 @@ class SkeletonCardList extends ConsumerWidget {
         itemCount: count,
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (_, __) => SkeletonCard(height: cardHeight),
-      ));
+      ),);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -784,8 +784,7 @@ class SkeletonInvoiceCard extends ConsumerWidget {
   const SkeletonInvoiceCard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
+  Widget build(BuildContext context, WidgetRef ref) => Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -796,17 +795,17 @@ class SkeletonInvoiceCard extends ConsumerWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(
+          const Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 SkeletonBox(width: 140, height: 14),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 SkeletonBox(width: 90, height: 10),
-              ])),
+              ],),),
           SkeletonBox(
-              width: 72, height: 28, borderRadius: BorderRadius.circular(12)),
-        ]),
+              width: 72, height: 28, borderRadius: BorderRadius.circular(12),),
+        ],),
         const SizedBox(height: 20),
         Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -815,30 +814,29 @@ class SkeletonInvoiceCard extends ConsumerWidget {
                 (i) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          SkeletonBox(width: 36, height: 9),
+                          const SkeletonBox(width: 36, height: 9),
                           const SizedBox(height: 6),
                           SkeletonBox(width: 54 + i * 12.0, height: 14),
-                        ]))),
+                        ],),),),
         const SizedBox(height: 12),
         Row(children: [
           SkeletonBox(
-              width: 13, height: 13, borderRadius: BorderRadius.circular(7)),
+              width: 13, height: 13, borderRadius: BorderRadius.circular(7),),
           const SizedBox(width: 6),
-          SkeletonBox(width: 140, height: 10),
-        ]),
+          const SkeletonBox(width: 140, height: 10),
+        ],),
         const SizedBox(height: 16),
         SkeletonBox(
             width: double.infinity,
             height: 8,
-            borderRadius: BorderRadius.circular(4)),
+            borderRadius: BorderRadius.circular(4),),
         const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           SkeletonBox(width: 90, height: 9),
           SkeletonBox(width: 36, height: 9),
-        ]),
-      ]),
+        ],),
+      ],),
     );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -861,44 +859,44 @@ class _SkeletonInvestmentCard extends ConsumerWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(child: SkeletonBox(width: 140, height: 14)),
+          const Expanded(child: SkeletonBox(width: 140, height: 14)),
           const SizedBox(width: 12),
           SkeletonBox(
-              width: 56, height: 24, borderRadius: BorderRadius.circular(10)),
-        ]),
+              width: 56, height: 24, borderRadius: BorderRadius.circular(10),),
+        ],),
         const SizedBox(height: 16),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SkeletonBox(width: 50, height: 9),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             SkeletonBox(width: 70, height: 13),
-          ]),
+          ],),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SkeletonBox(width: 65, height: 9),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             SkeletonBox(width: 55, height: 13),
-          ]),
+          ],),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SkeletonBox(width: 50, height: 9),
-            const SizedBox(height: 4),
+            SizedBox(height: 4),
             SkeletonBox(width: 70, height: 13),
-          ]),
-        ]),
+          ],),
+        ],),
         const SizedBox(height: 16),
         SkeletonBox(
             width: double.infinity,
             height: 6,
-            borderRadius: BorderRadius.circular(3)),
+            borderRadius: BorderRadius.circular(3),),
         const SizedBox(height: 6),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           SkeletonBox(width: 100, height: 9),
           SkeletonBox(width: 60, height: 9),
-        ]),
+        ],),
         const SizedBox(height: 10),
-        Align(
+        const Align(
             alignment: Alignment.centerRight,
-            child: SkeletonBox(width: 80, height: 9)),
-      ]),
+            child: SkeletonBox(width: 80, height: 9),),
+      ],),
     );
   }
 }
@@ -908,9 +906,9 @@ class _SkeletonInvestmentCard extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SkeletonMenuSection extends ConsumerWidget {
-  final int itemCount;
 
   const _SkeletonMenuSection({required this.itemCount});
+  final int itemCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -928,27 +926,27 @@ class _SkeletonMenuSection extends ConsumerWidget {
             (i) => Column(children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 13),
+                        horizontal: 14, vertical: 13,),
                     child: Row(children: [
                       SkeletonBox(
                           width: 34,
                           height: 34,
-                          borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(10),),
                       const SizedBox(width: 12),
                       Expanded(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                             SkeletonBox(
-                                width: 100 + (i % 3) * 20.0, height: 12),
+                                width: 100 + (i % 3) * 20.0, height: 12,),
                             const SizedBox(height: 5),
                             SkeletonBox(width: 140 + (i % 2) * 30.0, height: 9),
-                          ])),
+                          ],),),
                       SkeletonBox(
                           width: 18,
                           height: 18,
-                          borderRadius: BorderRadius.circular(4)),
-                    ]),
+                          borderRadius: BorderRadius.circular(4),),
+                    ],),
                   ),
                   if (i < itemCount - 1)
                     Divider(
@@ -956,7 +954,7 @@ class _SkeletonMenuSection extends ConsumerWidget {
                       color: cs.outlineVariant.withValues(alpha: 0.3),
                       indent: 58,
                     ),
-                ])),
+                ],),),
       ),
     );
   }
@@ -986,13 +984,13 @@ class SkeletonPortfolioHeader extends ConsumerWidget {
               SkeletonBox(
                   width: 20,
                   height: 20,
-                  borderRadius: BorderRadius.circular(4)),
+                  borderRadius: BorderRadius.circular(4),),
               const SizedBox(height: 12),
-              SkeletonBox(width: 90, height: 16),
+              const SkeletonBox(width: 90, height: 16),
               const SizedBox(height: 4),
-              SkeletonBox(width: 55, height: 10),
-            ]),
-          )),
+              const SkeletonBox(width: 55, height: 10),
+            ],),
+          ),),
           const SizedBox(width: 12),
           Expanded(
               child: Container(
@@ -1006,14 +1004,14 @@ class SkeletonPortfolioHeader extends ConsumerWidget {
               SkeletonBox(
                   width: 20,
                   height: 20,
-                  borderRadius: BorderRadius.circular(4)),
+                  borderRadius: BorderRadius.circular(4),),
               const SizedBox(height: 12),
-              SkeletonBox(width: 90, height: 16),
+              const SkeletonBox(width: 90, height: 16),
               const SizedBox(height: 4),
-              SkeletonBox(width: 55, height: 10),
-            ]),
-          )),
-        ]),
+              const SkeletonBox(width: 55, height: 10),
+            ],),
+          ),),
+        ],),
       ),
     );
   }
@@ -1042,15 +1040,15 @@ class SkeletonAnalyticsContent extends ConsumerWidget {
     return SkeletonTheme(
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),),
         child: ConstrainedBox(
           constraints:
               BoxConstraints(minHeight: MediaQuery.of(context).size.height),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: const SkeletonStatChips(count: 2)),
+            const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: SkeletonStatChips(count: 2),),
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1060,31 +1058,31 @@ class SkeletonAnalyticsContent extends ConsumerWidget {
                   color: cs.surfaceContainer,
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                      color: cs.outlineVariant.withValues(alpha: 0.1)),
+                      color: cs.outlineVariant.withValues(alpha: 0.1),),
                 ),
-                child: Column(
+                child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SkeletonBox(width: 140, height: 16),
-                      const SizedBox(height: 24),
-                      SkeletonDonutChart(size: 160),
-                    ]),
+                      SizedBox(height: 24),
+                      SkeletonDonutChart(),
+                    ],),
               ),
             ),
             const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SkeletonBox(width: 140, height: 16),
-                    const SizedBox(height: 16),
-                    const SkeletonStatTile(),
-                    const SkeletonStatTile(),
-                    const SkeletonStatTile(),
-                  ]),
+                    SizedBox(height: 16),
+                    SkeletonStatTile(),
+                    SkeletonStatTile(),
+                    SkeletonStatTile(),
+                  ],),
             ),
-          ]),
+          ],),
         ),
       ),
     );
@@ -1095,8 +1093,7 @@ class SkeletonHomeContent extends ConsumerWidget {
   const SkeletonHomeContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
@@ -1136,7 +1133,7 @@ class SkeletonHomeContent extends ConsumerWidget {
                       width: 240,
                       margin: const EdgeInsets.only(right: 12),
                       child: SkeletonBox(
-                          borderRadius: BorderRadius.circular(20), height: 130),
+                          borderRadius: BorderRadius.circular(20), height: 130,),
                     ),
                   ),
                 ),
@@ -1163,18 +1160,16 @@ class SkeletonHomeContent extends ConsumerWidget {
         ),
       ),
     );
-  }
 }
 
 class SkeletonMarketplaceContent extends ConsumerWidget {
   const SkeletonMarketplaceContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics()),
+            parent: BouncingScrollPhysics(),),
         padding: const EdgeInsets.only(top: 20),
         child: ConstrainedBox(
           constraints:
@@ -1188,7 +1183,7 @@ class SkeletonMarketplaceContent extends ConsumerWidget {
                 child: SkeletonBox(
                     width: double.infinity,
                     height: 54,
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(16),),
               ),
               const SizedBox(height: 20),
 
@@ -1206,7 +1201,7 @@ class SkeletonMarketplaceContent extends ConsumerWidget {
                   children: List.generate(
                       5,
                       (_) => const SkeletonCard(
-                          margin: EdgeInsets.only(bottom: 16))),
+                          margin: EdgeInsets.only(bottom: 16),),),
                 ),
               ),
             ],
@@ -1214,7 +1209,6 @@ class SkeletonMarketplaceContent extends ConsumerWidget {
         ),
       ),
     );
-  }
 }
 
 
@@ -1248,21 +1242,21 @@ class SkeletonProfileContent extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 14),
-            SkeletonBox(width: 180, height: 18),
+            const SkeletonBox(width: 180, height: 18),
             const SizedBox(height: 4),
-            SkeletonBox(width: 200, height: 12),
+            const SkeletonBox(width: 200, height: 12),
             const SizedBox(height: 12),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               SkeletonBox(
                   width: 80,
                   height: 22,
-                  borderRadius: BorderRadius.circular(20)),
+                  borderRadius: BorderRadius.circular(20),),
               const SizedBox(width: 6),
               SkeletonBox(
                   width: 56,
                   height: 22,
-                  borderRadius: BorderRadius.circular(20)),
-            ]),
+                  borderRadius: BorderRadius.circular(20),),
+            ],),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(14),
@@ -1276,26 +1270,26 @@ class SkeletonProfileContent extends ConsumerWidget {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      SkeletonBox(width: 110, height: 10),
+                      const SkeletonBox(width: 110, height: 10),
                       SkeletonBox(
                           width: 70,
                           height: 18,
-                          borderRadius: BorderRadius.circular(20)),
-                    ]),
+                          borderRadius: BorderRadius.circular(20),),
+                    ],),
                 const SizedBox(height: 10),
                 SkeletonBox(
                     width: double.infinity,
                     height: 4,
-                    borderRadius: BorderRadius.circular(2)),
+                    borderRadius: BorderRadius.circular(2),),
                 const SizedBox(height: 8),
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: List.generate(
-                        5, (_) => SkeletonBox(width: 34, height: 9))),
-              ]),
+                        5, (_) => const SkeletonBox(width: 34, height: 9),),),
+              ],),
             ),
             const SizedBox(height: 16),
-          ]),
+          ],),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -1312,24 +1306,24 @@ class SkeletonProfileContent extends ConsumerWidget {
                         Expanded(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                vertical: 10, horizontal: 8),
+                                vertical: 10, horizontal: 8,),
                             decoration: BoxDecoration(
                               color: cs.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(UI.radiusSm),
                               border: Border.all(
                                   color:
-                                      cs.outlineVariant.withValues(alpha: 0.3)),
+                                      cs.outlineVariant.withValues(alpha: 0.3),),
                             ),
-                            child: Column(children: [
+                            child: const Column(children: [
                               SkeletonBox(width: 60, height: 16),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4),
                               SkeletonBox(width: 50, height: 9),
-                            ]),
+                            ],),
                           ),
                         ),
                         if (i < 2) const SizedBox(width: 8),
-                      ])
-                  .toList()),
+                      ],)
+                  .toList(),),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -1350,17 +1344,17 @@ class SkeletonProfileContent extends ConsumerWidget {
             SkeletonBox(
                 width: double.infinity,
                 height: 48,
-                borderRadius: BorderRadius.circular(UI.radiusMd)),
+                borderRadius: BorderRadius.circular(UI.radiusMd),),
             const SizedBox(height: 100),
-          ]),
+          ],),
         ),
-      ]),
+      ],),
     );
   }
 
-  static Widget _sectionLabel() => Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
-      child: SkeletonBox(width: 80, height: 10));
+  static Widget _sectionLabel() => const Padding(
+      padding: EdgeInsets.only(left: 4, bottom: 8, top: 4),
+      child: SkeletonBox(width: 80, height: 10),);
 }
 
 class SkeletonPersonalDetails extends ConsumerWidget {
@@ -1387,11 +1381,11 @@ class SkeletonPersonalDetails extends ConsumerWidget {
                 SkeletonBox(
                     width: 80,
                     height: 80,
-                    borderRadius: BorderRadius.circular(40)),
+                    borderRadius: BorderRadius.circular(40),),
                 const SizedBox(height: 16),
-                SkeletonBox(width: 180, height: 20),
+                const SkeletonBox(width: 180, height: 20),
                 const SizedBox(height: 8),
-                SkeletonBox(width: 220, height: 14),
+                const SkeletonBox(width: 220, height: 14),
               ],
             ),
           ),
@@ -1413,20 +1407,20 @@ class SkeletonPersonalDetails extends ConsumerWidget {
                           SkeletonBox(
                               width: 24,
                               height: 24,
-                              borderRadius: BorderRadius.circular(6)),
+                              borderRadius: BorderRadius.circular(6),),
                           const SizedBox(width: 16),
-                          Expanded(
+                          const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SkeletonBox(width: 80, height: 10),
-                                const SizedBox(height: 6),
+                                SizedBox(height: 6),
                                 SkeletonBox(width: 160, height: 14),
                               ],
                             ),
                           ),
-                        ]),
-                      )).toList(),
+                        ],),
+                      ),).toList(),
             ),
           ),
         ],
@@ -1453,21 +1447,21 @@ class SkeletonNomineeList extends ConsumerWidget {
                       color: cs.surfaceContainer,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                          color: cs.outlineVariant.withValues(alpha: 0.3)),
+                          color: cs.outlineVariant.withValues(alpha: 0.3),),
                     ),
                     child: Row(
                       children: [
                         SkeletonBox(
                             width: 52,
                             height: 52,
-                            borderRadius: BorderRadius.circular(16)),
+                            borderRadius: BorderRadius.circular(16),),
                         const SizedBox(width: 16),
-                        Expanded(
+                        const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SkeletonBox(width: 140, height: 16),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               SkeletonBox(width: 80, height: 12),
                             ],
                           ),
@@ -1475,11 +1469,11 @@ class SkeletonNomineeList extends ConsumerWidget {
                         SkeletonBox(
                             width: 48,
                             height: 24,
-                            borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),),
                       ],
                     ),
                   ),
-                )),
+                ),),
       ),
     );
   }
@@ -1495,7 +1489,7 @@ class SkeletonBankAccountList extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SkeletonBox(width: 140, height: 14),
+          const SkeletonBox(width: 140, height: 14),
           const SizedBox(height: 16),
           ...List.generate(
               3,
@@ -1507,21 +1501,21 @@ class SkeletonBankAccountList extends ConsumerWidget {
                         color: cs.surfaceContainer,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: cs.outlineVariant.withValues(alpha: 0.3)),
+                            color: cs.outlineVariant.withValues(alpha: 0.3),),
                       ),
                       child: Row(
                         children: [
                           SkeletonBox(
                               width: 48,
                               height: 48,
-                              borderRadius: BorderRadius.circular(14)),
+                              borderRadius: BorderRadius.circular(14),),
                           const SizedBox(width: 16),
-                          Expanded(
+                          const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 SkeletonBox(width: 120, height: 14),
-                                const SizedBox(height: 8),
+                                SizedBox(height: 8),
                                 SkeletonBox(width: 180, height: 12),
                               ],
                             ),
@@ -1529,7 +1523,7 @@ class SkeletonBankAccountList extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  )),
+                  ),),
         ],
       ),
     );
@@ -1540,8 +1534,7 @@ class SkeletonNotificationContent extends ConsumerWidget {
   const SkeletonNotificationContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: ListView.separated(
         padding: const EdgeInsets.all(20),
         itemCount: 8,
@@ -1551,7 +1544,6 @@ class SkeletonNotificationContent extends ConsumerWidget {
         itemBuilder: (_, __) => const SkeletonNotificationTile(),
       ),
     );
-  }
 }
 
 class SkeletonNotificationTile extends ConsumerWidget {
@@ -1571,9 +1563,9 @@ class SkeletonNotificationTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SkeletonBox(
-              width: 44, height: 44, borderRadius: BorderRadius.circular(14)),
+              width: 44, height: 44, borderRadius: BorderRadius.circular(14),),
           const SizedBox(width: 16),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1584,9 +1576,9 @@ class SkeletonNotificationTile extends ConsumerWidget {
                     SkeletonBox(width: 40, height: 10),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: 8),
                 SkeletonBox(width: double.infinity, height: 12),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 SkeletonBox(width: 200, height: 12),
               ],
             ),
@@ -1601,14 +1593,13 @@ class SkeletonOtpContent extends ConsumerWidget {
   const SkeletonOtpContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: Column(
         children: [
           const SizedBox(height: 40),
-          SkeletonBox(width: 200, height: 28),
+          const SkeletonBox(width: 200, height: 28),
           const SizedBox(height: 12),
-          SkeletonBox(width: 280, height: 16),
+          const SkeletonBox(width: 280, height: 16),
           const SizedBox(height: 48),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1619,62 +1610,58 @@ class SkeletonOtpContent extends ConsumerWidget {
                       child: SkeletonBox(
                           width: 44,
                           height: 56,
-                          borderRadius: BorderRadius.circular(12)),
-                    )),
+                          borderRadius: BorderRadius.circular(12),),
+                    ),),
           ),
           const SizedBox(height: 40),
-          SkeletonBox(width: 180, height: 14),
+          const SkeletonBox(width: 180, height: 14),
           const SizedBox(height: 60),
           SkeletonBox(
               width: double.infinity,
               height: 56,
-              borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(16),),
         ],
       ),
     );
-  }
 }
 
 class SkeletonShieldContent extends ConsumerWidget {
   const SkeletonShieldContent({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: Column(
         children: [
           const SizedBox(height: 20),
           SkeletonBox(
-              width: 48, height: 48, borderRadius: BorderRadius.circular(24)),
+              width: 48, height: 48, borderRadius: BorderRadius.circular(24),),
           const SizedBox(height: 16),
-          SkeletonBox(width: 220, height: 24),
+          const SkeletonBox(width: 220, height: 24),
           const SizedBox(height: 8),
-          SkeletonBox(width: 280, height: 14),
+          const SkeletonBox(width: 280, height: 14),
           const SizedBox(height: 40),
           SkeletonBox(
-              width: 160, height: 160, borderRadius: BorderRadius.circular(24)),
+              width: 160, height: 160, borderRadius: BorderRadius.circular(24),),
           const SizedBox(height: 24),
-          SkeletonBox(width: 140, height: 12),
+          const SkeletonBox(width: 140, height: 12),
           const SizedBox(height: 8),
           SkeletonBox(
-              width: 180, height: 32, borderRadius: BorderRadius.circular(8)),
+              width: 180, height: 32, borderRadius: BorderRadius.circular(8),),
           const SizedBox(height: 40),
           SkeletonBox(
               width: double.infinity,
               height: 56,
-              borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(16),),
         ],
       ),
     );
-  }
 }
 
 class SkeletonSecondaryMarket extends ConsumerWidget {
   const SkeletonSecondaryMarket({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: ListView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -1685,15 +1672,13 @@ class SkeletonSecondaryMarket extends ConsumerWidget {
         ),
       ),
     );
-  }
 }
 
 class SkeletonUpcomingInvoices extends ConsumerWidget {
   const SkeletonUpcomingInvoices({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return SkeletonTheme(
+  Widget build(BuildContext context, WidgetRef ref) => SkeletonTheme(
       child: ListView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -1704,14 +1689,12 @@ class SkeletonUpcomingInvoices extends ConsumerWidget {
         ),
       ),
     );
-  }
 }
 class SkeletonECollect extends StatelessWidget {
   const SkeletonECollect({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SkeletonTheme(
+  Widget build(BuildContext context) => SkeletonTheme(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -1743,5 +1726,4 @@ class SkeletonECollect extends StatelessWidget {
         ),
       ),
     );
-  }
 }

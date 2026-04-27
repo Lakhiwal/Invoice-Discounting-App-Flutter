@@ -52,7 +52,7 @@ class TransactionActivityTile extends ConsumerWidget {
     if (match != null) {
       final val = double.tryParse(match.group(1)!.replaceAll(',', ''));
       if (val != null && val > 0) {
-        return (title: title, interestLabel: '+₹${fmtAmount(val)} earned');
+        return (title: title, interestLabel: '+₹${fmtAmount(val)} received');
       }
     }
     return (title: title, interestLabel: null);

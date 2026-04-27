@@ -29,14 +29,13 @@ class AppIcons {
 
   // --- Common Actions ---
   static IconData get back =>
-      useIconsax ? Iconsax.arrow_left_1 : Icons.arrow_back_ios_new_rounded;
+      useIconsax ? Iconsax.arrow_left_3 : Icons.arrow_back_ios_new_rounded;
   static IconData get chevronLeft =>
-      useIconsax ? Iconsax.arrow_left_2 : Icons.chevron_left_rounded;
+      useIconsax ? Iconsax.arrow_left_3 : Icons.chevron_left_rounded;
   static IconData get chevronRight =>
       useIconsax ? Iconsax.arrow_right_3 : Icons.chevron_right_rounded;
   static IconData get next => chevronRight;
-  static IconData get close =>
-      useIconsax ? Iconsax.close_circle : Icons.close_rounded;
+  static IconData get close => Icons.close_rounded;
   static IconData get refresh =>
       useIconsax ? Iconsax.refresh_2 : Icons.refresh_rounded;
   static IconData get search =>
@@ -141,7 +140,7 @@ class AppIcons {
   static IconData get wallet =>
       useIconsax ? Iconsax.wallet_2 : Icons.account_balance_wallet_outlined;
   static IconData get walletBold =>
-      useIconsax ? Iconsax.wallet : Icons.account_balance_wallet_rounded;
+      useIconsax ? Iconsax.wallet : AppIcons.wallet;
   static IconData get card =>
       useIconsax ? Iconsax.card : Icons.credit_card_outlined;
   static IconData get receipt =>
@@ -162,7 +161,7 @@ class AppIcons {
       useIconsax ? Iconsax.profile_2user : Icons.handshake_rounded;
   static IconData get phone => useIconsax ? Iconsax.call : Icons.phone_outlined;
   static IconData get addCircle =>
-      useIconsax ? Iconsax.add_circle : Icons.add_circle_outline_rounded;
+      useIconsax ? Iconsax.add : Icons.add_circle_outline_rounded;
   static IconData get add => useIconsax ? Iconsax.add : Icons.add_rounded;
   static IconData get remove =>
       useIconsax ? Iconsax.minus : Icons.remove_rounded;

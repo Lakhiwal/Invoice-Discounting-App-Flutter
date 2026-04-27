@@ -63,7 +63,7 @@ class _PremiumDateSheetState extends State<PremiumDateSheet> {
         borderRadius: UI.sheetRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha:0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -82,10 +82,10 @@ class _PremiumDateSheetState extends State<PremiumDateSheet> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   decoration: BoxDecoration(
-                    color: cs.surface.withOpacity(0.5),
+                    color: cs.surface.withValues(alpha:0.5),
                     border: Border(
                       bottom: BorderSide(
-                        color: cs.outlineVariant.withOpacity(0.2),
+                        color: cs.outlineVariant.withValues(alpha:0.2),
                       ),
                     ),
                   ),
@@ -95,7 +95,7 @@ class _PremiumDateSheetState extends State<PremiumDateSheet> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: cs.onSurfaceVariant.withOpacity(0.3),
+                          color: cs.onSurfaceVariant.withValues(alpha:0.3),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),

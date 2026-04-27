@@ -200,7 +200,8 @@ class Auth extends _$Auth {
 
   Future<void> logout() async {
     // 1. Backend + Global Service Cleanup (SecureStorage, Caches, etc.)
-    await ApiService.logout().catchError((e) => debugPrint('Logout error: $e'));
+    await ApiService.logout()
+        .catchError((Object e) => debugPrint('Logout error: $e'));
 
     // 2. State Provider Invalidation
     // We must manually invalidate keepAlive providers so they reset to initialState

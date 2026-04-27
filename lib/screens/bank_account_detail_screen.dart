@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,7 @@ import 'package:invoice_discounting_app/theme/theme_provider.dart';
 import 'package:invoice_discounting_app/theme/ui_constants.dart';
 import 'package:invoice_discounting_app/utils/app_haptics.dart';
 import 'package:invoice_discounting_app/widgets/app_logo_header.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class BankAccountDetailScreen extends ConsumerStatefulWidget {
   const BankAccountDetailScreen({required this.account, super.key});
@@ -52,7 +54,8 @@ class _BankAccountDetailScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UI.radiusLg)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(UI.radiusLg),),
         title: const Text('Remove account?'),
         content: Text(
           'Remove ${_account.bankName} ending in ${_account.maskedNumber}?',
@@ -90,7 +93,8 @@ class _BankAccountDetailScreenState
         backgroundColor:
             isError ? AppColors.danger(context) : AppColors.success(context),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UI.radiusSm)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(UI.radiusSm),),
       ),
     );
   }
@@ -180,13 +184,11 @@ class _BankAccountDetailScreenState
                       child: ElevatedButton.icon(
                         onPressed: _isSettingPrimary ? null : _setPrimary,
                         icon: _isSettingPrimary
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
+                                child: LoadingAnimationWidget.staggeredDotsWave(
+                                    color: Colors.white, size: 24,),
                               )
                             : Icon(AppIcons.star, size: 20, color: cs.primary),
                         label: const Text(
@@ -255,7 +257,6 @@ class _BankCardVisual extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
     final info = account.bankInfo;
 
     return Container(

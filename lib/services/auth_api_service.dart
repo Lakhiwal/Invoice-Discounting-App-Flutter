@@ -3,10 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:invoice_discounting_app/services/api_client.dart';
+import 'package:invoice_discounting_app/services/secure_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'api_client.dart';
-import 'secure_storage_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AuthApiService — Login, Register, OTP, Password, 2FA
@@ -37,7 +36,7 @@ class AuthApiService {
   }
 
   static Future<Map<String, dynamic>> login(
-      String email, String password) async {
+      String email, String password,) async {
     try {
       final response = await http
           .post(
@@ -49,12 +48,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -115,12 +114,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -158,12 +157,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -172,7 +171,7 @@ class AuthApiService {
       if (response.statusCode == 200) {
         return {
           'success': true,
-          'message': data['message'] ?? 'Email verified.'
+          'message': data['message'] ?? 'Email verified.',
         };
       }
 
@@ -201,12 +200,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -243,12 +242,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -289,12 +288,12 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       if (response.statusCode == 408) {
         return {
           'success': false,
-          'error': 'Request timed out. Check your connection.'
+          'error': 'Request timed out. Check your connection.',
         };
       }
 
@@ -319,7 +318,7 @@ class AuthApiService {
   }
 
   static Future<Map<String, dynamic>> changePassword(
-      String currentPassword, String newPassword) async {
+      String currentPassword, String newPassword,) async {
     try {
       final response = await ApiClient.post(
         '$_base/auth/change-password/',
@@ -362,7 +361,7 @@ class AuthApiService {
       }
       return {
         'success': false,
-        'error': 'Failed to fetch status (${response.statusCode})'
+        'error': 'Failed to fetch status (${response.statusCode})',
       };
     } catch (e) {
       return {'success': false, 'error': e.toString()};
@@ -381,12 +380,12 @@ class AuthApiService {
           'success': false,
           'error': data['error'] ??
               data['detail'] ??
-              'Setup failed (${response.statusCode})'
+              'Setup failed (${response.statusCode})',
         };
       } catch (_) {
         return {
           'success': false,
-          'error': 'Setup failed (${response.statusCode})'
+          'error': 'Setup failed (${response.statusCode})',
         };
       }
     } catch (e) {
@@ -418,7 +417,7 @@ class AuthApiService {
       }
       return {
         'success': false,
-        'error': data['error'] ?? 'Deactivation failed'
+        'error': data['error'] ?? 'Deactivation failed',
       };
     } catch (e) {
       return {'success': false, 'error': 'Connection error'};
@@ -426,7 +425,7 @@ class AuthApiService {
   }
 
   static Future<Map<String, dynamic>> verify2FALogin(
-      String preAuthToken, String token) async {
+      String preAuthToken, String token,) async {
     try {
       final response = await http
           .post(
@@ -441,7 +440,7 @@ class AuthApiService {
               onTimeout: () => http.Response(
                     '{"error":"Request timed out. Check your connection."}',
                     408,
-                  ));
+                  ),);
 
       final data = jsonDecode(response.body);
 
@@ -452,12 +451,12 @@ class AuthApiService {
         return {
           'success': true,
           'user': data['user'],
-          'refresh': data['refresh']
+          'refresh': data['refresh'],
         };
       } else {
         return {
           'success': false,
-          'error': data['error'] ?? 'Verification failed'
+          'error': data['error'] ?? 'Verification failed',
         };
       }
     } catch (e) {
@@ -473,7 +472,7 @@ class AuthApiService {
     await SecureStorageService.clearAll().timeout(const Duration(seconds: 3),
         onTimeout: () {
       debugPrint('SecureStorage.clearAll timed out — skipping');
-    });
+    },);
   }
 
   static Future<bool> isLoggedIn() async {

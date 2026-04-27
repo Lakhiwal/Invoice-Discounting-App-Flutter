@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:loading_animation_widget/loading_animation_widget.dart';
 import 'package:invoice_discounting_app/theme/app_icons.dart';
 import 'package:invoice_discounting_app/view_models/auth_view_model.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
   const LoginForm({required this.onForgotPassword, super.key});
